@@ -18,6 +18,8 @@
 ;;  . current project dependencies???
 
 
+;; Flat view:
+
 ;;
 ;;     [+] ProjName1           <deps: ProjName3, ProjName2>
 ;;     [ ] ProjName2
@@ -26,6 +28,17 @@
 ;;         `- FolderB/File3
 ;;         `- FolderB/File4
 ;;         `- FolderB/File5
+;;     [+] ProjName3
+;;  
+
+;; Folder view:
+
+;;     [+] ProjName1           <deps: ProjName3, ProjName2>
+;;     [ ] ProjName2
+;;          `- FolderA
+;;   *          `- File1
+;;   *          `- File2
+;;          ++ FolderB
 ;;     [+] ProjName3
 ;;  
 
@@ -60,11 +73,11 @@
 ;;    o    -> open marked files
 ;;    h    -> find corresponding header/source
 ;;    +    -> collapse/uncollapse folder/project
-;;    f    -> show/hide folders
 ;;    fe   -> set filter on extension
 ;;    fn   -> set filter on filename
 ;;    fd   -> set filter on internal directory
 ;;    g    -> reload/reparse sln/vcprojs files
+;;    v    -> Toggle view mode (flat / flat with the foldershidden / folder)
 ;;
 ;;    B    -> launch build
 ;;    C    -> launch clean
@@ -81,29 +94,77 @@
 ;; - Different coler for files referenced in the proj but don't exist?
 ;; - Auto reload if file modified on disk?
 ;;
-(require 'ewoc)
 
+(require 'ewoc)
 
 (defvar project-buffer-status nil)
 
 ;;
 
-(defstruct (project-buffer-fileinto
-	    (:copier nil)
-	    (:constructor project-buffer-create-fileinfo (name project type filename))
-	    (:conc-name project-buffer-fileinfo->))
-  type      ;; project? file? folder?
-  filename  ;; full path to the filename
-  name      ;; string displayed to represent the file (usually the file.ext)
-  project   ;; name of the project the file belongs to
-  marked    ;; is the file marked?
-  state     ;; project/folder state: 'open 'close 'disabled  // file: 'hidden (a disabled project doesn't show any files...)
+;;(defstruct (project-buffer-fileinto
+;;	    (:copier nil)
+;;	    (:constructor project-buffer-create-fileinfo (name project type filename))
+;;	    (:conc-name project-buffer-fileinfo->))
+;;  type      ;; project? file? folder?
+;;  filename  ;; full path to the filename
+;;  name      ;; string displayed to represent the file (usually the file.ext)
+;;  project   ;; name of the project the file belongs to
+;;  marked    ;; is the file marked?
+;;  state     ;; project/folder state: 'open 'close 'disabled  // file: 'hidden (a disabled project doesn't show any files...)
+;;)
+
+(require 'record-type)
+(require 'enum-type)
+
+
+(defenum project-buffer-item-type     'file 'project 'folder)
+(defenum project-buffer-node-state    'none 'opened 'closed 'disabled)
+
+(defrecord project-buffer-data
+  "Structure to store the project buffer data"
+  :name  'stringp
+  :sln   'stringp
+  :items 'listp
 )
-			  
+
+(defrecord project-buffer-node
+  "Structure to store data attached to each ewoc-node.
+Each node represents either a file or a project or a folder indide the project"
+  :name     'stringp
+
+  :state    'project-buffer-item-state-p
+  :type     'project-buffer-item-type-p
+  :hidden   'booleanp
+  :marked   'booleanp
+  :filtered 'booleanp
+
+  :file     'stringp 
+)
 
 ;;
 
-(defun project-buffer--prettyprint(data)
+(defun project-buffer-prettyprint(node)
+  "Pretty-printer function"
+  (let ((node-state  (get-project-buffer-node-state node))
+	(node-name   (get-project-buffer-node-name  node))
+	(node-marked (get-project-buffer-node-marked node))
+	(node-type   (get-project-buffer-node-type node))
+	)
+    (if (or (not (eq node-state 'hidden))
+	    (eq node-state 'filtered
+    (insert (concat " " 
+		    (if node-marked "*" " ")
+		    " "
+		      (cond ((not (eq node-type 'project)) "   ")
+			    ((eq node-state 'open')        "[-]")
+			    ((eq node-state 'close)        "[+]")
+			    ((eq node-state 'disabled)     "[x]")
+			    (t "[?]"))
+		      (or (and (eq node-type 'project)  node-name)
+			  (concat 
+	    
+
+
   "Pretty-printer function"		; assume it's currently just a cons (project . filename)
   (if (or (not (cdr data))
 	  project-buffer-show-hidden
@@ -113,6 +174,10 @@
 		      (or (cdr data) (car data))
 		      "\n"
 		      ))))
+
+;; 
+;; split / files...
+;; 
 
 (defun project-buffer-mode()
   "Entry point to the project-buffer-mode"
@@ -124,7 +189,7 @@
 	buffer-read-only t)
   (let ((buffer-read-only nil))
     (erase-buffer)
-    (let ((status (ewoc-create 'project-buffer--prettyprint "" "" t)))
+    (let ((status (ewoc-create 'project-buffer-prettyprint "" "" t)))
       (make-local-variable 'project-buffer-status)
       (make-local-variable 'project-buffer-show-hidden) ;; tmp hack
       (setq project-buffer-show-hidden nil)
@@ -190,10 +255,26 @@
 	  (ewoc-enter-before status here data)
 	  (ewoc-enter-last status data)))))
 
+(defun sln-extract-project(sln-file)
+  "Extract projects from the SLN file"
+  (save-excursion
+    (with-temp-buffer
+      (insert-file sln-file)
+      (goto-char (point-min))
+      (let ((result nil))
+	(while (re-search-forward "Project(\"{[-A-Z0-9]+}\")[ 	]+=[ 	]+\"\\([A-Za-z0-9_]+\\)\"[ 	]*,[ 	]+\"\\([\\A-Za-z0-9_.]+\\)\""
+				  (point-max)  t) 
+	  (add-to-list 'result (cons (match-string-no-properties 1) (match-string-no-properties 2))))
+	result))))
 
-(defun create-project-buffer(bufname)
+(defun create-project-buffer(sln-file)
   "Create a project buffer"
-  (let ((buffer (create-file-buffer bufname)))
-    (switch-to-buffer buffer)
-    (project-buffer-mode)
+  (let ((buffer (create-file-buffer sln-file))
+	(sln-projects (sln-extract-projects sln-file))
+	current) ;; list of proj-nane / project file
+    (while sln-projects
+      (setq current (pop sln-projects))
+      (vcproj-extract 
+    ;;(switch-to-buffer buffer)
+    ;;(project-buffer-mode)
     buffer))
