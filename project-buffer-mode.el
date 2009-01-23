@@ -129,22 +129,25 @@
 ;; - Auto reload if file modified on disk?
 ;;
 
+(require 'cl)
 (require 'ewoc)
 (require 'enum-type)
 
 ;;
 
 (defvar project-buffer-status nil)
+(defvar project-buffer-view-mode nil)
 
 ;;
 
-(defenum project-buffer-item-type     'file 'project 'folder)
+(defenum project-buffer-item-type      'file 'project 'folder)
+(defenum project-buffer-view-mode-type 'flat-view 'folder-hidden-view 'folder-view) 
 
 ;; Structure to store data attached to each ewoc-node.
 ;; Each node represents either a file or a project or a folder indide the project"
 (defstruct (project-buffer-node
 	    (:copier nil)
-	    (:constructor project-buffer-create-node (name type filename project))
+	    (:constructor project-buffer-create-node (name type filename project &optional hidden))
 	    (:conc-name project-buffer-node->))
   name      ;; string displayed to represent the file (usually the file.ext)
   type      ;; project? file? folder?
@@ -258,7 +261,9 @@ If the cursor is on a file - nothing will be done."
     (erase-buffer)
     (let ((status (ewoc-create 'project-buffer-prettyprint "" "" t)))
       (make-local-variable 'project-buffer-status)
+      (make-local-variable 'project-buffer-view-mode)
       (setq project-buffer-status status)
+      (setq project-buffer-view-mode 'folder-view)
       (project-buffer-refresh-ewoc-hf status))))
 
 (defun project-buffer-refresh-ewoc-hf(status)
@@ -277,7 +282,15 @@ If the cursor is on a file - nothing will be done."
 ;;(ewoc-invalidate project-buffer-status pos)
 ;;(ewoc-goto-prev project-buffer-status 1)))
 ;;(ewoc-goto-next project-buffer-status 1)))
+;;      (file-name-nondirectory "test/tess")
+;;      (file-name-directory "test/tess")
 
+
+(defun project-buffer-extract-folder (name type)
+  (if (eq type 'folder)
+      name
+      (let ((dirname (file-name-directory name)))
+	(substring dirname 0 -1))))
 
 (defun project-buffer-insert (status data) ; same as pretty print, assume data is cons (project . filename)
   "Insert a file at the right place in it's project."
@@ -285,6 +298,7 @@ If the cursor is on a file - nothing will be done."
 	(node-data     nil)
 	(here          nil) 
 	(proj-found    nil)
+	(folder        nil)
 	(skip          nil))
     (while (and node (not here) (not skip))
       (setq node-data (ewoc-data node))
@@ -300,10 +314,20 @@ If the cursor is on a file - nothing will be done."
        ((string-equal (project-buffer-node->project node-data) (project-buffer-node->project data))
 	(if (eq (project-buffer-node->type data) 'project)
 	    (setq skip t)
-	    (when (and (not (eq (project-buffer-node->type node-data) 'project))
-		       (string-lessp (project-buffer-node->name data) (project-buffer-node->name node-data))
-	      (setq here node))))
-	(setq proj-found t)
+	    (let* ((folder-data (project-buffer-extract-folder (project-buffer-node->name node-data) (project-buffer-node->type node-data)))
+		   (folder-db   (project-buffer-extract-folder (project-buffer-node->name data)      (project-buffer-node->type data)))
+		   (name-data   (file-name-nondirectory (project-buffer-node->name node-data)))
+		   (name-db     (file-name-nondirectory (project-buffer-node->name data)))
+		   (rescmp      (compare-strings folder-data nil nil folder-db nil nil)))
+	      (if (and (not (eq (project-buffer-node->type node-data) 'project))
+		       (not (string-lessp folder-db folder-data))) ; less or equal
+		  (if (eq (project-buffer-node->type data) 'folder)
+		      (setq here node)
+		      (if (and (eq (project-buffer-node->type data) 'file)
+			       (string-lessp name-data name-db))
+			  (setq here node)
+			  (setq folder folder-db))))
+	      (setq proj-found t))
 	))
 
       ;; Carry on...
@@ -311,9 +335,15 @@ If the cursor is on a file - nothing will be done."
 
     ;; Insert before here...
     (when (not skip)
-      (if here
-	  (ewoc-enter-before status here data)
-	  (ewoc-enter-last status data)))))
+      (if folder
+	  (progn
+	    )
+	  (if here
+	      (ewoc-enter-before status here data)
+	      (ewoc-enter-last status data))))))
+
+;;(compare-strings "abcdef" nil nil "abc" nil nil)
+
 
 ;;
 ;; Interactive commands:
@@ -321,6 +351,28 @@ If the cursor is on a file - nothing will be done."
 
 
 (defun test-projbuff()
+  (interactive)
+  (let ((buffer (generate-new-buffer "test-project-buffer")))
+    (display-buffer buffer)
+    (with-current-buffer buffer
+      (project-buffer-mode)
+
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "test1" 'project "test1.sln" "test1"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/gfr.cpp" 'file  "~/temp/gfr.cpp" "test1"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/abc.cpp" 'file  "~/temp/abc.cpp" "test1"))
+
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "test2" 'project "test2.sln" "test2"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "header/zzz.h" 'file  "~/temp/zzz.h" "test2"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/roo.c" 'file  "~/temp/roo.c" "test2"))
+
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "header/xtra.h" 'file "~/temp/xtra.h" "test1"))
+
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "other" 'project  "other.sln" "other"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/apl.c" 'file  "~/temp/apl.c" "test2"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/foo.cpp" 'file  "~/temp/foo.c" "other"))
+)))
+
+(defun test-projbuff-old()
   (interactive)
   (let ((buffer (generate-new-buffer "test-project-buffer")))
     (display-buffer buffer)
@@ -368,4 +420,4 @@ If the cursor is on a file - nothing will be done."
       (vcproj-extract 
     ;;(switch-to-buffer buffer)
     ;;(project-buffer-mode)
-    buffer))
+    buffer))))
