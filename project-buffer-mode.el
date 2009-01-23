@@ -42,6 +42,25 @@
 ;;     [+] ProjName3
 ;;  
 
+;; Sample:
+;;   [-] other
+;;        `- foo.cpp
+;;   [-] test1
+;;        `- sources
+;;        |   `- abc.cpp
+;;        |   `- gfr.cpp
+;;        +- extras
+;;        `- headers
+;;        |   `- xtra.h
+;;   [-] test1
+;;        `- sources/abc.cpp
+;;        `- sources/gfr.cpp
+;;        `- headers/xtra.h
+;;   [-] test2
+;;        `- apl.c
+;;        `- roo.c
+;;        `- zzz.h
+
 
 
 ;;
@@ -82,6 +101,15 @@
 ;;    g    -> reload/reparse sln/vcprojs files
 ;;    v    -> Toggle view mode (flat / flat with the foldershidden / folder)
 ;;    ?    -> show brief help!!
+;;    >    -> go to the next object of the same type: next file / folder / project
+;;    <    -> go to the previous object of the same type: next file / folder / project
+;;   <BCK> -> 
+;;   <TAB> -> cycle through: collapse current folder / expand folder / expand all folders inside
+;;   <LFT> -> expand if collapsed move to the first folder; move inside if expanded
+;;   <RGT> -> move up if folded collapsed; collapse if in front of folder ; move to the folded if in front of a file
+;; C-<DWN> -> move to the next project
+;; C-<UP>  -> move to the previous project
+
 ;;
 ;;    B    -> launch build
 ;;    C    -> launch clean
@@ -92,6 +120,8 @@
 ;; Future improvement:
 ;;    d    -> show/hide project dependencies
 ;;    b    -> buils marked files
+;;    S    -> seach in all marked files
+;;  C-M    -> marked files based on regexp???
 
 ;; To find how to do:
 ;; - Grayed out exclude from build files??
