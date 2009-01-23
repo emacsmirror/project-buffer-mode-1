@@ -96,84 +96,63 @@
 ;;
 
 (require 'ewoc)
+(require 'enum-type)
+
+;;
 
 (defvar project-buffer-status nil)
 
 ;;
 
-;;(defstruct (project-buffer-fileinto
-;;	    (:copier nil)
-;;	    (:constructor project-buffer-create-fileinfo (name project type filename))
-;;	    (:conc-name project-buffer-fileinfo->))
-;;  type      ;; project? file? folder?
-;;  filename  ;; full path to the filename
-;;  name      ;; string displayed to represent the file (usually the file.ext)
-;;  project   ;; name of the project the file belongs to
-;;  marked    ;; is the file marked?
-;;  state     ;; project/folder state: 'open 'close 'disabled  // file: 'hidden (a disabled project doesn't show any files...)
-;;)
-
-(require 'record-type)
-(require 'enum-type)
-
-
 (defenum project-buffer-item-type     'file 'project 'folder)
 (defenum project-buffer-node-state    'none 'opened 'closed 'disabled)
 
-(defrecord project-buffer-data
-  "Structure to store the project buffer data"
-  :name  'stringp
-  :sln   'stringp
-  :items 'listp
+;; Structure to store data attached to each ewoc-node.
+;; Each node represents either a file or a project or a folder indide the project"
+(defstruct (project-buffer-node
+	    (:copier nil)
+	    (:constructor project-buffer-create-node (name type state filename project))
+	    (:conc-name project-buffer-node->))
+  name      ;; string displayed to represent the file (usually the file.ext)
+  type      ;; project? file? folder?
+  state     ;; project/folder state: 'open 'close 'disabled  // (a disabled project doesn't show any files... / exempt during filter search)
+
+  marked    ;; is the file/project marked?
+  hidden    ;; hidden files (currently: = project/folder close)
+
+  filename  ;; full path to the filename
+  project   ;; name of the project the file belongs to
 )
 
-(defrecord project-buffer-node
-  "Structure to store data attached to each ewoc-node.
-Each node represents either a file or a project or a folder indide the project"
-  :name     'stringp
-
-  :state    'project-buffer-item-state-p
-  :type     'project-buffer-item-type-p
-  :hidden   'booleanp
-  :marked   'booleanp
-  :filtered 'booleanp
-
-  :file     'stringp 
-)
+;;(require 'record-type)
+;;(defrecord project-buffer-data
+;;  "Structure to store the project buffer data"
+;;  :name  'stringp
+;;  :sln   'stringp
+;;  :items 'listp
+;;)
 
 ;;
 
 (defun project-buffer-prettyprint(node)
   "Pretty-printer function"
-  (let ((node-state  (get-project-buffer-node-state node))
-	(node-name   (get-project-buffer-node-name  node))
-	(node-marked (get-project-buffer-node-marked node))
-	(node-type   (get-project-buffer-node-type node))
+  (let ((node-state  (project-buffer-node->state node))
+	(node-name   (project-buffer-node->name  node))
+	(node-marked (project-buffer-node->marked node))
+	(node-type   (project-buffer-node->type node))
 	)
-    (if (or (not (eq node-state 'hidden))
-	    (eq node-state 'filtered
     (insert (concat " " 
 		    (if node-marked "*" " ")
 		    " "
-		      (cond ((not (eq node-type 'project)) "   ")
-			    ((eq node-state 'open')        "[-]")
-			    ((eq node-state 'close)        "[+]")
-			    ((eq node-state 'disabled)     "[x]")
-			    (t "[?]"))
-		      (or (and (eq node-type 'project)  node-name)
-			  (concat 
-	    
-
-
-  "Pretty-printer function"		; assume it's currently just a cons (project . filename)
-  (if (or (not (cdr data))
-	  project-buffer-show-hidden
-	  (/= (car (string-to-list (cdr data))) ??))
-      (insert (concat "   "
-		      (if (cdr data) "     `- " "[-] ")
-		      (or (cdr data) (car data))
-		      "\n"
-		      ))))
+		    (cond ((not (eq node-type 'project)) "   ")
+			  ((eq node-state 'open)        "[-]")
+			  ((eq node-state 'close)        "[+]")
+			  ((eq node-state 'disabled)     "[x]")
+			  (t "[?]"))
+		    " "
+		    (or (and (eq node-type 'project)  node-name)
+			(concat " `- " node-name))
+		    "\n"))))
 
 ;; 
 ;; split / files...
@@ -181,7 +160,6 @@ Each node represents either a file or a project or a folder indide the project"
 
 (defun project-buffer-mode()
   "Entry point to the project-buffer-mode"
-  (interactive)
   (kill-all-local-variables)
   (buffer-disable-undo)
   (setq mode-name "project-buffer"
@@ -212,7 +190,7 @@ Each node represents either a file or a project or a folder indide the project"
 
 (defun project-buffer-refresh-nodes(status)
   "Refresh displayed buffer"
-  (ewoc-map (lambda (data) (if (cdr data) t))
+  (ewoc-map (lambda (data) t)
 	    status
 	    ))
   
@@ -227,33 +205,64 @@ Each node represents either a file or a project or a folder indide the project"
   (let ((node          (ewoc-nth status 0))
 	(node-data     nil)
 	(here          nil) 
-	(project-found nil)
-	(prev          nil))
-    (while (and node (not here))
+	(proj-found    nil)
+	(skip          nil))
+    (while (and node (not here) (not skip))
       (setq node-data (ewoc-data node))
       (cond
        ;; data.project < node.project -> insert here...
-       ((string-lessp (car data) (car node-data))
-	(setq here node))
+       ((string-lessp (project-buffer-node->project data) (project-buffer-node->project node-data))
+	(if (eq (project-buffer-node->type data) 'project)
+	    (setq here node)
+	    (setq here (and proj-found node)
+		  skip (not proj-found))))
 
        ;; node.project == data.project -> check file name
-       ((string-equal (car node-data) (car data))
-	(when (and (cdr node-data)
-		   (string-lessp (cdr data) (cdr node-data)))
-	  (setq here node))
-	(setq project-found t)))
+       ((string-equal (project-buffer-node->project node-data) (project-buffer-node->project data))
+	(if (eq (project-buffer-node->type data) 'project)
+	    (setq skip t)
+	    (when (and (not (eq (project-buffer-node->type node-data) 'project))
+		       (string-lessp (project-buffer-node->name data) (project-buffer-node->name node-data))
+	      (setq here node))))
+	(setq proj-found t)
+	))
+
       ;; Carry on...
-      (setq prev node
-	    node (ewoc-next status node)))
+      (setq node (ewoc-next status node)))
+
     ;; Insert before here...
-    (if (not project-found)
-	(if here 
-	    (ewoc-enter-before status here (cons (car data) nil))
-	    (ewoc-enter-last status (cons (car data) nil))))
-    (when (cdr data)
-      (if here 
+    (when (not skip)
+      (if here
 	  (ewoc-enter-before status here data)
 	  (ewoc-enter-last status data)))))
+
+
+
+(defun test-projbuff()
+  (interactive)
+  (let ((buffer (generate-new-buffer "test-project-buffer")))
+    (display-buffer buffer)
+    (with-current-buffer buffer
+      (project-buffer-mode)
+
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "test1" 'project 'open "test1.sln" "test1"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "gfr.cpp" 'file 'none "~/temp/gfr.cpp" "test1"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "abc.cpp" 'file 'none "~/temp/abc.cpp" "test1"))
+
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "test2" 'project 'open "test2.sln" "test2"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "zzz.h" 'file 'none "~/temp/zzz.h" "test2"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "roo.c" 'file 'none "~/temp/roo.c" "test2"))
+
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "xtra.h" 'file 'none "~/temp/xtra.h" "test1"))
+
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "other" 'project 'open "other.sln" "other"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "apl.c" 'file 'none "~/temp/apl.c" "test2"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "foo.cpp" 'file 'none "~/temp/foo.c" "other"))
+)))
+
+
+
+
 
 (defun sln-extract-project(sln-file)
   "Extract projects from the SLN file"
