@@ -62,22 +62,26 @@
 
 
 ;; Shortcut:
+;;    m    -> mark file
+;;    u    -> unmark file
+;;    +    -> collapse/expand folder/project
+;;
+;; Shortcut todo:
 ;;    /    -> find file name
 ;;    n    -> next file matching regexp
 ;;    p    -> prev file matching regexp
-;;   <RET> -> open file
+;;   <RET> -> open file at cursor pos
 ;;    c    -> compile current file / marked files? [?]
-;;    m    -> mark file
-;;    u    -> unmark file
 ;;    t    -> toggle marked files
-;;    o    -> open marked files
+;;    f    -> open marked files
 ;;    h    -> find corresponding header/source
-;;    +    -> collapse/uncollapse folder/project
-;;    fe   -> set filter on extension
-;;    fn   -> set filter on filename
-;;    fd   -> set filter on internal directory
+;;   <SPC> -> collapse/expand folder/project + move to the next line
+;;    Fe   -> set filter on extension
+;;    Fn   -> set filter on filename
+;;    Fd   -> set filter on internal directory
 ;;    g    -> reload/reparse sln/vcprojs files
 ;;    v    -> Toggle view mode (flat / flat with the foldershidden / folder)
+;;    ?    -> show brief help!!
 ;;
 ;;    B    -> launch build
 ;;    C    -> launch clean
@@ -105,20 +109,19 @@
 ;;
 
 (defenum project-buffer-item-type     'file 'project 'folder)
-(defenum project-buffer-node-state    'none 'opened 'closed 'disabled)
 
 ;; Structure to store data attached to each ewoc-node.
 ;; Each node represents either a file or a project or a folder indide the project"
 (defstruct (project-buffer-node
 	    (:copier nil)
-	    (:constructor project-buffer-create-node (name type state filename project))
+	    (:constructor project-buffer-create-node (name type filename project))
 	    (:conc-name project-buffer-node->))
   name      ;; string displayed to represent the file (usually the file.ext)
   type      ;; project? file? folder?
-  state     ;; project/folder state: 'open 'close 'disabled  // (a disabled project doesn't show any files... / exempt during filter search)
 
   marked    ;; is the file/project marked?
   hidden    ;; hidden files (currently: = project/folder close)
+  collapsed ;; is the folder/project collapsed or not?
 
   filename  ;; full path to the filename
   project   ;; name of the project the file belongs to
@@ -136,56 +139,102 @@
 
 (defun project-buffer-prettyprint(node)
   "Pretty-printer function"
-  (let ((node-state  (project-buffer-node->state node))
+  (let ((node-collapsed (project-buffer-node->collapsed node))
 	(node-name   (project-buffer-node->name  node))
 	(node-marked (project-buffer-node->marked node))
 	(node-type   (project-buffer-node->type node))
+	(node-hidden (project-buffer-node->hidden node))
 	)
-    (insert (concat " " 
-		    (if node-marked "*" " ")
-		    " "
-		    (cond ((not (eq node-type 'project)) "   ")
-			  ((eq node-state 'open)        "[-]")
-			  ((eq node-state 'close)        "[+]")
-			  ((eq node-state 'disabled)     "[x]")
-			  (t "[?]"))
-		    " "
-		    (or (and (eq node-type 'project)  node-name)
-			(concat " `- " node-name))
-		    "\n"))))
+    (if (not node-hidden)
+	(insert (concat " " 
+			(if node-marked "*" " ")
+			" "
+			(cond ((not (eq node-type 'project)) "   ")
+			      (node-collapsed                "[+]")
+			      (t                             "[-]"))
+			" "
+			(or (and (eq node-type 'project)  node-name)
+			    (concat " `- " node-name))
+			"\n")))))
+
+
+(defun project-buffer-mark-file()
+  "Mark the file that the cursor is on and move to the next one."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((node (ewoc-locate project-buffer-status))
+	 (node-data (ewoc-data node)))
+    (setf (project-buffer-node->marked node-data) t)
+    (ewoc-invalidate project-buffer-status node)
+    (ewoc-goto-next project-buffer-status 1)))
+
+(defun project-buffer-unmark-file()
+  "Unmark the file that the cursor is on and move to the next one."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((node (ewoc-locate project-buffer-status))
+	 (node-data (ewoc-data node)))
+    (setf (project-buffer-node->marked node-data) nil)
+    (ewoc-invalidate project-buffer-status node)
+    (ewoc-goto-next project-buffer-status 1)))
+
+(defun project-buffer-toggle-expand-collapse()
+  "Expand / Collapse project and folder that the cursor is on.
+If the cursor is on a file - nothing will be done."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((node      (ewoc-locate project-buffer-status))
+	 (node-data (ewoc-data node))
+	 (status    project-buffer-status)
+	 hidden-flag
+	 project)
+    (unless (eq (project-buffer-node->type node-data) 'file)
+      (setf (project-buffer-node->collapsed node-data) (not (project-buffer-node->collapsed node-data)))
+      (setq hidden-flag (project-buffer-node->collapsed node-data))
+      (ewoc-invalidate status node)
+      (setq project (project-buffer-node->project node-data)
+	    node (ewoc-next status node))
+      (while node
+	(setq node-data (ewoc-data node))
+	(if (string-equal (project-buffer-node->project node-data) project)
+	    (progn (setf (project-buffer-node->hidden node-data) hidden-flag)
+		   (ewoc-invalidate status node)
+		   (setq node (ewoc-next status node)))
+	    (setq node nil))))))
+  
 
 ;; 
 ;; split / files...
 ;; 
 
+;; Define the key mapping for the spu mode:
+(defvar project-buffer-mode-map
+  (let ((project-buffer-mode-map (make-keymap)))
+    (define-key project-buffer-mode-map [?+] 'project-buffer-toggle-expand-collapse)
+    (define-key project-buffer-mode-map [?m] 'project-buffer-mark-file)
+    (define-key project-buffer-mode-map [?u] 'project-buffer-unmark-file)
+    project-buffer-mode-map))
+
+
 (defun project-buffer-mode()
-  "Entry point to the project-buffer-mode"
+  "Entry point to the project-buffer-mode."
   (kill-all-local-variables)
   (buffer-disable-undo)
   (setq mode-name "project-buffer"
 	major-mode 'project-buffer-mode
 	buffer-read-only t)
+  (use-local-map project-buffer-mode-map)
   (let ((buffer-read-only nil))
     (erase-buffer)
     (let ((status (ewoc-create 'project-buffer-prettyprint "" "" t)))
       (make-local-variable 'project-buffer-status)
-      (make-local-variable 'project-buffer-show-hidden) ;; tmp hack
-      (setq project-buffer-show-hidden nil)
       (setq project-buffer-status status)
       (project-buffer-refresh-ewoc-hf status))))
-
-(defun project-buffer-show-hidden()
-  (interactive)
-  (setq project-buffer-show-hidden (not project-buffer-show-hidden))
-  (project-buffer-refresh-ewoc-hf project-buffer-status)
-  (project-buffer-refresh-nodes project-buffer-status)
-)
 
 (defun project-buffer-refresh-ewoc-hf(status)
   "Refresh ewoc header/footer"
   (ewoc-set-hf status 
 	       (concat "Booh Header\n"
-		       "Showing Hidden File: " (or (and project-buffer-show-hidden "shown") "hidden")
 		       "\n\n") ""))
 
 (defun project-buffer-refresh-nodes(status)
@@ -236,6 +285,9 @@
 	  (ewoc-enter-before status here data)
 	  (ewoc-enter-last status data)))))
 
+;;
+;; Interactive commands:
+;;
 
 
 (defun test-projbuff()
@@ -245,19 +297,19 @@
     (with-current-buffer buffer
       (project-buffer-mode)
 
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "test1" 'project 'open "test1.sln" "test1"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "gfr.cpp" 'file 'none "~/temp/gfr.cpp" "test1"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "abc.cpp" 'file 'none "~/temp/abc.cpp" "test1"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "test1" 'project "test1.sln" "test1"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "gfr.cpp" 'file  "~/temp/gfr.cpp" "test1"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "abc.cpp" 'file  "~/temp/abc.cpp" "test1"))
 
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "test2" 'project 'open "test2.sln" "test2"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "zzz.h" 'file 'none "~/temp/zzz.h" "test2"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "roo.c" 'file 'none "~/temp/roo.c" "test2"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "test2" 'project "test2.sln" "test2"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "zzz.h" 'file  "~/temp/zzz.h" "test2"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "roo.c" 'file  "~/temp/roo.c" "test2"))
 
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "xtra.h" 'file 'none "~/temp/xtra.h" "test1"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "xtra.h" 'file "~/temp/xtra.h" "test1"))
 
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "other" 'project 'open "other.sln" "other"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "apl.c" 'file 'none "~/temp/apl.c" "test2"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "foo.cpp" 'file 'none "~/temp/foo.c" "other"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "other" 'project  "other.sln" "other"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "apl.c" 'file  "~/temp/apl.c" "test2"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "foo.cpp" 'file  "~/temp/foo.c" "other"))
 )))
 
 
