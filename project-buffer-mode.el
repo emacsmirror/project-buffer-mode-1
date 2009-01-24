@@ -295,12 +295,15 @@ If the cursor is on a file - nothing will be done."
 
 (defun project-buffer-insert (status data) ; same as pretty print, assume data is cons (project . filename)
   "Insert a file at the right place in it's project."
-  (let ((node          (ewoc-nth status 0))
-	(node-data     nil)
-	(here          nil) 
-	(proj-found    nil)
-	(folder        nil)
-	(skip          nil))
+  (let ((node        (ewoc-nth status 0))
+	(folder-data (project-buffer-extract-folder (project-buffer-node->name data)      (project-buffer-node->type data)))
+	(name-data   (file-name-nondirectory (project-buffer-node->name data)))
+	(type-data   (project-buffer-node->type data))
+	(node-data   nil)
+	(here        nil) 
+	(proj-found  nil)
+	(folder      nil)
+	(skip        nil))
     (while (and node (not here) (not skip))
       (setq node-data (ewoc-data node))
       (cond
@@ -316,11 +319,8 @@ If the cursor is on a file - nothing will be done."
 	(if (eq (project-buffer-node->type data) 'project)
 	    (setq skip t)
 	    (let* ((folder-db   (project-buffer-extract-folder (project-buffer-node->name node-data) (project-buffer-node->type node-data)))
-		   (folder-data (project-buffer-extract-folder (project-buffer-node->name data)      (project-buffer-node->type data)))
 		   (name-db     (file-name-nondirectory (project-buffer-node->name node-data)))
-		   (name-data   (file-name-nondirectory (project-buffer-node->name data)))
-		   (type-db     (project-buffer-node->type node-data))
-		   (type-data   (project-buffer-node->type data)))
+		   (type-db     (project-buffer-node->type node-data)))
 	      ;; we're still on the project line???
 	      (unless (eq type-db 'project)
 		(if (and folder-db folder-data)
@@ -349,15 +349,26 @@ If the cursor is on a file - nothing will be done."
     ;; Insert before here...
     (when (not skip)
       (if here
-	  (ewoc-enter-before status here data)
-	  (ewoc-enter-last status data)))
+	  (setq node (ewoc-enter-before status here data))
+	  (setq node (ewoc-enter-last status data)))
+      (when folder-data
+	(let* ((db-list     (and folder (split-string folder "/")))
+	       (curr-list   (split-string folder-data "/"))
+	       (cnt 0))
+	  (while (and (< cnt (length curr-list))
+		      (< cnt (length db-list))
+		      (string= (nth cnt db-list) (nth cnt curr-list)))
+	    (setq cnt (1+ cnt)))
+	  ;; TODO: Add each folder here!!!
+	  ))
+)))
+
+;;(split-string "/test/blah/" "/")
 
 ;      (when proj-found
 ;	(let ((folder-data (project-buffer-extract-folder (project-buffer-node->name node-data) (project-buffer-node->type node-data))))
 ;	  (split-string
 ;	  ))
-
-    ))
 
 ;;(compare-strings "abcdef" nil nil "abc" nil nil)
 
