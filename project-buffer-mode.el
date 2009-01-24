@@ -293,6 +293,21 @@ If the cursor is on a file - nothing will be done."
 	(t (let ((dirname (file-name-directory name)))
 	     (and dirname (substring dirname 0 -1))))))
 
+(defun project-buffer-directory-lessp (dir1 dir2)
+  (let* ((list1  (and dir1 (split-string dir1 "/")))
+	 (list2  (and dir2 (split-string dir2 "/")))
+	 (cnt 0))
+    (if (and list1 list2)
+	(progn (while (and (< cnt (length list1))
+			   (< cnt (length list2))
+			   (string= (nth cnt list1) (nth cnt list2)))
+		 (setq cnt (1+ cnt)))
+	       (if (and (< cnt (length list1))
+			(< cnt (length list2)))
+		   (string-lessp (nth cnt list1) (nth cnt list2))
+		   (< cnt (length list1))))
+	(null list2))))
+
 (defun project-buffer-insert (status data) ; same as pretty print, assume data is cons (project . filename)
   "Insert a file at the right place in it's project."
   (let ((node        (ewoc-nth status 0))
@@ -324,7 +339,7 @@ If the cursor is on a file - nothing will be done."
 	      ;; we're still on the project line???
 	      (unless (eq type-db 'project)
 		(if (and folder-db folder-data)
-		    (cond ((string-lessp folder-data folder-db)
+		    (cond ((project-buffer-directory-lessp folder-data folder-db)
 			   (setq here node))
 
 			  ((string-equal folder-data folder-db)
