@@ -410,8 +410,8 @@ If the cursor is on a file - nothing will be done."
       (project-buffer-insert project-buffer-status (project-buffer-create-node "script.awk" 'file "~/temp/script.awk" "test2"))
 
       (project-buffer-insert project-buffer-status (project-buffer-create-node "header/xtra.h" 'file "~/temp/xtra.h" "test1"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/zzz.cpp" 'file  "~/temp/zzz.cpp" "test1"))
       (project-buffer-insert project-buffer-status (project-buffer-create-node "blah.h" 'file "~/temp/blah.h" "test1"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/zzz.cpp" 'file  "~/temp/zzz.cpp" "test1"))
       (project-buffer-insert project-buffer-status (project-buffer-create-node "aha.h" 'file "~/temp/aha.h" "test1"))
 
       (project-buffer-insert project-buffer-status (project-buffer-create-node "other" 'project  "other.sln" "other"))
@@ -419,6 +419,12 @@ If the cursor is on a file - nothing will be done."
       (project-buffer-insert project-buffer-status (project-buffer-create-node "src/apl.c" 'file  "~/temp/apl.c" "test2"))
       (project-buffer-insert project-buffer-status (project-buffer-create-node "src/foo.cpp" 'file  "~/temp/foo.c" "other"))
       (project-buffer-insert project-buffer-status (project-buffer-create-node "test2.h" 'file "~/temp/test2.h" "other"))
+
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "fold" 'project  "fold.sln" "fold"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "abc/dee/test.c" 'file  "~/test.c" "fold"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "abc/testw.c" 'file  "~/testw.c" "fold")) 
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "abc/def/gla.c" 'file  "~/gla.c" "fold"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "blue/green/red.c" 'file  "~/red.c" "fold"))
 )))
 
 (defun test-projbuff-old()
