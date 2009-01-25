@@ -129,19 +129,23 @@
 ;; - Auto reload if file modified on disk?
 ;;
 
+
+
+
 (require 'cl)
 (require 'ewoc)
-(require 'enum-type)
 
+;;
+;;  Global Variables:
 ;;
 
 (defvar project-buffer-status nil)
 (defvar project-buffer-view-mode nil)
 
-;;
 
-(defenum project-buffer-item-type      'file 'project 'folder)
-(defenum project-buffer-view-mode-type 'flat-view 'folder-hidden-view 'folder-view) 
+;;
+;;  Data type:
+;;
 
 ;; Structure to store data attached to each ewoc-node.
 ;; Each node represents either a file or a project or a folder indide the project"
@@ -161,17 +165,29 @@
   project           ;; name of the project the file belongs to
 )
 
-;;(require 'record-type)
-;;(defrecord project-buffer-data
-;;  "Structure to store the project buffer data"
-;;  :name  'stringp
-;;  :sln   'stringp
-;;  :items 'listp
-;;)
 
 ;;
+;;  Key Bindings:
+;;
+
+;; Define the key mapping for the spu mode:
+(defvar project-buffer-mode-map
+  (let ((project-buffer-mode-map (make-keymap)))
+    (define-key project-buffer-mode-map [?+] 'project-buffer-toggle-expand-collapse)
+    (define-key project-buffer-mode-map [?\t] 'project-buffer-toggle-expand-collapse)
+    (define-key project-buffer-mode-map [?m] 'project-buffer-mark-file)
+    (define-key project-buffer-mode-map [?u] 'project-buffer-unmark-file)
+    (define-key project-buffer-mode-map [?v] 'project-buffer-toggle-view-mode)
+    project-buffer-mode-map))
+
+
+;;
+;;  Inteernal Utility Functions:
+;;
+
 
 (defun project-buffer-convert-name-for-display(node-data)
+  "Convert the node name into the displayed string depending on the project-buffer-view-mode."
   (let ((node-name (project-buffer-node->name node-data)))
     (cond ((eq project-buffer-view-mode 'flat-view) 
 	   (concat " `- " node-name))
@@ -186,6 +202,7 @@
 		     cur (1+ cur)))
 	     (concat str (file-name-nondirectory node-name) )))
 	  (t (format "Unknown view mode: %S" project-buffer-view-mode) ))))
+
 
 (defun project-buffer-prettyprint(node)
   "Pretty-printer function"
@@ -216,102 +233,6 @@
 			"\n")))))
 
 
-(defun project-buffer-mark-file()
-  "Mark the file that the cursor is on and move to the next one."
-  (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
-  (let* ((node (ewoc-locate project-buffer-status))
-	 (node-data (ewoc-data node)))
-    (setf (project-buffer-node->marked node-data) t)
-    (ewoc-invalidate project-buffer-status node)
-    (ewoc-goto-next project-buffer-status 1)))
-
-(defun project-buffer-unmark-file()
-  "Unmark the file that the cursor is on and move to the next one."
-  (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
-  (let* ((node (ewoc-locate project-buffer-status))
-	 (node-data (ewoc-data node)))
-    (setf (project-buffer-node->marked node-data) nil)
-    (ewoc-invalidate project-buffer-status node)
-    (ewoc-goto-next project-buffer-status 1)))
-
-(defun project-buffer-toggle-expand-collapse()
-  "Expand / Collapse project and folder that the cursor is on.
-If the cursor is on a file - nothing will be done."
-  (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
-  (let* ((node      (ewoc-locate project-buffer-status))
-	 (node-data (ewoc-data node))
-	 (status    project-buffer-status)
-	 prj-sel
-	 hidden-flag
-	 project 
-	 skip-under
-	 folder)
-    (unless (eq (project-buffer-node->type node-data) 'file)
-      (when (eq (project-buffer-node->type node-data) 'folder)
-	(setq folder (project-buffer-node->name node-data)))
-      (setf (project-buffer-node->collapsed node-data) (not (project-buffer-node->collapsed node-data)))
-      (setq hidden-flag (project-buffer-node->collapsed node-data))
-      (setq prj-sel (eq (project-buffer-node->type node-data) 'project))
-      (when prj-sel
-	(setf (project-buffer-node->project-collapsed node-data) hidden-flag))
-      (ewoc-invalidate status node)
-      (setq project (project-buffer-node->project node-data)
-	    node (ewoc-next status node))
-      (while node
-	(setq node-data (ewoc-data node))
-	(when skip-under
-	  (unless (project-buffer-parent-of-p (project-buffer-node->name  node-data) skip-under)
-	    (setq skip-under nil)))
-	(if (and (string-equal (project-buffer-node->project node-data) project)
-		 (or (not folder)
-		     (project-buffer-parent-of-p (project-buffer-node->name  node-data) folder)))
-	    (progn
-	      (when prj-sel
-		(setf (project-buffer-node->project-collapsed node-data) hidden-flag)
-		(ewoc-invalidate status node))
-	      (unless skip-under
-		(setf (project-buffer-node->hidden node-data) hidden-flag)
-		(ewoc-invalidate status node)
-		(if (and (eq (project-buffer-node->type node-data) 'folder)
-			 (project-buffer-node->collapsed node-data)
-			 (not hidden-flag))
-		    (setq skip-under (project-buffer-node->name node-data))))
-	      (setq node (ewoc-next status node)))
-	    (setq node nil))))))
-
-(defun project-buffer-toggle-view-mode()
-  "Toggle between the different view mode (folder-view / flag-view / folder-hidden-view)"
-  (interactive)
-  (save-excursion
-    (unless project-buffer-status (error "Not in project-buffer buffer."))
-    (setq project-buffer-view-mode
-	  (cond ((eq project-buffer-view-mode 'folder-view)        'flat-view)
-		((eq project-buffer-view-mode 'flat-view)          'folder-hidden-view)
-		((eq project-buffer-view-mode 'folder-hidden-view) 'folder-view)))
-    (ewoc-refresh project-buffer-status)))
-  
-;; unused
-(defun project-buffer-get-current-item()
-  (ewoc-data (ewoc-locate project-buffer-status)))
-
-;; 
-;; split / files...
-;; 
-
-;; Define the key mapping for the spu mode:
-(defvar project-buffer-mode-map
-  (let ((project-buffer-mode-map (make-keymap)))
-    (define-key project-buffer-mode-map [?+] 'project-buffer-toggle-expand-collapse)
-    (define-key project-buffer-mode-map [?\t] 'project-buffer-toggle-expand-collapse)
-    (define-key project-buffer-mode-map [?m] 'project-buffer-mark-file)
-    (define-key project-buffer-mode-map [?u] 'project-buffer-unmark-file)
-    (define-key project-buffer-mode-map [?v] 'project-buffer-toggle-view-mode)
-    project-buffer-mode-map))
-
-
 (defun project-buffer-mode()
   "Entry point to the project-buffer-mode."
   (kill-all-local-variables)
@@ -329,33 +250,24 @@ If the cursor is on a file - nothing will be done."
       (setq project-buffer-view-mode 'folder-view)
       (project-buffer-refresh-ewoc-hf status))))
 
+
 (defun project-buffer-refresh-ewoc-hf(status)
   "Refresh ewoc header/footer"
   (ewoc-set-hf status 
 	       (concat "Booh Header\n"
 		       "\n\n") ""))
 
-(defun project-buffer-refresh-nodes(status)
-  "Refresh displayed buffer"
-  (ewoc-map (lambda (data) t)
-	    status
-	    ))
-  
-;;(ewoc-data (ewoc-locate project-buffer-status))
-;;(ewoc-invalidate project-buffer-status pos)
-;;(ewoc-goto-prev project-buffer-status 1)))
-;;(ewoc-goto-next project-buffer-status 1)))
-;;      (file-name-nondirectory "test/tess")
-;;      (file-name-directory "test/tess")
-
 
 (defun project-buffer-extract-folder (name type)
+  "Return the folder associated to the node's name"
   (cond ((eq type 'folder) name)
 	((eq type 'project) nil)
 	(t (let ((dirname (file-name-directory name)))
 	     (and dirname (substring dirname 0 -1))))))
 
+
 (defun project-buffer-directory-lessp (dir1 dir2 type2)
+  "Return t if dir1 is less than (dir2,type2)"
   (let* ((list1  (and dir1 (split-string dir1 "/")))
 	 (list2  (and dir2 (split-string dir2 "/")))
 	 (cnt 0))
@@ -372,6 +284,7 @@ If the cursor is on a file - nothing will be done."
 		   ))
 	(null list2))))
 
+
 (defun project-buffer-parent-of-p (child parent)
   "Check if PARENT is a parent directory of CHILD"
   (let* ((clist (and child  (split-string child "/")))
@@ -385,7 +298,6 @@ If the cursor is on a file - nothing will be done."
     (and cont (null plist))))
 	    
   
-
 (defun project-buffer-find-node-up(status node &optional any-parent-ok)
   "Return the directory or project in which the node belong
 This may change depending on the view mode
@@ -414,16 +326,6 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 	       (setq cur nil)))
 	(setq cur (and cur (ewoc-prev status cur)))))
     found))
-
-
-;;
-;; TODO:
-;; - need to consider if folder is collapsed or expanded
-;; - need to consider if project is collapsed or expanded
-;; - also need to consider the view mode!
-;;   in general the view mode affects only folders!
-;;
-
 
 
 (defun project-buffer-insert (status data) ; same as pretty print, assume data is cons (project . filename)
@@ -536,6 +438,113 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 	  ))
 )))
 
+
+
+;;
+;;  Interactive Functions:
+;;
+
+
+(defun project-buffer-mark-file()
+  "Mark the file that the cursor is on and move to the next one."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((node (ewoc-locate project-buffer-status))
+	 (node-data (ewoc-data node)))
+    (setf (project-buffer-node->marked node-data) t)
+    (ewoc-invalidate project-buffer-status node)
+    (ewoc-goto-next project-buffer-status 1)))
+
+
+(defun project-buffer-unmark-file()
+  "Unmark the file that the cursor is on and move to the next one."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((node (ewoc-locate project-buffer-status))
+	 (node-data (ewoc-data node)))
+    (setf (project-buffer-node->marked node-data) nil)
+    (ewoc-invalidate project-buffer-status node)
+    (ewoc-goto-next project-buffer-status 1)))
+
+
+(defun project-buffer-toggle-expand-collapse()
+  "Expand / Collapse project and folder that the cursor is on.
+If the cursor is on a file - nothing will be done."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((node      (ewoc-locate project-buffer-status))
+	 (node-data (ewoc-data node))
+	 (status    project-buffer-status)
+	 prj-sel
+	 hidden-flag
+	 project 
+	 skip-under
+	 folder)
+    (unless (eq (project-buffer-node->type node-data) 'file)
+      (when (eq (project-buffer-node->type node-data) 'folder)
+	(setq folder (project-buffer-node->name node-data)))
+      (setf (project-buffer-node->collapsed node-data) (not (project-buffer-node->collapsed node-data)))
+      (setq hidden-flag (project-buffer-node->collapsed node-data))
+      (setq prj-sel (eq (project-buffer-node->type node-data) 'project))
+      (when prj-sel
+	(setf (project-buffer-node->project-collapsed node-data) hidden-flag))
+      (ewoc-invalidate status node)
+      (setq project (project-buffer-node->project node-data)
+	    node (ewoc-next status node))
+      (while node
+	(setq node-data (ewoc-data node))
+	(when skip-under
+	  (unless (project-buffer-parent-of-p (project-buffer-node->name  node-data) skip-under)
+	    (setq skip-under nil)))
+	(if (and (string-equal (project-buffer-node->project node-data) project)
+		 (or (not folder)
+		     (project-buffer-parent-of-p (project-buffer-node->name  node-data) folder)))
+	    (progn
+	      (when prj-sel
+		(setf (project-buffer-node->project-collapsed node-data) hidden-flag)
+		(ewoc-invalidate status node))
+	      (unless skip-under
+		(setf (project-buffer-node->hidden node-data) hidden-flag)
+		(ewoc-invalidate status node)
+		(if (and (eq (project-buffer-node->type node-data) 'folder)
+			 (project-buffer-node->collapsed node-data)
+			 (not hidden-flag))
+		    (setq skip-under (project-buffer-node->name node-data))))
+	      (setq node (ewoc-next status node)))
+	    (setq node nil))))))
+
+
+(defun project-buffer-toggle-view-mode()
+  "Toggle between the different view mode (folder-view / flag-view / folder-hidden-view)"
+  (interactive)
+  (save-excursion
+    (unless project-buffer-status (error "Not in project-buffer buffer."))
+    (setq project-buffer-view-mode
+	  (cond ((eq project-buffer-view-mode 'folder-view)        'flat-view)
+		((eq project-buffer-view-mode 'flat-view)          'folder-hidden-view)
+		((eq project-buffer-view-mode 'folder-hidden-view) 'folder-view)))
+    (ewoc-refresh project-buffer-status)))
+
+
+;; 
+;; Sample code / Notes...
+;; 
+
+
+;(defun project-buffer-refresh-nodes(status)
+;  "Refresh displayed buffer"
+;  (ewoc-map (lambda (data) t)
+;	    status
+;	    ))
+  
+;;(ewoc-data (ewoc-locate project-buffer-status))
+;;(ewoc-invalidate project-buffer-status pos)
+;;(ewoc-goto-prev project-buffer-status 1)
+;;(ewoc-goto-next project-buffer-status 1)
+
+
+
+
 ;;(split-string "/test/blah/" "/")
 
 ;      (when proj-found
@@ -547,7 +556,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 
 
 ;;
-;; Interactive commands:
+;; Test commands:
 ;;
 
 
