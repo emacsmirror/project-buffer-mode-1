@@ -149,15 +149,16 @@
 	    (:copier nil)
 	    (:constructor project-buffer-create-node (name type filename project &optional hidden))
 	    (:conc-name project-buffer-node->))
-  name      ;; string displayed to represent the file (usually the file.ext)
-  type      ;; project? file? folder?
+  name              ;; string displayed to represent the file (usually the file.ext)
+  type              ;; project? file? folder?
 
-  marked    ;; is the file/project marked?
-  hidden    ;; hidden files (currently: = project/folder close)
-  collapsed ;; is the folder/project collapsed or not?
+  marked            ;; is the file/project marked?
+  hidden            ;; hidden files (currently: = project/folder close)
+  collapsed         ;; is the folder/project collapsed or not?
+  project-collapsed ;; t if the project the file belong to is collapsed
 
-  filename  ;; full path to the filename
-  project   ;; name of the project the file belongs to
+  filename          ;; full path to the filename
+  project           ;; name of the project the file belongs to
 )
 
 ;;(require 'record-type)
@@ -193,10 +194,16 @@
 	(node-marked (project-buffer-node->marked node))
 	(node-type   (project-buffer-node->type node))
 	(node-hidden (project-buffer-node->hidden node))
+	(node-prjcol (project-buffer-node->project-collapsed node))
 	)
-    (if (and (not node-hidden)
-	     (or (eq project-buffer-view-mode 'folder-view)
-		 (not (eq node-type 'folder))))
+    (if (or (and (eq project-buffer-view-mode 'folder-view)
+		 (message "Folder view")
+		 (not node-hidden))
+	    (and (not (eq project-buffer-view-mode 'folder-view))
+		 (message "View %S " project-buffer-view-mode)
+		 (not (eq node-type 'folder))
+		 (not node-prjcol))
+	    (eq node-type 'project))
 	(insert (concat " " 
 			(if node-marked "*" " ")
 			" "
@@ -237,6 +244,7 @@ If the cursor is on a file - nothing will be done."
   (let* ((node      (ewoc-locate project-buffer-status))
 	 (node-data (ewoc-data node))
 	 (status    project-buffer-status)
+	 prj-sel
 	 hidden-flag
 	 project 
 	 skip-under
@@ -246,6 +254,9 @@ If the cursor is on a file - nothing will be done."
 	(setq folder (project-buffer-node->name node-data)))
       (setf (project-buffer-node->collapsed node-data) (not (project-buffer-node->collapsed node-data)))
       (setq hidden-flag (project-buffer-node->collapsed node-data))
+      (setq prj-sel (eq (project-buffer-node->type node-data) 'project))
+      (when prj-sel
+	(setf (project-buffer-node->project-collapsed node-data) hidden-flag))
       (ewoc-invalidate status node)
       (setq project (project-buffer-node->project node-data)
 	    node (ewoc-next status node))
@@ -258,6 +269,9 @@ If the cursor is on a file - nothing will be done."
 		 (or (not folder)
 		     (project-buffer-parent-of-p (project-buffer-node->name  node-data) folder)))
 	    (progn
+	      (when prj-sel
+		(setf (project-buffer-node->project-collapsed node-data) hidden-flag)
+		(ewoc-invalidate status node))
 	      (unless skip-under
 		(setf (project-buffer-node->hidden node-data) hidden-flag)
 		(ewoc-invalidate status node)
@@ -481,14 +495,13 @@ If ANY-PARENT-OK is set, any parent found will be valid"
       (unless (eq type-data 'project)
 	(let* ((shown t)
 	       (parent (project-buffer-find-node-up status node t)))
+	  (setf (project-buffer-node->project-collapsed data) (project-buffer-node->project-collapsed (ewoc-data parent)))
 	  (setq shown (not (and parent (project-buffer-node->collapsed (ewoc-data parent)))))
-	  (message (format "shown; %S" shown))
 	  (while (and parent 
 		      shown
 		      (not (eq (project-buffer-node->type (ewoc-data parent)) 'project)))
 	    (setq parent (project-buffer-find-node-up status parent))
 	    (setq shown  (not (and parent (project-buffer-node->collapsed (ewoc-data parent)))))
-	    (message (format "shown -> %S" shown))
 	    )
 	  (setq hidden-flag (not shown)))
 	(unless hidden-flag 
