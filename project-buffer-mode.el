@@ -170,6 +170,22 @@
 
 ;;
 
+(defun project-buffer-convert-name-for-display(node-data)
+  (let ((node-name (project-buffer-node->name node-data)))
+    (cond ((eq project-buffer-view-mode 'flat-view) 
+	   (concat " `- " node-name))
+	  ((eq project-buffer-view-mode 'folder-hidden-view)
+	   (concat " `- " (file-name-nondirectory node-name)))
+	  ((eq project-buffer-view-mode 'folder-view)
+	   (let ((dir-list (split-string node-name "/"))
+		 (str (if (project-buffer-node->collapsed node-data) " `+ " " `- "))
+		 (cur 1))
+	     (while (< cur (length dir-list)) 
+	       (setq str (concat " |  " str)
+		     cur (1+ cur)))
+	     (concat str (file-name-nondirectory node-name) )))
+	  (t (format "Unknown view mode: %S" project-buffer-view-mode) ))))
+
 (defun project-buffer-prettyprint(node)
   "Pretty-printer function"
   (let ((node-collapsed (project-buffer-node->collapsed node))
@@ -178,7 +194,9 @@
 	(node-type   (project-buffer-node->type node))
 	(node-hidden (project-buffer-node->hidden node))
 	)
-    (if (not node-hidden)
+    (if (and (not node-hidden)
+	     (or (eq project-buffer-view-mode 'folder-view)
+		 (not (eq node-type 'folder))))
 	(insert (concat " " 
 			(if node-marked "*" " ")
 			" "
@@ -187,7 +205,7 @@
 			      (t                             "[-]"))
 			" "
 			(or (and (eq node-type 'project)  node-name)
-			    (concat " `- " node-name))
+			    (project-buffer-convert-name-for-display node))
 			"\n")))))
 
 
@@ -249,7 +267,17 @@ If the cursor is on a file - nothing will be done."
 		    (setq skip-under (project-buffer-node->name node-data))))
 	      (setq node (ewoc-next status node)))
 	    (setq node nil))))))
+
+(defun project-buffer-toggle-view-mode()
+  "Toggle between the different view mode (folder-view / flag-view / folder-hidden-view)"
+  (interactive)
+  (setq project-buffer-view-mode
+	(cond ((eq project-buffer-view-mode 'folder-view)        'flat-view)
+	      ((eq project-buffer-view-mode 'flat-view)          'folder-hidden-view)
+	      ((eq project-buffer-view-mode 'folder-hidden-view) 'folder-view)))
+  (ewoc-refresh project-buffer-status))
   
+;; unused
 (defun project-buffer-get-current-item()
   (ewoc-data (ewoc-locate project-buffer-status)))
 
@@ -264,6 +292,7 @@ If the cursor is on a file - nothing will be done."
     (define-key project-buffer-mode-map [?\t] 'project-buffer-toggle-expand-collapse)
     (define-key project-buffer-mode-map [?m] 'project-buffer-mark-file)
     (define-key project-buffer-mode-map [?u] 'project-buffer-unmark-file)
+    (define-key project-buffer-mode-map [?v] 'project-buffer-toggle-view-mode)
     project-buffer-mode-map))
 
 
@@ -487,8 +516,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 				(nth ndx curr-list)))
 		  (ewoc-enter-before status 
 				     node
-				     (project-buffer-create-node str 'folder folder (project-buffer-node->project data) 
-								 (or hidden-flag (not (eq project-buffer-view-mode 'folder-view)))))
+				     (project-buffer-create-node str 'folder folder (project-buffer-node->project data) hidden-flag))
 		  (setq ndx (1+ ndx)))))
 	  ))
 )))
