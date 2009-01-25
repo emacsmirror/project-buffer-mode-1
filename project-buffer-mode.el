@@ -67,19 +67,18 @@
 ;;   <RET> -> open file at cursor pos
 ;; C-<DWN> -> move to the next project
 ;; C-<UP>  -> move to the previous project
+;;    q    -> quit project-buffer
+;;    ?    -> show brief help!!
 ;;
 ;; Shortcut todo:
 ;;    /    -> find file name
 ;;    n    -> next file matching regexp
 ;;    p    -> prev file matching regexp
 ;;    c    -> compile current file / marked files? [?]
-;;    h    -> find corresponding header/source
-;;   <SPC> -> collapse/expand folder/project + move to the next line
 ;;    Fe   -> set filter on extension
 ;;    Fn   -> set filter on filename
 ;;    Fd   -> set filter on internal directory
 ;;    g    -> reload/reparse sln/vcprojs files
-;;    ?    -> show brief help!!
 ;;    >    -> go to the next object of the same type: next file / folder / project
 ;;    <    -> go to the previous object of the same type: next file / folder / project
 ;;   <BCK> -> 
@@ -94,6 +93,7 @@
 ;;    T    -> touch marked files
 ;;
 ;; Future improvement:
+;;    h    -> find corresponding header/source
 ;;    d    -> show/hide project dependencies
 ;;    b    -> buils marked files
 ;;    S    -> seach in all marked files
@@ -193,11 +193,6 @@
   :group 'project-buffer)
 
 
-(make-face-unbold 'project-buffer-project-button-face)
-(set-face-foreground 'project-buffer-project-button-face "gray50")
-
-(set-face-foreground 'project-buffer-mark-face "blue")
-(set-face-foreground 'project-buffer-project-face "red")
 
 
 ;;
@@ -221,6 +216,8 @@
     (define-key project-buffer-mode-map [return] 'project-buffer-open-current-file)
     (define-key project-buffer-mode-map [(control up)] 'project-buffer-go-to-previous-project)
     (define-key project-buffer-mode-map [(control down)] 'project-buffer-go-to-next-project)
+    (define-key project-buffer-mode-map [??] 'project-buffer-help)
+    (define-key project-buffer-mode-map [?q] 'project-buffer-quit)
     project-buffer-mode-map))
 
 
@@ -294,7 +291,10 @@
 
 
 (defun project-buffer-mode()
-  "Entry point to the project-buffer-mode."
+  "Major mode to view project.
+
+Commands:
+\\{project-buffer-mode-map}"
   (kill-all-local-variables)
   (buffer-disable-undo)
   (setq mode-name "project-buffer"
@@ -314,7 +314,7 @@
 (defun project-buffer-refresh-ewoc-hf(status)
   "Refresh ewoc header/footer"
   (ewoc-set-hf status 
-	       (concat "Booh Header\n"
+	       (concat "Project Buffer Mode:\n"
 		       "\n\n") ""))
 
 
@@ -503,6 +503,18 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 ;;
 ;;  Interactive Functions:
 ;;
+
+
+(defun project-buffer-quit ()
+  "Quit project-buffer mode."
+  (interactive)
+  (bury-buffer))
+
+(defun project-buffer-help ()
+  "Display help for project-buffer mode."
+  (interactive)
+  (describe-function 'project-buffer-mode))
+
 
 (defun project-buffer-next-file (&optional n)
   "Move the cursor down N files."
