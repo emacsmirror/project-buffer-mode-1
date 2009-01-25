@@ -157,7 +157,7 @@
   name              ;; string displayed to represent the file (usually the file.ext)
   type              ;; project? file? folder?
 
-  marked            ;; is the file/project marked?
+  marked            ;; is the file marked?
   hidden            ;; hidden files (currently: = project/folder close)
   collapsed         ;; is the folder/project collapsed or not?
   project-collapsed ;; t if the project the file belong to is collapsed
@@ -237,6 +237,7 @@
     (define-key project-buffer-mode-map [?m] 'project-buffer-mark-file)
     (define-key project-buffer-mode-map [?u] 'project-buffer-unmark-file)
     (define-key project-buffer-mode-map [?v] 'project-buffer-toggle-view-mode)
+    (define-key project-buffer-mode-map [?f] 'project-buffer-find-marked-files)
     (define-key project-buffer-mode-map [return] 'project-buffer-open-current-file)
     (define-key project-buffer-mode-map [(control up)] 'project-buffer-go-to-previous-project)
     (define-key project-buffer-mode-map [(control down)] 'project-buffer-go-to-next-project)
@@ -246,6 +247,12 @@
 ;;
 ;;  Internal Utility Functions:
 ;;
+
+
+(defun project-buffer-get-marked-nodes(status)
+  "Return the list of marked node or the current node if none are marked"
+  (or (ewoc-collect status (lambda (node) (project-buffer-node->marked node)))
+      (list (ewoc-data (ewoc-locate status)))))
 
 
 (defun project-buffer-convert-name-for-display(node-data)
@@ -516,6 +523,22 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 ;;
 ;;  Interactive Functions:
 ;;
+
+(defun project-buffer-find-marked-files()
+  "Run find-files on the marked files"
+  (interactive)
+  (let* ((file-list (project-buffer-get-marked-nodes project-buffer-status))
+	 (cnt 0)
+	 buffer)
+    (while file-list
+      (let ((node (pop file-list)))
+	(when (eq (project-buffer-node->type node) 'file)
+	  (setq buffer (find-file-noselect (project-buffer-node->filename node))
+		cnt (1+ cnt)))))
+    (cond ((> cnt 1) (message "Find %i files." cnt))
+	  ((= cnt 1) (display-buffer buffer))
+	  (t (message "No files selected")))))
+
 
 (defun project-buffer-go-to-previous-project()
   "Go to previous project line"
