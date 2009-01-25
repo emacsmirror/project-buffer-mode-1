@@ -84,6 +84,7 @@
 ;;    m    -> mark file
 ;;    u    -> unmark file
 ;;    +    -> collapse/expand folder/project
+;;    v    -> Toggle view mode (flat / flat with the foldershidden / folder)
 ;;
 ;; Shortcut todo:
 ;;    /    -> find file name
@@ -99,7 +100,6 @@
 ;;    Fn   -> set filter on filename
 ;;    Fd   -> set filter on internal directory
 ;;    g    -> reload/reparse sln/vcprojs files
-;;    v    -> Toggle view mode (flat / flat with the foldershidden / folder)
 ;;    ?    -> show brief help!!
 ;;    >    -> go to the next object of the same type: next file / folder / project
 ;;    <    -> go to the previous object of the same type: next file / folder / project
@@ -285,11 +285,13 @@ If the cursor is on a file - nothing will be done."
 (defun project-buffer-toggle-view-mode()
   "Toggle between the different view mode (folder-view / flag-view / folder-hidden-view)"
   (interactive)
-  (setq project-buffer-view-mode
-	(cond ((eq project-buffer-view-mode 'folder-view)        'flat-view)
-	      ((eq project-buffer-view-mode 'flat-view)          'folder-hidden-view)
-	      ((eq project-buffer-view-mode 'folder-hidden-view) 'folder-view)))
-  (ewoc-refresh project-buffer-status))
+  (save-excursion
+    (unless project-buffer-status (error "Not in project-buffer buffer."))
+    (setq project-buffer-view-mode
+	  (cond ((eq project-buffer-view-mode 'folder-view)        'flat-view)
+		((eq project-buffer-view-mode 'flat-view)          'folder-hidden-view)
+		((eq project-buffer-view-mode 'folder-hidden-view) 'folder-view)))
+    (ewoc-refresh project-buffer-status)))
   
 ;; unused
 (defun project-buffer-get-current-item()
