@@ -17,6 +17,10 @@
 ;;  . currently building?
 ;;  . current project dependencies???
 
+;; TODO:
+;;  - show project dependencies
+;;  - test color in dark background 
+;;  - adding button to collapse/expand folders/projects
 
 ;; Flat view:
 
@@ -30,36 +34,6 @@
 ;;         `- FolderB/File5
 ;;     [+] ProjName3
 ;;  
-
-;; Folder view:
-
-;;     [+] ProjName1           <deps: ProjName3, ProjName2>
-;;     [ ] ProjName2
-;;          `- FolderA
-;;   *          `- File1
-;;   *          `- File2
-;;          ++ FolderB
-;;     [+] ProjName3
-;;  
-
-;; Sample:
-;;   [-] other
-;;        `- foo.cpp
-;;   [-] test1
-;;        `- sources
-;;        |   `- abc.cpp
-;;        |   `- gfr.cpp
-;;        +- extras
-;;        `- headers
-;;        |   `- xtra.h
-;;   [-] test1
-;;        `- sources/abc.cpp
-;;        `- sources/gfr.cpp
-;;        `- headers/xtra.h
-;;   [-] test2
-;;        `- apl.c
-;;        `- roo.c
-;;        `- zzz.h
 
 
 
@@ -242,6 +216,8 @@
     (define-key project-buffer-mode-map [?t] 'project-buffer-toggle-all-marks)
     (define-key project-buffer-mode-map [?v] 'project-buffer-toggle-view-mode)
     (define-key project-buffer-mode-map [?f] 'project-buffer-find-marked-files)
+    (define-key project-buffer-mode-map [?\ ] 'project-buffer-next-file)
+    (define-key project-buffer-mode-map [(shift ?\ )] 'project-buffer-prev-file)
     (define-key project-buffer-mode-map [return] 'project-buffer-open-current-file)
     (define-key project-buffer-mode-map [(control up)] 'project-buffer-go-to-previous-project)
     (define-key project-buffer-mode-map [(control down)] 'project-buffer-go-to-next-project)
@@ -528,9 +504,23 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 ;;  Interactive Functions:
 ;;
 
+(defun project-buffer-next-file (&optional n)
+  "Move the cursor down N files."
+  (interactive "p")
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (ewoc-goto-next project-buffer-status n))
+
+(defun project-buffer-prev-file (&optional n)
+  "Move the cursor up N files."
+  (interactive "p")
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (ewoc-goto-prev project-buffer-status n))
+
+
 (defun project-buffer-find-marked-files()
   "Run find-files on the marked files"
   (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
   (let* ((file-list (project-buffer-get-marked-nodes project-buffer-status))
 	 (cnt 0)
 	 buffer)
