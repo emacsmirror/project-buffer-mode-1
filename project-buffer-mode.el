@@ -167,6 +167,57 @@
 
 
 ;;
+;;  Font
+;;
+
+(defgroup project-buffer nil
+  "A special mode to manager project files."
+)
+
+(defface project-buffer-project-face
+  '((((class color) (background light)) (:foreground "red"))
+    (((class color) (background dark)) (:foreground "salmon")))
+  "Project buffer mode face used to highlight project nodes."
+  :group 'project-buffer)
+
+(defface project-buffer-folder-face
+  '((((class color) (background light)) (:foreground "purple"))
+    (((class color) (background dark)) (:foreground "salmon")))
+  "Project buffer mode face used to highlight folder nodes."
+  :group 'project-buffer)
+
+(defface project-buffer-file-face
+  '((((class color) (background light)) (:foreground "black"))
+    (((class color) (background dark)) (:foreground "white")))
+  "Project buffer mode face used to highlight file nodes."
+  :group 'project-buffer)
+
+(defface project-buffer-project-button-face
+  '((((class color) (background light)) (:foreground "gray50"))
+    (((class color) (background dark)) (:foreground "gray50")))
+  "Project buffer mode face used highligh [ and ] in front of the project name."
+  :group 'project-buffer)
+  
+(defface project-buffer-indent-face
+  '((((class color) (background light)) (:foreground "gray50"))
+    (((class color) (background dark)) (:foreground "gray50")))
+  "Project buffer mode face used to highlight indent characters."
+  :group 'project-buffer)
+
+(defface project-buffer-mark-face
+  '((((class color) (background light)) (:foreground "red"))
+    (((class color) (background dark)) (:foreground "tomato")))
+  "Project buffer mode face used highligh marks."
+  :group 'project-buffer)
+
+(make-face-unbold 'project-buffer-project-button-face)
+(set-face-foreground 'project-buffer-project-button-face "gray50")
+
+(set-face-foreground 'project-buffer-mark-face "blue")
+(set-face-foreground 'project-buffer-project-face "red")
+
+
+;;
 ;;  Key Bindings:
 ;;
 
@@ -188,11 +239,14 @@
 
 (defun project-buffer-convert-name-for-display(node-data)
   "Convert the node name into the displayed string depending on the project-buffer-view-mode."
-  (let ((node-name (project-buffer-node->name node-data)))
+  (let ((node-name  (project-buffer-node->name node-data))
+	(node-color (if (eq (project-buffer-node->type node-data) 'file) 'project-buffer-file-face 'project-buffer-folder-face)))
     (cond ((eq project-buffer-view-mode 'flat-view) 
-	   (concat " `- " node-name))
+	   (concat (propertize " `- " 'face 'project-buffer-indent-face) 
+		   (propertize node-name 'face node-color)))
 	  ((eq project-buffer-view-mode 'folder-hidden-view)
-	   (concat " `- " (file-name-nondirectory node-name)))
+	   (concat (propertize " `- " 'face 'project-buffer-indent-face) 
+		   (propertize (file-name-nondirectory node-name) 'face node-color)))
 	  ((eq project-buffer-view-mode 'folder-view)
 	   (let ((dir-list (split-string node-name "/"))
 		 (str (if (project-buffer-node->collapsed node-data) " `+ " " `- "))
@@ -200,7 +254,8 @@
 	     (while (< cur (length dir-list)) 
 	       (setq str (concat " |  " str)
 		     cur (1+ cur)))
-	     (concat str (file-name-nondirectory node-name) )))
+	     (concat (propertize str 'face 'project-buffer-indent-face) 
+		     (propertize (file-name-nondirectory node-name) 'face node-color) )))
 	  (t (format "Unknown view mode: %S" project-buffer-view-mode) ))))
 
 
@@ -214,21 +269,19 @@
 	(node-prjcol (project-buffer-node->project-collapsed node))
 	)
     (if (or (and (eq project-buffer-view-mode 'folder-view)
-		 (message "Folder view")
 		 (not node-hidden))
 	    (and (not (eq project-buffer-view-mode 'folder-view))
-		 (message "View %S " project-buffer-view-mode)
 		 (not (eq node-type 'folder))
 		 (not node-prjcol))
 	    (eq node-type 'project))
 	(insert (concat " " 
-			(if node-marked "*" " ")
+			(if node-marked (propertize "*" 'face 'project-buffer-mark-face)" ")
 			" "
 			(cond ((not (eq node-type 'project)) "   ")
-			      (node-collapsed                "[+]")
-			      (t                             "[-]"))
+			      (node-collapsed                (propertize "[+]" 'face 'project-buffer-project-button-face) )
+			      (t                             (propertize "[-]" 'face 'project-buffer-project-button-face) ))
 			" "
-			(or (and (eq node-type 'project)  node-name)
+			(or (and (eq node-type 'project)  (propertize node-name 'face 'project-buffer-project-face))
 			    (project-buffer-convert-name-for-display node))
 			"\n")))))
 
