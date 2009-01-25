@@ -83,8 +83,12 @@
 ;; Shortcut:
 ;;    m    -> mark file
 ;;    u    -> unmark file
+;;    t    -> toggle marked files
+;;    M    -> mark all
+;;    U    -> unmark all
 ;;    +    -> collapse/expand folder/project
 ;;   <TAB> -> collapse/expand folder/project
+;;    f    -> open marked files
 ;;    v    -> Toggle view mode (flat / flat with the foldershidden / folder)
 ;;   <RET> -> open file at cursor pos
 ;; C-<DWN> -> move to the next project
@@ -95,9 +99,6 @@
 ;;    n    -> next file matching regexp
 ;;    p    -> prev file matching regexp
 ;;    c    -> compile current file / marked files? [?]
-;;    t    -> toggle marked files
-;;    U    -> unmark all
-;;    f    -> open marked files
 ;;    h    -> find corresponding header/source
 ;;   <SPC> -> collapse/expand folder/project + move to the next line
 ;;    Fe   -> set filter on extension
@@ -236,6 +237,9 @@
     (define-key project-buffer-mode-map [?\t] 'project-buffer-toggle-expand-collapse)
     (define-key project-buffer-mode-map [?m] 'project-buffer-mark-file)
     (define-key project-buffer-mode-map [?u] 'project-buffer-unmark-file)
+    (define-key project-buffer-mode-map [?M] 'project-buffer-mark-all)
+    (define-key project-buffer-mode-map [?U] 'project-buffer-unmark-all)
+    (define-key project-buffer-mode-map [?t] 'project-buffer-toggle-all-marks)
     (define-key project-buffer-mode-map [?v] 'project-buffer-toggle-view-mode)
     (define-key project-buffer-mode-map [?f] 'project-buffer-find-marked-files)
     (define-key project-buffer-mode-map [return] 'project-buffer-open-current-file)
@@ -598,6 +602,33 @@ If ANY-PARENT-OK is set, any parent found will be valid"
     (setf (project-buffer-node->marked node-data) nil)
     (ewoc-invalidate project-buffer-status node)
     (ewoc-goto-next project-buffer-status 1)))
+
+
+(defun project-buffer-mark-all()
+  "Mark all files."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (ewoc-map (lambda (node) (when (and (eq (project-buffer-node->type node) 'file)
+				      (not (project-buffer-node->marked node)))
+                             (setf (project-buffer-node->marked node) t))) 
+	    project-buffer-status))
+
+(defun project-buffer-unmark-all()
+  "Unmark all files."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (ewoc-map (lambda (node) (when (and (eq (project-buffer-node->type node) 'file)
+				      (project-buffer-node->marked node))
+                             (setf (project-buffer-node->marked node) nil) t))
+	    project-buffer-status))
+
+(defun project-buffer-toggle-all-marks()
+  "Toggle all file marks."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (ewoc-map (lambda (node) (when (eq (project-buffer-node->type node) 'file)
+			     (setf (project-buffer-node->marked node) (not (project-buffer-node->marked node))) t))
+	    project-buffer-status))
 
 
 (defun project-buffer-toggle-expand-collapse()
