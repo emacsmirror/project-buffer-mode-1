@@ -220,8 +220,12 @@ If the cursor is on a file - nothing will be done."
 	 (node-data (ewoc-data node))
 	 (status    project-buffer-status)
 	 hidden-flag
-	 project)
+	 project 
+	 skip-under
+	 folder)
     (unless (eq (project-buffer-node->type node-data) 'file)
+      (when (eq (project-buffer-node->type node-data) 'folder)
+	(setq folder (project-buffer-node->name node-data)))
       (setf (project-buffer-node->collapsed node-data) (not (project-buffer-node->collapsed node-data)))
       (setq hidden-flag (project-buffer-node->collapsed node-data))
       (ewoc-invalidate status node)
@@ -229,12 +233,25 @@ If the cursor is on a file - nothing will be done."
 	    node (ewoc-next status node))
       (while node
 	(setq node-data (ewoc-data node))
-	(if (string-equal (project-buffer-node->project node-data) project)
-	    (progn (setf (project-buffer-node->hidden node-data) hidden-flag)
-		   (ewoc-invalidate status node)
-		   (setq node (ewoc-next status node)))
+	(when skip-under
+	  (unless (project-buffer-parent-of-p (project-buffer-node->name  node-data) skip-under)
+	    (setq skip-under nil)))
+	(if (and (string-equal (project-buffer-node->project node-data) project)
+		 (or (not folder)
+		     (project-buffer-parent-of-p (project-buffer-node->name  node-data) folder)))
+	    (progn
+	      (unless skip-under
+		(setf (project-buffer-node->hidden node-data) hidden-flag)
+		(ewoc-invalidate status node)
+		(if (and (eq (project-buffer-node->type node-data) 'folder)
+			 (project-buffer-node->collapsed node-data)
+			 (not hidden-flag))
+		    (setq skip-under (project-buffer-node->name node-data))))
+	      (setq node (ewoc-next status node)))
 	    (setq node nil))))))
   
+(defun project-buffer-get-current-item()
+  (ewoc-data (ewoc-locate project-buffer-status)))
 
 ;; 
 ;; split / files...
@@ -293,7 +310,7 @@ If the cursor is on a file - nothing will be done."
 	(t (let ((dirname (file-name-directory name)))
 	     (and dirname (substring dirname 0 -1))))))
 
-(defun project-buffer-directory-lessp (dir1 dir2)
+(defun project-buffer-directory-lessp (dir1 dir2 type2)
   (let* ((list1  (and dir1 (split-string dir1 "/")))
 	 (list2  (and dir2 (split-string dir2 "/")))
 	 (cnt 0))
@@ -305,8 +322,64 @@ If the cursor is on a file - nothing will be done."
 	       (if (and (< cnt (length list1))
 			(< cnt (length list2)))
 		   (string-lessp (nth cnt list1) (nth cnt list2))
-		   (< cnt (length list1))))
+		   (and (eq type2 'file) 
+			(< cnt (length list1)))
+		   ))
 	(null list2))))
+
+(defun project-buffer-parent-of-p (child parent)
+  "Check if PARENT is a parent directory of CHILD"
+  (let* ((clist (and child  (split-string child "/")))
+	 (plist (and parent (split-string parent "/")))
+	 (cont t)
+	 res)
+    (while (and clist plist cont)
+      (let ((cname (pop clist))
+	    (pname (pop plist)))
+	(setq cont (string-equal cname pname))))
+    (and cont (null plist))))
+	    
+  
+
+(defun project-buffer-find-node-up(status node &optional any-parent-ok)
+  "Return the directory or project in which the node belong
+This may change depending on the view mode
+If ANY-PARENT-OK is set, any parent found will be valid"
+  (let* ((cur  (ewoc-prev status node))
+	 (fold (file-name-directory (project-buffer-node->name (ewoc-data node))))
+	 (proj (project-buffer-node->project (ewoc-data node)))
+	 found)
+    (setq fold (and fold (substring fold 0 -1))) 
+    (while (and cur (not found))
+      (let* ((data    (ewoc-data cur))
+	     (db-name (project-buffer-node->name data))
+	     (db-type (project-buffer-node->type data))
+	     (db-proj (project-buffer-node->project data)))
+	(cond ((and fold
+		    (eq db-type 'folder)
+		    (eq project-buffer-view-mode 'folder-view)
+		    (or (string-equal fold db-name)
+			(and any-parent-ok
+			     (project-buffer-parent-of-p fold db-name))))
+	       (setq found cur))
+	      ((and (eq db-type 'project)
+		    (string-equal proj db-name))
+	       (setq found cur))
+	      ((not (string-equal proj db-proj))
+	       (setq cur nil)))
+	(setq cur (and cur (ewoc-prev status cur)))))
+    found))
+
+
+;;
+;; TODO:
+;; - need to consider if folder is collapsed or expanded
+;; - need to consider if project is collapsed or expanded
+;; - also need to consider the view mode!
+;;   in general the view mode affects only folders!
+;;
+
+
 
 (defun project-buffer-insert (status data) ; same as pretty print, assume data is cons (project . filename)
   "Insert a file at the right place in it's project."
@@ -318,7 +391,10 @@ If the cursor is on a file - nothing will be done."
 	(here        nil) 
 	(proj-found  nil)
 	(folder      nil)
+	(hidden-flag nil)
 	(skip        nil))
+    (when (eq type-data 'folder)
+      (error "Not supported -- in particular project-buffer-directory-lessp may returns a incorrect value"))
     (while (and node (not here) (not skip))
       (setq node-data (ewoc-data node))
       (cond
@@ -339,7 +415,7 @@ If the cursor is on a file - nothing will be done."
 	      ;; we're still on the project line???
 	      (unless (eq type-db 'project)
 		(if (and folder-db folder-data)
-		    (cond ((project-buffer-directory-lessp folder-data folder-db)
+		    (cond ((project-buffer-directory-lessp folder-data folder-db type-db)
 			   (setq here node))
 
 			  ((string-equal folder-data folder-db)
@@ -349,7 +425,9 @@ If the cursor is on a file - nothing will be done."
 			       (unless (eq type-db 'folder)
 				 (when (string-lessp name-data name-db)
 				   (setq here node)))))
+
 			  (t (setq folder folder-db)))
+
 		    (unless folder-db 
 		      (if folder-data
 			  (setq here node)
@@ -363,9 +441,31 @@ If the cursor is on a file - nothing will be done."
 
     ;; Insert before here...
     (when (not skip)
-      (if here
+      ;; Once the node added we will need to check if it should be hidden or not. 
+      ;; At first, if it's a file, it will be hidden to not have any glitch in the displayed buffer
+      (unless (eq type-data 'project)
+	(setf (project-buffer-node->hidden data) t))
+      (if here 
 	  (setq node (ewoc-enter-before status here data))
 	  (setq node (ewoc-enter-last status data)))
+      ;;
+      (unless (eq type-data 'project)
+	(let* ((shown t)
+	       (parent (project-buffer-find-node-up status node t)))
+	  (setq shown (not (and parent (project-buffer-node->collapsed (ewoc-data parent)))))
+	  (message (format "shown; %S" shown))
+	  (while (and parent 
+		      shown
+		      (not (eq (project-buffer-node->type (ewoc-data parent)) 'project)))
+	    (setq parent (project-buffer-find-node-up status parent))
+	    (setq shown  (not (and parent (project-buffer-node->collapsed (ewoc-data parent)))))
+	    (message (format "shown -> %S" shown))
+	    )
+	  (setq hidden-flag (not shown)))
+	(unless hidden-flag 
+	  (setf (project-buffer-node->hidden data) nil)
+	  (ewoc-invalidate status node)))
+
       (when folder-data
 	(let* ((db-list     (and folder (split-string folder "/")))
 	       (curr-list   (split-string folder-data "/"))
@@ -374,7 +474,22 @@ If the cursor is on a file - nothing will be done."
 		      (< cnt (length db-list))
 		      (string= (nth cnt db-list) (nth cnt curr-list)))
 	    (setq cnt (1+ cnt)))
-	  ;; TODO: Add each folder here!!!
+	  ;; Add the extra folder:
+	  (if (< cnt (length curr-list))
+	      (let ((ndx 0)
+		    (str nil))
+		(while (< ndx cnt)
+		  (setq str (or (and str (concat str "/" (nth ndx curr-list)))
+				(nth ndx curr-list)))
+		  (setq ndx (1+ ndx)))
+		(while (< ndx (length curr-list))
+		  (setq str (or (and str (concat str "/" (nth ndx curr-list)))
+				(nth ndx curr-list)))
+		  (ewoc-enter-before status 
+				     node
+				     (project-buffer-create-node str 'folder folder (project-buffer-node->project data) 
+								 (or hidden-flag (not (eq project-buffer-view-mode 'folder-view)))))
+		  (setq ndx (1+ ndx)))))
 	  ))
 )))
 
@@ -400,31 +515,35 @@ If the cursor is on a file - nothing will be done."
     (with-current-buffer buffer
       (project-buffer-mode)
 
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "test1" 'project "test1.sln" "test1"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/gfr.cpp" 'file  "~/temp/gfr.cpp" "test1"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/abc.cpp" 'file  "~/temp/abc.cpp" "test1"))
-
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "test2" 'project "test2.sln" "test2"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "header/zzz.h" 'file  "~/temp/zzz.h" "test2"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/roo.c" 'file  "~/temp/roo.c" "test2"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "script.awk" 'file "~/temp/script.awk" "test2"))
-
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "header/xtra.h" 'file "~/temp/xtra.h" "test1"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "blah.h" 'file "~/temp/blah.h" "test1"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/zzz.cpp" 'file  "~/temp/zzz.cpp" "test1"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "aha.h" 'file "~/temp/aha.h" "test1"))
-
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "other" 'project  "other.sln" "other"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "test.h" 'file "~/temp/test.h" "other"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/apl.c" 'file  "~/temp/apl.c" "test2"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/foo.cpp" 'file  "~/temp/foo.c" "other"))
-      (project-buffer-insert project-buffer-status (project-buffer-create-node "test2.h" 'file "~/temp/test2.h" "other"))
-
+;;      (project-buffer-insert project-buffer-status (project-buffer-create-node "test1" 'project "test1.sln" "test1"))
+;;      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/gfr.cpp" 'file  "~/temp/gfr.cpp" "test1"))
+;;      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/abc.cpp" 'file  "~/temp/abc.cpp" "test1"))
+;;
+;;      (project-buffer-insert project-buffer-status (project-buffer-create-node "test2" 'project "test2.sln" "test2"))
+;;      (project-buffer-insert project-buffer-status (project-buffer-create-node "header/zzz.h" 'file  "~/temp/zzz.h" "test2"))
+;;      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/roo.c" 'file  "~/temp/roo.c" "test2"))
+;;      (project-buffer-insert project-buffer-status (project-buffer-create-node "script.awk" 'file "~/temp/script.awk" "test2"))
+;;
+;;      (project-buffer-insert project-buffer-status (project-buffer-create-node "header/xtra.h" 'file "~/temp/xtra.h" "test1"))
+;;      (project-buffer-insert project-buffer-status (project-buffer-create-node "blah.h" 'file "~/temp/blah.h" "test1"))
+;;      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/zzz.cpp" 'file  "~/temp/zzz.cpp" "test1"))
+;;      (project-buffer-insert project-buffer-status (project-buffer-create-node "aha.h" 'file "~/temp/aha.h" "test1"))
+;;
+;;      (project-buffer-insert project-buffer-status (project-buffer-create-node "other" 'project  "other.sln" "other"))
+;;      (project-buffer-insert project-buffer-status (project-buffer-create-node "test.h" 'file "~/temp/test.h" "other"))
+;;      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/apl.c" 'file  "~/temp/apl.c" "test2"))
+;;      (project-buffer-insert project-buffer-status (project-buffer-create-node "src/foo.cpp" 'file  "~/temp/foo.c" "other"))
+;;      (project-buffer-insert project-buffer-status (project-buffer-create-node "test2.h" 'file "~/temp/test2.h" "other"))
+;;
       (project-buffer-insert project-buffer-status (project-buffer-create-node "fold" 'project  "fold.sln" "fold"))
       (project-buffer-insert project-buffer-status (project-buffer-create-node "abc/dee/test.c" 'file  "~/test.c" "fold"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "abc/dee/grr.c" 'file  "~/grr.c" "fold"))
       (project-buffer-insert project-buffer-status (project-buffer-create-node "abc/testw.c" 'file  "~/testw.c" "fold")) 
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "abc/rrr/rdf.c" 'file  "~/rdf.c" "fold"))
       (project-buffer-insert project-buffer-status (project-buffer-create-node "abc/def/gla.c" 'file  "~/gla.c" "fold"))
       (project-buffer-insert project-buffer-status (project-buffer-create-node "blue/green/red.c" 'file  "~/red.c" "fold"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "abc/rrr/gth.c" 'file  "~/gth.c" "fold"))
+      (project-buffer-insert project-buffer-status (project-buffer-create-node "abc/rrr/zgth.c" 'file  "~/zgth.c" "fold"))
 )))
 
 (defun test-projbuff-old()
