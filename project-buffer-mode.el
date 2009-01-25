@@ -560,8 +560,9 @@ If ANY-PARENT-OK is set, any parent found will be valid"
   (unless project-buffer-status (error "Not in project-buffer buffer."))
   (let* ((node (ewoc-locate project-buffer-status))
 	 (node-data (ewoc-data node)))
-    (setf (project-buffer-node->marked node-data) t)
-    (ewoc-invalidate project-buffer-status node)
+    (when (eq (project-buffer-node->type node-data) 'file) 
+      (setf (project-buffer-node->marked node-data) t)
+      (ewoc-invalidate project-buffer-status node))
     (ewoc-goto-next project-buffer-status 1)))
 
 
