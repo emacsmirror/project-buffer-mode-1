@@ -84,15 +84,19 @@
 ;;    m    -> mark file
 ;;    u    -> unmark file
 ;;    +    -> collapse/expand folder/project
+;;   <TAB> -> collapse/expand folder/project
 ;;    v    -> Toggle view mode (flat / flat with the foldershidden / folder)
+;;   <RET> -> open file at cursor pos
+;; C-<DWN> -> move to the next project
+;; C-<UP>  -> move to the previous project
 ;;
 ;; Shortcut todo:
 ;;    /    -> find file name
 ;;    n    -> next file matching regexp
 ;;    p    -> prev file matching regexp
-;;   <RET> -> open file at cursor pos
 ;;    c    -> compile current file / marked files? [?]
 ;;    t    -> toggle marked files
+;;    U    -> unmark all
 ;;    f    -> open marked files
 ;;    h    -> find corresponding header/source
 ;;   <SPC> -> collapse/expand folder/project + move to the next line
@@ -105,11 +109,8 @@
 ;;    <    -> go to the previous object of the same type: next file / folder / project
 ;;   <BCK> -> 
 ;;   <TAB> -> cycle through: collapse current folder / expand folder / expand all folders inside
-;;   <LFT> -> expand if collapsed move to the first folder; move inside if expanded
-;;   <RGT> -> move up if folded collapsed; collapse if in front of folder ; move to the folded if in front of a file
-;; C-<DWN> -> move to the next project
-;; C-<UP>  -> move to the previous project
-
+;; <C-LFT> -> expand if collapsed move to the first folder; move inside if expanded
+;; <C-RGT> -> move up if folded collapsed; collapse if in front of folder ; move to the folded if in front of a file
 ;;
 ;;    B    -> launch build
 ;;    C    -> launch clean
@@ -237,6 +238,8 @@
     (define-key project-buffer-mode-map [?u] 'project-buffer-unmark-file)
     (define-key project-buffer-mode-map [?v] 'project-buffer-toggle-view-mode)
     (define-key project-buffer-mode-map [return] 'project-buffer-open-current-file)
+    (define-key project-buffer-mode-map [(control up)] 'project-buffer-go-to-previous-project)
+    (define-key project-buffer-mode-map [(control down)] 'project-buffer-go-to-next-project)
     project-buffer-mode-map))
 
 
@@ -513,6 +516,34 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 ;;
 ;;  Interactive Functions:
 ;;
+
+(defun project-buffer-go-to-previous-project()
+  "Go to previous project line"
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((status project-buffer-status)
+	 (node (ewoc-locate project-buffer-status))
+	 (search (ewoc-prev status node)))
+    (while (and search
+		(not (eq (project-buffer-node->type (ewoc-data search)) 'project)))
+      (setq search (ewoc-prev status search)))
+    (when search
+      (ewoc-goto-node status search))))
+
+
+(defun project-buffer-go-to-next-project()
+  "Go to next project line"
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((status project-buffer-status)
+	 (node (ewoc-locate project-buffer-status))
+	 (search (ewoc-next status node)))
+    (while (and search
+		(not (eq (project-buffer-node->type (ewoc-data search)) 'project)))
+      (setq search (ewoc-next status search)))
+    (when search
+      (ewoc-goto-node status search))))
+
 
 (defun project-buffer-open-current-file()
   "Open the file that the cursor is on."
