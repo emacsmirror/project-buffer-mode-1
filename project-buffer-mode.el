@@ -229,11 +229,12 @@
     (define-key project-buffer-mode-map [?m] 'project-buffer-mark-file)
     (define-key project-buffer-mode-map [?u] 'project-buffer-unmark-file)
     (define-key project-buffer-mode-map [?v] 'project-buffer-toggle-view-mode)
+    (define-key project-buffer-mode-map [return] 'project-buffer-open-current-file)
     project-buffer-mode-map))
 
 
 ;;
-;;  Inteernal Utility Functions:
+;;  Internal Utility Functions:
 ;;
 
 
@@ -497,6 +498,14 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 ;;  Interactive Functions:
 ;;
 
+(defun project-buffer-open-current-file()
+  "Open the file that the cursor is on."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((node (ewoc-locate project-buffer-status))
+	 (node-data (ewoc-data node)))
+    (unless (eq (project-buffer-node->type node-data) 'file) (error "The current line is not a file"))
+    (find-file (project-buffer-node->filename node-data))))
 
 (defun project-buffer-mark-file()
   "Mark the file that the cursor is on and move to the next one."
