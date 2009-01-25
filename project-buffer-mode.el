@@ -210,6 +210,13 @@
   "Project buffer mode face used highligh marks."
   :group 'project-buffer)
 
+(defface project-buffer-filename-face
+  '((((class color) (background light)) (:foreground "gray50"))
+    (((class color) (background dark)) (:foreground "gray50")))
+  "Project buffer mode face used highligh file names."
+  :group 'project-buffer)
+
+
 (make-face-unbold 'project-buffer-project-button-face)
 (set-face-foreground 'project-buffer-project-button-face "gray50")
 
@@ -244,10 +251,12 @@
 	(node-color (if (eq (project-buffer-node->type node-data) 'file) 'project-buffer-file-face 'project-buffer-folder-face)))
     (cond ((eq project-buffer-view-mode 'flat-view) 
 	   (concat (propertize " `- " 'face 'project-buffer-indent-face) 
-		   (propertize node-name 'face node-color)))
+		   (and (file-name-directory node-name) 
+			(propertize (file-name-directory node-name) 'face 'project-buffer-folder-face))
+		   (propertize (file-name-nondirectory node-name) 'face 'project-buffer-file-face)))
 	  ((eq project-buffer-view-mode 'folder-hidden-view)
 	   (concat (propertize " `- " 'face 'project-buffer-indent-face) 
-		   (propertize (file-name-nondirectory node-name) 'face node-color)))
+		   (propertize (file-name-nondirectory node-name) 'face 'project-buffer-file-face)))
 	  ((eq project-buffer-view-mode 'folder-view)
 	   (let ((dir-list (split-string node-name "/"))
 		 (str (if (project-buffer-node->collapsed node-data) " `+ " " `- "))
@@ -269,22 +278,29 @@
 	(node-hidden (project-buffer-node->hidden node))
 	(node-prjcol (project-buffer-node->project-collapsed node))
 	)
-    (if (or (and (eq project-buffer-view-mode 'folder-view)
-		 (not node-hidden))
-	    (and (not (eq project-buffer-view-mode 'folder-view))
-		 (not (eq node-type 'folder))
-		 (not node-prjcol))
-	    (eq node-type 'project))
-	(insert (concat " " 
-			(if node-marked (propertize "*" 'face 'project-buffer-mark-face)" ")
-			" "
-			(cond ((not (eq node-type 'project)) "   ")
-			      (node-collapsed                (propertize "[+]" 'face 'project-buffer-project-button-face) )
-			      (t                             (propertize "[-]" 'face 'project-buffer-project-button-face) ))
-			" "
-			(or (and (eq node-type 'project)  (propertize node-name 'face 'project-buffer-project-face))
-			    (project-buffer-convert-name-for-display node))
-			"\n")))))
+    (when (or (and (eq project-buffer-view-mode 'folder-view)
+		   (not node-hidden))
+	      (and (not (eq project-buffer-view-mode 'folder-view))
+		   (not (eq node-type 'folder))
+		   (not node-prjcol))
+	      (eq node-type 'project))
+      (insert (concat " " 
+		      (if node-marked (propertize "*" 'face 'project-buffer-mark-face)" ")
+		      " "
+		      (cond ((not (eq node-type 'project)) "   ")
+			    (node-collapsed                (propertize "[+]" 'face 'project-buffer-project-button-face) )
+			    (t                             (propertize "[-]" 'face 'project-buffer-project-button-face) ))
+		      " "
+		      (or (and (eq node-type 'project)  (propertize node-name 'face 'project-buffer-project-face))
+			  (project-buffer-convert-name-for-display node))))
+	(when (and (eq project-buffer-view-mode 'folder-hidden-view)
+		   (project-buffer-node->filename node)
+		   (eq (project-buffer-node->type node) 'file))
+	  (indent-to-column 40)
+	  (insert (concat " " (propertize (project-buffer-node->filename node) 
+					 'face 'project-buffer-filename-face))))
+	(insert "\n")
+)))
 
 
 (defun project-buffer-mode()
@@ -627,6 +643,7 @@ If the cursor is on a file - nothing will be done."
   (let ((buffer (generate-new-buffer "test-project-buffer")))
     (display-buffer buffer)
     (with-current-buffer buffer
+      (cd "~/temp")
       (project-buffer-mode)
 
       (project-buffer-insert project-buffer-status (project-buffer-create-node "test1" 'project "test1.sln" "test1"))
