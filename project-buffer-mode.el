@@ -65,21 +65,20 @@
 ;;    /    -> find file name
 ;;    n    -> next file matching regexp
 ;;    p    -> prev file matching regexp
+;;   <BCK> -> go to parent
 ;;
 ;; Shortcut todo:
-;;    g    -> reload/reparse project files
-;;   <BCK> -> go to parent
 ;; <C-LFT> -> expand if collapsed move to the first folder; move inside if expanded
 ;; <C-RGT> -> move up if folded collapsed; collapse if in front of folder ; move to the folded if in front of a file
 ;;
+;; Future improvement:
+;;    g    -> reload/reparse project files
 ;;    c    -> compile current file / marked files? [?]
 ;;    B    -> launch build
 ;;    C    -> launch clean
 ;;    D    -> launch run/with debugger
 ;;    R    -> launch runexit !
 ;;    T    -> touch marked files
-;;
-;; Future improvement:
 ;;    h    -> find corresponding header/source
 ;;    d    -> show/hide project dependencies
 ;;    b    -> buils marked files
@@ -208,7 +207,7 @@
     (define-key project-buffer-mode-map [?/] 'project-buffer-search-forward-regexp)
     (define-key project-buffer-mode-map [?n] 'project-buffer-goto-next-match)
     (define-key project-buffer-mode-map [?p] 'project-buffer-goto-prev-match)
-
+    (define-key project-buffer-mode-map [backspace] 'project-buffer-goto-dir-up)
     (define-key project-buffer-mode-map [?\ ] 'project-buffer-next-file)
     (define-key project-buffer-mode-map [(shift ?\ )] 'project-buffer-prev-file)
     (define-key project-buffer-mode-map [return] 'project-buffer-open-current-file)
@@ -533,9 +532,20 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 
 
 ;;
-;;  Interactive Functions:
+;;  Interactive commands:
 ;;
 
+
+(defun project-buffer-goto-dir-up()
+  "Go to the project/folder containing the current file/folder"
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((status project-buffer-status)
+	 (node (ewoc-locate status)))
+    (setq node (and node (project-buffer-find-node-up status node)))
+    (when node
+      (ewoc-goto-node status node))))
+	
 
 (defun project-buffer-search-forward-regexp(regexp)
   "Search file matching REGEXP"
