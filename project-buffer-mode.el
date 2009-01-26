@@ -784,13 +784,14 @@ If the cursor is on a file - nothing will be done."
 (defun project-buffer-toggle-view-mode()
   "Toggle between the different view mode (folder-view / flag-view / folder-hidden-view)"
   (interactive)
-  (save-excursion
+  (let ((node (ewoc-locate project-buffer-status)))
     (unless project-buffer-status (error "Not in project-buffer buffer."))
     (setq project-buffer-view-mode
 	  (cond ((eq project-buffer-view-mode 'folder-view)        'flat-view)
 		((eq project-buffer-view-mode 'flat-view)          'folder-hidden-view)
 		((eq project-buffer-view-mode 'folder-hidden-view) 'folder-view)))
-    (ewoc-refresh project-buffer-status)))
+    (ewoc-refresh project-buffer-status)
+    (ewoc-goto-node project-buffer-status node)))
 
 ;;
 (provide 'project-buffer-mode)
