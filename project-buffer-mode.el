@@ -67,18 +67,14 @@
 ;;    /    -> find file name
 ;;    n    -> next file matching regexp
 ;;    p    -> prev file matching regexp
-;;    c    -> compile current file / marked files? [?]
-;;    Fe   -> set filter on extension
-;;    Fn   -> set filter on filename
-;;    Fd   -> set filter on internal directory
-;;    g    -> reload/reparse sln/vcprojs files
-;;    >    -> go to the next object of the same type: next file / folder / project
-;;    <    -> go to the previous object of the same type: next file / folder / project
-;;   <BCK> -> 
+;;  esc    -> cancel action (so far, cancel research)
+;;    g    -> reload/reparse project files
+;;   <BCK> -> go to parent
 ;;   <TAB> -> cycle through: collapse current folder / expand folder / expand all folders inside
 ;; <C-LFT> -> expand if collapsed move to the first folder; move inside if expanded
 ;; <C-RGT> -> move up if folded collapsed; collapse if in front of folder ; move to the folded if in front of a file
 ;;
+;;    c    -> compile current file / marked files? [?]
 ;;    B    -> launch build
 ;;    C    -> launch clean
 ;;    D    -> launch run/with debugger
@@ -90,7 +86,7 @@
 ;;    d    -> show/hide project dependencies
 ;;    b    -> buils marked files
 ;;    S    -> seach in all marked files
-;;  C-M    -> marked files based on regexp???
+;;    s    -> mark files containing regexp...
 
 ;; To find how to do:
 ;; - Grayed out exclude from build files??
@@ -541,6 +537,8 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 (defun project-buffer-quit ()
   "Quit project-buffer mode."
   (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (project-buffer-clear-matched-mark project-buffer-status)
   (bury-buffer))
 
 (defun project-buffer-help ()
@@ -569,6 +567,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
   (let* ((file-list (project-buffer-get-marked-nodes project-buffer-status))
 	 (cnt 0)
 	 buffer)
+    (project-buffer-clear-matched-mark project-buffer-status)
     (while file-list
       (let ((node (pop file-list)))
 	(when (eq (project-buffer-node->type node) 'file)
@@ -613,6 +612,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
   (unless project-buffer-status (error "Not in project-buffer buffer."))
   (let* ((node (ewoc-locate project-buffer-status))
 	 (node-data (ewoc-data node)))
+    (project-buffer-clear-matched-mark project-buffer-status)
     (unless (eq (project-buffer-node->type node-data) 'file) (error "The current line is not a file"))
     (find-file (project-buffer-node->filename node-data))))
 
@@ -679,6 +679,7 @@ If the cursor is on a file - nothing will be done."
 	 project 
 	 skip-under
 	 folder)
+    (project-buffer-clear-matched-mark status)
     (unless (eq (project-buffer-node->type node-data) 'file)
       (when (eq (project-buffer-node->type node-data) 'folder)
 	(setq folder (project-buffer-node->name node-data)))
