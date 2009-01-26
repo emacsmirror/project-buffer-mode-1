@@ -62,15 +62,13 @@
 ;; C-<UP>  -> move to the previous project
 ;;    q    -> quit project-buffer
 ;;    ?    -> show brief help!!
-;;
-;; Shortcut todo:
 ;;    /    -> find file name
 ;;    n    -> next file matching regexp
 ;;    p    -> prev file matching regexp
-;;  esc    -> cancel action (so far, cancel research)
+;;
+;; Shortcut todo:
 ;;    g    -> reload/reparse project files
 ;;   <BCK> -> go to parent
-;;   <TAB> -> cycle through: collapse current folder / expand folder / expand all folders inside
 ;; <C-LFT> -> expand if collapsed move to the first folder; move inside if expanded
 ;; <C-RGT> -> move up if folded collapsed; collapse if in front of folder ; move to the folded if in front of a file
 ;;
@@ -207,6 +205,10 @@
     (define-key project-buffer-mode-map [?t] 'project-buffer-toggle-all-marks)
     (define-key project-buffer-mode-map [?v] 'project-buffer-toggle-view-mode)
     (define-key project-buffer-mode-map [?f] 'project-buffer-find-marked-files)
+    (define-key project-buffer-mode-map [?/] 'project-buffer-search-forward-regexp)
+    (define-key project-buffer-mode-map [?n] 'project-buffer-goto-next-match)
+    (define-key project-buffer-mode-map [?p] 'project-buffer-goto-prev-match)
+
     (define-key project-buffer-mode-map [?\ ] 'project-buffer-next-file)
     (define-key project-buffer-mode-map [(shift ?\ )] 'project-buffer-prev-file)
     (define-key project-buffer-mode-map [return] 'project-buffer-open-current-file)
@@ -529,9 +531,64 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 
 
 
+
 ;;
 ;;  Interactive Functions:
 ;;
+
+
+(defun project-buffer-search-forward-regexp(regexp)
+  "Search file matching REGEXP"
+  (interactive "sSearch forward (regexp): ")
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (project-buffer-clear-matched-mark project-buffer-status)
+  (when (and regexp 
+	     (> (length regexp) 0)) 
+    (let* ((status project-buffer-status)
+	   (node (ewoc-locate status)))
+      (project-buffer-mark-matching-file project-buffer-status regexp)
+      ;; goto first match
+      (while (and node
+		  (or (not (eq (project-buffer-node->type (ewoc-data node)) 'file))
+		      (not (project-buffer-node->matched (ewoc-data node)))))
+	(setq node (ewoc-next status node)))
+      (if node
+	(ewoc-goto-node status node)
+	(message "Failing forward search."))
+)))
+
+
+(defun project-buffer-goto-next-match()
+  "Go to the next matching"
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((status project-buffer-status)
+	 (node (ewoc-locate status)))
+    (if node (setq node (ewoc-next status node)))
+    ;; goto first match
+    (while (and node
+		(or (not (eq (project-buffer-node->type (ewoc-data node)) 'file))
+		    (not (project-buffer-node->matched (ewoc-data node)))))
+      (setq node (ewoc-next status node)))
+    (if node
+	(ewoc-goto-node status node)
+	(message "Failing forward search."))))
+
+(defun project-buffer-goto-prev-match()
+  "Go to the previous matching"
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((status project-buffer-status)
+	 (node (ewoc-locate status)))
+    (if node (setq node (ewoc-prev status node)))
+    ;; goto first match
+    (while (and node
+		(or (not (eq (project-buffer-node->type (ewoc-data node)) 'file))
+		    (not (project-buffer-node->matched (ewoc-data node)))))
+      (setq node (ewoc-prev status node)))
+    (if node
+	(ewoc-goto-node status node)
+	(message "Failing backward search."))))
 
 
 (defun project-buffer-quit ()
