@@ -247,10 +247,13 @@
 
 (defun project-buffer-clear-matched-mark(status)
   "Clear 'matched' flag"
-  (ewoc-map (lambda (node)
-	      (when (project-buffer-node->matched node)
-		(setf (project-buffer-node->matched node) nil) t))
-	    status))
+  (let (result)
+    (ewoc-map (lambda (node)
+		(when (project-buffer-node->matched node)
+		  (setf (project-buffer-node->matched node) nil)
+		  (setq result t)))
+	      status)
+    result))
 
 
 (defun project-buffer-get-marked-nodes(status)
@@ -602,11 +605,11 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 
 
 (defun project-buffer-quit ()
-  "Quit project-buffer mode."
+  "Burry project-buffer mode or cancel the research."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer."))
-  (project-buffer-clear-matched-mark project-buffer-status)
-  (bury-buffer))
+  (unless (project-buffer-clear-matched-mark project-buffer-status)
+    (bury-buffer)))
 
 (defun project-buffer-help ()
   "Display help for project-buffer mode."
