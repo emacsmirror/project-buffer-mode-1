@@ -93,6 +93,29 @@
 
 
 
+;; Sample:
+;; -------
+;;
+;; (defun test-projbuff()
+;;   (interactive)
+;;   (let ((buffer (generate-new-buffer "test-project-buffer")))
+;;     (display-buffer buffer)
+;;     (with-current-buffer buffer
+;;       (cd "~/temp")
+;;       (project-buffer-mode)
+;; 
+;;       (project-buffer-insert project-buffer-status (project-buffer-create-node "test1" 'project "test1.sln" "test1"))
+;;       (project-buffer-insert project-buffer-status (project-buffer-create-node "src/gfr.cpp" 'file  "~/temp/gfr.cpp" "test1"))
+;;       (project-buffer-insert project-buffer-status (project-buffer-create-node "src/abc.cpp" 'file  "~/temp/abc.cpp" "test1"))
+;; 
+;;       (project-buffer-insert project-buffer-status (project-buffer-create-node "test2" 'project "test2.sln" "test2"))
+;;       (project-buffer-insert project-buffer-status (project-buffer-create-node "header/zzz.h" 'file  "~/temp/zzz.h" "test2"))
+;;       (project-buffer-insert project-buffer-status (project-buffer-create-node "src/roo.c" 'file  "~/temp/roo.c" "test2"))
+;;       (project-buffer-insert project-buffer-status (project-buffer-create-node "script.awk" 'file "~/temp/script.awk" "test2"))
+;; )))
+
+
+
 
 (require 'cl)
 (require 'ewoc)
