@@ -16,6 +16,9 @@
 ;;  - show project dependencies
 ;;  - test color in dark background 
 ;;  - adding button to collapse/expand folders/projects
+;;  - make sure no interactive function are complicated!!! (cf: toggle-expand-collapsed)
+;;     it's better to create a function and call it in the command
+
 
 ;;
 ;;     [+] ProjName1           <deps: ProjName3, ProjName2>
@@ -219,7 +222,7 @@
 (defvar project-buffer-mode-map
   (let ((project-buffer-mode-map (make-keymap)))
     (define-key project-buffer-mode-map [?+] 'project-buffer-toggle-expand-collapse)
-    (define-key project-buffer-mode-map [?\t] 'project-buffer-toggle-expand-collapse)
+    (define-key project-buffer-mode-map [?\t] 'project-buffer-toggle-expand-collapse-even-on-file)
     (define-key project-buffer-mode-map [?m] 'project-buffer-mark-file)
     (define-key project-buffer-mode-map [?u] 'project-buffer-unmark-file)
     (define-key project-buffer-mode-map [?M] 'project-buffer-mark-all)
@@ -233,7 +236,10 @@
     (define-key project-buffer-mode-map [backspace] 'project-buffer-goto-dir-up)
     (define-key project-buffer-mode-map [?\ ] 'project-buffer-next-file)
     (define-key project-buffer-mode-map [(shift ?\ )] 'project-buffer-prev-file)
-    (define-key project-buffer-mode-map [return] 'project-buffer-open-current-file)
+    (define-key project-buffer-mode-map [return] 'project-buffer-find-file)
+    (define-key project-buffer-mode-map [?o] 'project-buffer-find-file-other-window)
+    (define-key project-buffer-mode-map [(control left)] 'project-buffer-goto-dir-up-or-collapsed)
+    (define-key project-buffer-mode-map [(control right)] 'project-buffer-next-file-or-expand)
     (define-key project-buffer-mode-map [(control up)] 'project-buffer-go-to-previous-project)
     (define-key project-buffer-mode-map [(control down)] 'project-buffer-go-to-next-project)
     (define-key project-buffer-mode-map [??] 'project-buffer-help)
@@ -572,6 +578,21 @@ If ANY-PARENT-OK is set, any parent found will be valid"
     (when node
       (ewoc-goto-node status node))))
 	
+(defun project-buffer-goto-dir-up-or-collapsed()
+  "Go to the project/folder containing the current file/folder unless the cursor is on a expanded folder/project in which case, it will collapse it"
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((status    project-buffer-status)
+	 (node      (ewoc-locate status))
+	 (node-data (and node (ewoc-data node))))
+    (when node
+      (if (or (eq (project-buffer-node->type node-data) 'file)
+	      (project-buffer-node->collapsed node-data))
+	  (progn (setq node (and node (project-buffer-find-node-up status node)))
+		 (when node (ewoc-goto-node status node)))
+	  (project-buffer-toggle-expand-collapse)
+	  ))))
+
 
 (defun project-buffer-search-forward-regexp(regexp)
   "Search file matching REGEXP"
@@ -646,6 +667,22 @@ If ANY-PARENT-OK is set, any parent found will be valid"
   (unless project-buffer-status (error "Not in project-buffer buffer."))
   (ewoc-goto-next project-buffer-status n))
 
+
+(defun project-buffer-next-file-or-expand()
+  "Go to the project/folder containing the current file/folder unless the cursor is on a expanded folder/project in which case, it will collapse it"
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((status    project-buffer-status)
+	 (node      (ewoc-locate status))
+	 (node-data (and node (ewoc-data node))))
+    (when node
+      (if (or (eq (project-buffer-node->type node-data) 'file)
+	      (not (project-buffer-node->collapsed node-data)))
+	  (ewoc-goto-next status 1)
+	  (project-buffer-toggle-expand-collapse)
+	  ))))
+
+
 (defun project-buffer-prev-file (&optional n)
   "Move the cursor up N files."
   (interactive "p")
@@ -699,15 +736,27 @@ If ANY-PARENT-OK is set, any parent found will be valid"
       (ewoc-goto-node status search))))
 
 
-(defun project-buffer-open-current-file()
+(defun project-buffer-find-file()
   "Open the file that the cursor is on."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer."))
   (let* ((node (ewoc-locate project-buffer-status))
 	 (node-data (ewoc-data node)))
     (project-buffer-clear-matched-mark project-buffer-status)
-    (unless (eq (project-buffer-node->type node-data) 'file) (error "The current line is not a file"))
-    (find-file (project-buffer-node->filename node-data))))
+    (if (eq (project-buffer-node->type node-data) 'file)
+	(find-file (project-buffer-node->filename node-data))
+	(project-buffer-toggle-expand-collapse))))
+
+(defun project-buffer-find-file-other-window()
+  "Open the file that the cursor is on in another window."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((node (ewoc-locate project-buffer-status))
+	 (node-data (ewoc-data node)))
+    (project-buffer-clear-matched-mark project-buffer-status)
+    (if (eq (project-buffer-node->type node-data) 'file)
+	(find-file-other-window (project-buffer-node->filename node-data))
+	(project-buffer-toggle-expand-collapse))))
 
 (defun project-buffer-mark-file()
   "Mark the file that the cursor is on and move to the next one."
@@ -758,6 +807,25 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 			     (setf (project-buffer-node->marked node) (not (project-buffer-node->marked node))) t))
 	    project-buffer-status))
 
+
+(defun project-buffer-toggle-expand-collapse-even-on-file()
+  "Expand / Collapse project and folder that the cursor is on.
+If the cursor is on a file - search up for the nearest folder and collapse it."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((node      (ewoc-locate project-buffer-status))
+	 (node-data (ewoc-data node))
+	 (status    project-buffer-status))
+    (project-buffer-clear-matched-mark status)
+    (when (eq (project-buffer-node->type node-data) 'file)
+      (setq node (and node (project-buffer-find-node-up status node)))
+      (when node (ewoc-goto-node status node)))
+    (when node
+      (project-buffer-toggle-expand-collapse))))
+
+      
+
+  
 
 (defun project-buffer-toggle-expand-collapse()
   "Expand / Collapse project and folder that the cursor is on.
