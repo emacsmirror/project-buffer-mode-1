@@ -240,8 +240,8 @@
     (define-key project-buffer-mode-map [?o] 'project-buffer-find-file-other-window)
     (define-key project-buffer-mode-map [(control left)] 'project-buffer-goto-dir-up-or-collapsed)
     (define-key project-buffer-mode-map [(control right)] 'project-buffer-next-file-or-expand)
-    (define-key project-buffer-mode-map [(control up)] 'project-buffer-go-to-previous-project)
-    (define-key project-buffer-mode-map [(control down)] 'project-buffer-go-to-next-project)
+    (define-key project-buffer-mode-map [(control up)] 'project-buffer-go-to-previous-folder-or-project)
+    (define-key project-buffer-mode-map [(control down)] 'project-buffer-go-to-next-folder-or-project)
     (define-key project-buffer-mode-map [??] 'project-buffer-help)
     (define-key project-buffer-mode-map [?q] 'project-buffer-quit)
     project-buffer-mode-map))
@@ -722,6 +722,34 @@ If ANY-PARENT-OK is set, any parent found will be valid"
       (ewoc-goto-node status search))))
 
 
+(defun project-buffer-go-to-previous-folder-or-project()
+  "If the cursor is on a file, go up to the previous project/folder.
+If the cursor is on a folder, search up for the previous project/folder.
+If the cursor is on a project, go to previous project."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((status    project-buffer-status)
+	 (node      (ewoc-locate project-buffer-status))
+	 (node-data (and node (ewoc-data node))))
+    (cond ((eq (project-buffer-node->type node-data) 'file) 
+	   (project-buffer-goto-dir-up))
+	  ((eq (project-buffer-node->type node-data) 'folder)
+	   (let ((search (ewoc-prev status node)))
+	     (while (and search
+			 (eq (project-buffer-node->type (ewoc-data search)) 'file))
+	       (setq search (ewoc-prev status search)))
+	     (when search
+	       (ewoc-goto-node status search))))
+	  ((eq (project-buffer-node->type node-data) 'project)
+	   (let ((search (ewoc-prev status node)))
+	     (while (and search
+			 (not (eq (project-buffer-node->type (ewoc-data search)) 'project)))
+	       (setq search (ewoc-prev status search)))
+	     (when search
+	       (ewoc-goto-node status search))))
+	  (t (error "Unknown node type! (%S)" (project-buffer-node->type node-data))))))
+
+
 (defun project-buffer-go-to-next-project()
   "Go to next project line"
   (interactive)
@@ -734,6 +762,31 @@ If ANY-PARENT-OK is set, any parent found will be valid"
       (setq search (ewoc-next status search)))
     (when search
       (ewoc-goto-node status search))))
+
+
+(defun project-buffer-go-to-next-folder-or-project()
+  "If the cursor is on a file, go down to the next project/folder.
+If the cursor is on a folder, search down for the next project/folder.
+If the cursor is on a project, go to next project."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((status    project-buffer-status)
+	 (node      (ewoc-locate project-buffer-status))
+	 (node-data (and node (ewoc-data node)))
+	 (fold-ok   (and node 
+			 (not (eq (project-buffer-node->type node-data) 'project))
+			 (eq project-buffer-view-mode 'folder-view)))
+	 (search    (and node (ewoc-next status node))))
+  
+    (while (and search
+		(not (eq (project-buffer-node->type (ewoc-data search)) 'project))
+		(not (and fold-ok
+			  (eq (project-buffer-node->type (ewoc-data search)) 'folder))))
+	    (setq search (ewoc-next status search)))
+    (when search
+      (ewoc-goto-node status search))))
+
+
 
 
 (defun project-buffer-find-file()
