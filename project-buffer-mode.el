@@ -18,8 +18,9 @@
 ;;  - adding button to collapse/expand folders/projects
 ;;  - make sure no interactive function are complicated!!! (cf: toggle-expand-collapsed)
 ;;     it's better to create a function and call it in the command
-
-
+;;  - flag to be have new created folded collaped or not // same with project 
+;;  - flag to for the cursor to always to back up during the research
+;;  - flag to for the cursor to always to the top of the file for researchs
 ;;
 ;;     [+] ProjName1           <deps: ProjName3, ProjName2>
 ;;     [ ] ProjName2
