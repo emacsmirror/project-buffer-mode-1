@@ -70,8 +70,6 @@
 ;;    n    -> next file matching regexp
 ;;    p    -> prev file matching regexp
 ;;   <BCK> -> go to parent
-;;
-;; Shortcut todo:
 ;; <C-LFT> -> expand if collapsed move to the first folder; move inside if expanded
 ;; <C-RGT> -> move up if folded collapsed; collapse if in front of folder ; move to the folded if in front of a file
 ;;
