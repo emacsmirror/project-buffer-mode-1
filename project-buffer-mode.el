@@ -128,6 +128,8 @@
 
 (defvar project-buffer-status nil)
 (defvar project-buffer-view-mode nil)
+(defvar project-buffer-cache-project nil)
+(defvar project-buffer-cache-subdirectory nil)
 
 
 ;;
@@ -367,8 +369,14 @@ Commands:
     (let ((status (ewoc-create 'project-buffer-prettyprint "" "" t)))
       (make-local-variable 'project-buffer-status)
       (make-local-variable 'project-buffer-view-mode)
+      (make-local-variable 'project-buffer-cache-project)
+      (make-local-variable 'project-buffer-cache-subdirectory)
+
       (setq project-buffer-status status)
       (setq project-buffer-view-mode 'folder-view)
+      (setq project-buffer-cache-project nil)
+      (setq project-buffer-cache-subdirectory nil)
+
       (project-buffer-refresh-ewoc-hf status))))
 
 
@@ -451,56 +459,70 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 
 (defun project-buffer-insert (status data) ; same as pretty print, assume data is cons (project . filename)
   "Insert a file at the right place in it's project."
-  (let ((node        (ewoc-nth status 0))
-	(folder-data (project-buffer-extract-folder (project-buffer-node->name data)      (project-buffer-node->type data)))
-	(name-data   (file-name-nondirectory (project-buffer-node->name data)))
-	(type-data   (project-buffer-node->type data))
-	(node-data   nil)
-	(here        nil) 
-	(proj-found  nil)
-	(folder      nil)
-	(hidden-flag nil)
-	(skip        nil))
+  (let ((node           (ewoc-nth status 0))
+	(folder-data    (project-buffer-extract-folder (project-buffer-node->name data)      (project-buffer-node->type data)))
+	(name-data      (file-name-nondirectory (project-buffer-node->name data)))
+	(type-data      (project-buffer-node->type data))
+	(proj-data      (project-buffer-node->project data))
+	(node-data      nil)
+	(here           nil) 
+	(proj-found     nil)
+	(folder         nil)
+	(hidden-flag    nil)
+	(skip           nil)
+	(proj-root-node nil)
+	)
     (when (eq type-data 'folder)
       (error "Not supported -- in particular project-buffer-directory-lessp may returns a incorrect value"))
+    
+
+    ;; Cache check:
+    (when (and project-buffer-cache-project
+	     (string-equal proj-data (car project-buffer-cache-project)))
+      (setq node (cdr project-buffer-cache-project)))
+
+    ;; Search where to insert the node:
     (while (and node (not here) (not skip))
       (setq node-data (ewoc-data node))
       (cond
        ;; data.project < node.project -> insert here...
-       ((string-lessp (project-buffer-node->project data) (project-buffer-node->project node-data))
+       ((string-lessp proj-data (project-buffer-node->project node-data))
 	(if (eq (project-buffer-node->type data) 'project)
 	    (setq here node)
 	    (setq here (and proj-found node)
 		  skip (not proj-found))))
 
        ;; node.project == data.project -> check folder/file name
-       ((string-equal (project-buffer-node->project node-data) (project-buffer-node->project data))
+       ((string-equal proj-data (project-buffer-node->project node-data))
 	(if (eq (project-buffer-node->type data) 'project)
+	    ;; If we're trying to add the project when the project already exist... we'll skip it.
 	    (setq skip t)
+	    ;; Otherwise:
 	    (let* ((folder-db   (project-buffer-extract-folder (project-buffer-node->name node-data) (project-buffer-node->type node-data)))
 		   (name-db     (file-name-nondirectory (project-buffer-node->name node-data)))
 		   (type-db     (project-buffer-node->type node-data)))
-	      ;; we're still on the project line???
-	      (unless (eq type-db 'project)
-		(if (and folder-db folder-data)
-		    (cond ((project-buffer-directory-lessp folder-data folder-db type-db)
-			   (setq here node))
-
-			  ((string-equal folder-data folder-db)
-			   (setq folder folder-data)
-			   (if (eq type-data 'folder)
-			       (setq skip t)
-			       (unless (eq type-db 'folder)
-				 (when (string-lessp name-data name-db)
-				   (setq here node)))))
-
-			  (t (setq folder folder-db)))
-
-		    (unless folder-db 
-		      (if folder-data
-			  (setq here node)
-			  (when (string-lessp name-data name-db)
-			    (setq here node)))))))
+	      ;; Are we're on the project line???
+	      (if (eq type-db 'project)
+		  (setq proj-root-node node)
+		  (if (and folder-db folder-data)
+		      (cond ((project-buffer-directory-lessp folder-data folder-db type-db)
+			     (setq here node))
+			    
+			    ((string-equal folder-data folder-db)
+			     (setq folder folder-data)
+			     (if (eq type-data 'folder)
+				 (setq skip t)
+				 (unless (eq type-db 'folder)
+				   (when (string-lessp name-data name-db)
+				     (setq here node)))))
+			    
+			    (t (setq folder folder-db)))
+		      
+		      (unless folder-db 
+			(if folder-data
+			    (setq here node)
+			    (when (string-lessp name-data name-db)
+			      (setq here node)))))))
 	      (setq proj-found t))
 	))
 
@@ -512,11 +534,19 @@ If ANY-PARENT-OK is set, any parent found will be valid"
       ;; Once the node added we will need to check if it should be hidden or not. 
       ;; At first, if it's a file, it will be hidden to not have any glitch in the displayed buffer
       (unless (eq type-data 'project)
-	(setf (project-buffer-node->hidden data) t))
+	(setf (project-buffer-node->hidden data) t)
+	(unless proj-root-node 
+	  (error "Project '%s' not found" proj-data)))
       (if here 
 	  (setq node (ewoc-enter-before status here data))
 	  (setq node (ewoc-enter-last status data)))
+      (when (eq type-data 'project)
+	(setq proj-root-node node))
+
       ;;
+
+      ;; If it's not a project type, search up in all possible parent to see if the node is supposed to be visible or not
+      ;; TODO: SLOW! Possible improvement: make the code doubled linked list! :) *or at least add a parent node to each nodes*
       (unless (eq type-data 'project)
 	(let* ((shown t)
 	       (parent (project-buffer-find-node-up status node t)))
@@ -554,10 +584,15 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 				(nth ndx curr-list)))
 		  (ewoc-enter-before status 
 				     node
-				     (project-buffer-create-node str 'folder folder (project-buffer-node->project data) hidden-flag))
+				     (project-buffer-create-node str 'folder folder proj-data hidden-flag))
 		  (setq ndx (1+ ndx)))))
 	  ))
-)))
+      )
+
+    ;; Save the project root node:
+    ;; - to speed up the next insert (we stop looking for the project if it's the same one)
+    (setq project-buffer-cache-project (cons proj-data proj-root-node))
+))
 
 
 
