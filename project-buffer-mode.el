@@ -156,6 +156,7 @@
 
   filename          ;; full path to the filename
   project           ;; name of the project the file belongs to
+  parent            ;; parent node (parent folder or project or nil)
 )
 
 
@@ -429,37 +430,20 @@ Commands:
     (and cont (null plist))))
 	    
   
-(defun project-buffer-find-node-up(status node &optional any-parent-ok)
+(defun project-buffer-find-node-up(status node)
   "Return the directory or project in which the node belong
 This may change depending on the view mode
 If ANY-PARENT-OK is set, any parent found will be valid"
-  (let* ((cur  (ewoc-prev status node))
-	 (fold (file-name-directory (project-buffer-node->name (ewoc-data node))))
-	 (proj (project-buffer-node->project (ewoc-data node)))
-	 found)
-    (setq fold (and fold (substring fold 0 -1))) 
-    (while (and cur (not found))
-      (let* ((data    (ewoc-data cur))
-	     (db-name (project-buffer-node->name data))
-	     (db-type (project-buffer-node->type data))
-	     (db-proj (project-buffer-node->project data)))
-	(cond ((and fold
-		    (eq db-type 'folder)
-		    (eq project-buffer-view-mode 'folder-view)
-		    (or (string-equal fold db-name)
-			(and any-parent-ok
-			     (project-buffer-parent-of-p fold db-name))))
-	       (setq found cur))
-	      ((and (eq db-type 'project)
-		    (string-equal proj db-name))
-	       (setq found cur))
-	      ((not (string-equal proj db-proj))
-	       (setq cur nil)))
-	(setq cur (and cur (ewoc-prev status cur)))))
-    found))
+  (if (eq project-buffer-view-mode 'folder-view)
+      (project-buffer-node->parent (ewoc-data node))
+      (let ((parent (project-buffer-node->parent (ewoc-data node))))
+	(when parent
+	  (while (not (eq (project-buffer-node->type (ewoc-data parent)) 'project))
+	    (setq parent (project-buffer-node->parent (ewoc-data parent))))))))
 
 
-(defun project-buffer-insert (status data) ; same as pretty print, assume data is cons (project . filename)
+
+(defun project-buffer-insert (status data)
   "Insert a file at the right place in it's project."
   (let ((node           (ewoc-nth status 0))
 	(folder-data    (project-buffer-extract-folder (project-buffer-node->name data)      (project-buffer-node->type data)))
@@ -474,6 +458,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 	(skip           nil)
 	(proj-root-node nil)
 	(folder-node    nil)
+	(parent-node    nil)
 	)
     (when (eq type-data 'folder)
       (error "Not supported -- in particular project-buffer-directory-lessp may returns a incorrect value"))
@@ -508,6 +493,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
     ;; Search where to insert the node:
     (while (and node (not here) (not skip))
       (setq node-data (ewoc-data node))
+
       (cond
        ;; data.project < node.project -> insert here...
        ((string-lessp proj-data (project-buffer-node->project node-data))
@@ -530,20 +516,23 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 		  (setq proj-root-node node)
 		  (if (and folder-db folder-data)
 		      ;; Both the current node and the new one have a directory
-		      (cond ((project-buffer-directory-lessp folder-data folder-db type-db)
-			     (setq here node))
-			    
-			    ((string-equal folder-data folder-db)
-			     (when (eq type-db 'folder)
+		      (progn (when (and (eq type-db 'folder)
+					(project-buffer-parent-of-p (project-buffer-node->name data) folder-db))
 			       (setq folder-node node))
-			     (setq folder folder-data)
-			     (if (eq type-data 'folder)
-				 (setq skip t)
-				 (unless (eq type-db 'folder)
-				   (when (string-lessp name-data name-db)
-				     (setq here node)))))
-			    
-			    (t (setq folder folder-db)))
+			     (cond ((project-buffer-directory-lessp folder-data folder-db type-db)
+				    (setq here node))
+				   
+				   ((string-equal folder-data folder-db)
+				    (when (eq type-db 'folder)
+				      (setq folder-node node))
+				    (setq folder folder-data)
+				    (if (eq type-data 'folder)
+					(setq skip t)
+					(unless (eq type-db 'folder)
+					  (when (string-lessp name-data name-db)
+					    (setq here node)))))
+				   
+				   (t (setq folder folder-db))))
 		      ;; Either:
 		      ;; - the current node has no folder, meaning:
 		      ;;   -> either the new node has a directory in which case we'll add it here.
@@ -563,6 +552,12 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 
     ;; Insert before here...
     (when (not skip)
+
+      ;; Here we can set the parent folder:
+      (if folder-node
+	(setf (project-buffer-node->parent data) folder-node)
+	(setf (project-buffer-node->parent data) proj-root-node))
+
       ;; Once the node added we will need to check if it should be hidden or not. 
       ;; At first, if it's a file, it will be hidden to not have any glitch in the displayed buffer
       (unless (eq type-data 'project)
@@ -581,7 +576,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
       ;; TODO: SLOW! Possible improvement: make the code doubled linked list! :) *or at least add a parent node to each nodes*
       (unless (eq type-data 'project)
 	(let* ((shown t)
-	       (parent (project-buffer-find-node-up status node t)))
+	       (parent (project-buffer-find-node-up status node)))
 	  (setf (project-buffer-node->project-collapsed data) (project-buffer-node->project-collapsed (ewoc-data parent)))
 	  (setq shown (not (and parent (project-buffer-node->collapsed (ewoc-data parent)))))
 	  (while (and parent 
@@ -614,9 +609,14 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 		(while (< ndx (length curr-list))
 		  (setq str (or (and str (concat str "/" (nth ndx curr-list)))
 				(nth ndx curr-list)))
-		  (setq folder-node (ewoc-enter-before status 
+
+		  (setq parent-node (or folder-node proj-root-node))
+ 		  (setq folder-node (ewoc-enter-before status 
 						       node 
 						       (project-buffer-create-node str 'folder folder proj-data hidden-flag)))
+		  (setf (project-buffer-node->parent (ewoc-data folder-node)) parent-node)
+		  
+		  (setf (project-buffer-node->parent data) folder-node)
 		  (setq ndx (1+ ndx)))))
 	  ))
       )
