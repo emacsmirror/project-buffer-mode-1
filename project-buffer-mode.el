@@ -31,6 +31,8 @@
 ;;         `- FolderB/File5
 ;;     [+] ProjName3
 ;;  
+;; BUG:
+;;  - if the research fail searching forward shouldn't it go to the last matching one?
 
 
 
@@ -471,16 +473,38 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 	(hidden-flag    nil)
 	(skip           nil)
 	(proj-root-node nil)
+	(folder-node    nil)
 	)
     (when (eq type-data 'folder)
       (error "Not supported -- in particular project-buffer-directory-lessp may returns a incorrect value"))
     
 
     ;; Cache check:
-    (when (and project-buffer-cache-project
-	     (string-equal proj-data (car project-buffer-cache-project)))
-      (setq node (cdr project-buffer-cache-project)))
+    (when project-buffer-cache-project
+      (cond 
+       ;; cache-project < current-project -> we can start the search from here (at least).
+       ((string-lessp (car project-buffer-cache-project) proj-data)
+	(setq node (cdr project-buffer-cache-project)
+	      project-buffer-cache-subdirectory nil))
 
+       ;; cache-project == current-project -> check the folders...
+       ((string-equal (car project-buffer-cache-project) proj-data)
+	;; cache-subdir < current-subdir -> we can start from here.
+	;; cache-subdir = current-subdir -> good starting point
+	(if (and project-buffer-cache-subdirectory
+		 folder-data
+		 (or (string-equal (car project-buffer-cache-subdirectory) folder-data)
+		     (project-buffer-directory-lessp (car project-buffer-cache-subdirectory) folder-data 'folder)))
+	    (setq node (cdr project-buffer-cache-subdirectory)
+		  proj-root-node (cdr project-buffer-cache-project)
+		  proj-found t)
+	    (setq node (cdr project-buffer-cache-project)
+		  project-buffer-cache-subdirectory nil)))
+       ;; other wise: cache miss...
+       (t 
+	(setq project-buffer-cache-project nil
+	      project-buffer-cache-subdirectory nil))))
+	 
     ;; Search where to insert the node:
     (while (and node (not here) (not skip))
       (setq node-data (ewoc-data node))
@@ -505,10 +529,13 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 	      (if (eq type-db 'project)
 		  (setq proj-root-node node)
 		  (if (and folder-db folder-data)
+		      ;; Both the current node and the new one have a directory
 		      (cond ((project-buffer-directory-lessp folder-data folder-db type-db)
 			     (setq here node))
 			    
 			    ((string-equal folder-data folder-db)
+			     (when (eq type-db 'folder)
+			       (setq folder-node node))
 			     (setq folder folder-data)
 			     (if (eq type-data 'folder)
 				 (setq skip t)
@@ -517,7 +544,12 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 				     (setq here node)))))
 			    
 			    (t (setq folder folder-db)))
-		      
+		      ;; Either:
+		      ;; - the current node has no folder, meaning:
+		      ;;   -> either the new node has a directory in which case we'll add it here.
+		      ;;   -> or we'll search for the right place to add it.
+		      ;; - the current node has a folder, meaning:
+		      ;;   -> the new one has no folder, therefore, we need to carry on until we reach the no-folder area.
 		      (unless folder-db 
 			(if folder-data
 			    (setq here node)
@@ -582,9 +614,9 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 		(while (< ndx (length curr-list))
 		  (setq str (or (and str (concat str "/" (nth ndx curr-list)))
 				(nth ndx curr-list)))
-		  (ewoc-enter-before status 
-				     node
-				     (project-buffer-create-node str 'folder folder proj-data hidden-flag))
+		  (setq folder-node (ewoc-enter-before status 
+						       node 
+						       (project-buffer-create-node str 'folder folder proj-data hidden-flag)))
 		  (setq ndx (1+ ndx)))))
 	  ))
       )
@@ -592,6 +624,8 @@ If ANY-PARENT-OK is set, any parent found will be valid"
     ;; Save the project root node:
     ;; - to speed up the next insert (we stop looking for the project if it's the same one)
     (setq project-buffer-cache-project (cons proj-data proj-root-node))
+    (setq project-buffer-cache-subdirectory (and folder-node
+						 (cons folder-data folder-node)))
 ))
 
 
