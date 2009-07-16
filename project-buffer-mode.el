@@ -54,8 +54,6 @@
 ;;  - update function which could use the parent field.
 ;;  - make sure no interactive function are complicated!!! (cf: toggle-expand-collapsed)
 ;;     it's better to create a function and call it in the command
-;;  - flag to for the cursor to always to back up during the research (true by default?)
-;;  - flag to for the cursor to always to the top of the file for researchs
 ;;  - Grayed out exclude from build files??
 ;;  - Different color for files referenced in the proj but don't exist?
 ;;  - Auto reload if file modified on disk?
@@ -650,9 +648,16 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 		  (or (not (eq (project-buffer-node->type (ewoc-data node)) 'file))
 		      (not (project-buffer-node->matched (ewoc-data node)))))
 	(setq node (ewoc-next status node)))
+      ;; if failed: go to the last search instead
+      (unless node
+	(setq node (ewoc-locate status))
+	(while (and node
+		    (or (not (eq (project-buffer-node->type (ewoc-data node)) 'file))
+			(not (project-buffer-node->matched (ewoc-data node)))))
+	  (setq node (ewoc-prev status node))))
       (if node
 	(ewoc-goto-node status node)
-	(message "Failing forward search.")))))
+	(message "Search failed: %s." regexp)))))
 
 
 (defun project-buffer-goto-next-match()
