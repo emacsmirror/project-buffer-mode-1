@@ -242,6 +242,7 @@
 	  ))
       (setq node (ewoc-next status node)))))
 
+
 (defun project-buffer-clear-matched-mark(status)
   "Clear 'matched' flag"
   (let (result)
@@ -316,8 +317,7 @@
 	  (indent-to-column 40)
 	  (insert (concat " " (propertize (project-buffer-node->filename node) 
 					 'face 'project-buffer-filename-face))))
-	(insert "\n")
-)))
+	(insert "\n"))))
 
 
 (defun project-buffer-mode()
@@ -392,8 +392,8 @@ Commands:
 	    (pname (pop plist)))
 	(setq cont (string-equal cname pname))))
     (and cont (null plist))))
-	    
-  
+
+
 (defun project-buffer-find-node-up(status node)
   "Return the directory or project in which the node belong
 This may change depending on the view mode
@@ -609,7 +609,8 @@ If ANY-PARENT-OK is set, any parent found will be valid"
     (setq node (and node (project-buffer-find-node-up status node)))
     (when node
       (ewoc-goto-node status node))))
-	
+
+
 (defun project-buffer-goto-dir-up-or-collapsed()
   "Go to the project/folder containing the current file/folder unless the cursor is on a expanded folder/project in which case, it will collapse it"
   (interactive)
@@ -643,8 +644,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 	(setq node (ewoc-next status node)))
       (if node
 	(ewoc-goto-node status node)
-	(message "Failing forward search."))
-)))
+	(message "Failing forward search.")))))
 
 
 (defun project-buffer-goto-next-match()
@@ -662,6 +662,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
     (if node
 	(ewoc-goto-node status node)
 	(message "Failing forward search."))))
+
 
 (defun project-buffer-goto-prev-match()
   "Go to the previous matching"
@@ -686,6 +687,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
   (unless project-buffer-status (error "Not in project-buffer buffer."))
   (unless (project-buffer-clear-matched-mark project-buffer-status)
     (bury-buffer)))
+
 
 (defun project-buffer-help ()
   "Display help for project-buffer mode."
@@ -819,8 +821,6 @@ If the cursor is on a project, go to next project."
       (ewoc-goto-node status search))))
 
 
-
-
 (defun project-buffer-find-file()
   "Open the file that the cursor is on."
   (interactive)
@@ -832,6 +832,7 @@ If the cursor is on a project, go to next project."
 	(find-file (project-buffer-node->filename node-data))
 	(project-buffer-toggle-expand-collapse))))
 
+
 (defun project-buffer-find-file-other-window()
   "Open the file that the cursor is on in another window."
   (interactive)
@@ -842,6 +843,7 @@ If the cursor is on a project, go to next project."
     (if (eq (project-buffer-node->type node-data) 'file)
 	(find-file-other-window (project-buffer-node->filename node-data))
 	(project-buffer-toggle-expand-collapse))))
+
 
 (defun project-buffer-mark-file()
   "Mark the file that the cursor is on and move to the next one."
@@ -875,6 +877,7 @@ If the cursor is on a project, go to next project."
                              (setf (project-buffer-node->marked node) t))) 
 	    project-buffer-status))
 
+
 (defun project-buffer-unmark-all()
   "Unmark all files."
   (interactive)
@@ -883,6 +886,7 @@ If the cursor is on a project, go to next project."
 				      (project-buffer-node->marked node))
                              (setf (project-buffer-node->marked node) nil) t))
 	    project-buffer-status))
+
 
 (defun project-buffer-toggle-all-marks()
   "Toggle all file marks."
@@ -908,9 +912,6 @@ If the cursor is on a file - search up for the nearest folder and collapse it."
     (when node
       (project-buffer-toggle-expand-collapse))))
 
-      
-
-  
 
 (defun project-buffer-toggle-expand-collapse()
   "Expand / Collapse project and folder that the cursor is on.
