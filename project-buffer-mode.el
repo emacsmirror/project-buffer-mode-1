@@ -350,7 +350,7 @@ Commands:
 (defun project-buffer-refresh-ewoc-hf(status)
   "Refresh ewoc header/footer"
   (ewoc-set-hf status 
-	       (concat "Project Buffer Mode:\n"
+	       (concat (format "Project view mode: %s\n" project-buffer-view-mode)
 		       "\n\n") ""))
 
 
@@ -961,6 +961,11 @@ If the cursor is on a file - nothing will be done."
 	    (setq node nil))))))
 
 
+(defun project-buffer-refresh-all-items (status)
+  "Refresh all ewoc item from the buffer"
+  (ewoc-map (lambda (info)  t) status) ; (ewoc-refresh status) doesn't work properly.
+  )
+
 (defun project-buffer-toggle-view-mode()
   "Toggle between the different view mode (folder-view / flag-view / folder-hidden-view)"
   (interactive)
@@ -970,8 +975,12 @@ If the cursor is on a file - nothing will be done."
 	  (cond ((eq project-buffer-view-mode 'folder-view)        'flat-view)
 		((eq project-buffer-view-mode 'flat-view)          'folder-hidden-view)
 		((eq project-buffer-view-mode 'folder-hidden-view) 'folder-view)))
-    (ewoc-refresh project-buffer-status)
-    (ewoc-goto-node project-buffer-status node)))
+    (let ((status project-buffer-status))
+
+      (project-buffer-refresh-all-items status)
+      (project-buffer-refresh-ewoc-hf status)
+      (ewoc-goto-node status node)
+      )))
 
 ;;
 (provide 'project-buffer-mode)
