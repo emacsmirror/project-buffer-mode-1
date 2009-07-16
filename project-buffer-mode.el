@@ -1,56 +1,6 @@
 ;;
 ;; proj:folder/
 ;;
-;;
-;; Let's play with ewoc...
-;;  sample code: git.el
-
-
-;; Header displaying:
-;;  . current project to build
-;;  . platform to build (win32/...)
-;;  . version to build (debug/release/...)
-;;
-
-;; TODO:
-;;  - show project dependencies
-;;  - test color in dark background 
-;;  - adding button to collapse/expand folders/projects
-;;  - make sure no interactive function are complicated!!! (cf: toggle-expand-collapsed)
-;;     it's better to create a function and call it in the command
-;;  - flag to be have new created folded collaped or not // same with project 
-;;  - flag to for the cursor to always to back up during the research
-;;  - flag to for the cursor to always to the top of the file for researchs
-;;
-;;     [+] ProjName1           <deps: ProjName3, ProjName2>
-;;     [ ] ProjName2
-;;   *     `- FolderA/File1
-;;   *     `- FolderA/File2
-;;         `- FolderB/File3
-;;         `- FolderB/File4
-;;         `- FolderB/File5
-;;     [+] ProjName3
-;;  
-;; BUG:
-;;  - if the research fail searching forward shouldn't it go to the last matching one?
-
-
-
-;;
-;;   vcproj search patterns:
-;;    <files>
-;;      <File RelarivePath="...">
-;;        <FileConfiguration Name="config|platform"
-;;      </File>
-;;      <filter Name="Folder Name In VC"
-;;         ...
-;;         <File RelativePath="real\path\to\file.ext"
-;;         
-;; <FileConfiguration
-;;   Name="DebugFast|Win32"
-;;   ExcludedFromBuild="true"
-;; >
-;;
 
 
 ;; Shortcut:
@@ -59,14 +9,14 @@
 ;;    t    -> toggle marked files
 ;;    M    -> mark all
 ;;    U    -> unmark all
-;;    +    -> collapse/expand folder/project
-;;   <TAB> -> collapse/expand folder/project
+;;    +    -> collapse/expand folder/project (cursor has to be on a folder/project)
+;;   <TAB> -> collapse/expand folder/project (work if the cursor is on a file)
 ;;    f    -> open marked files
 ;;    v    -> Toggle view mode (flat / flat with the foldershidden / folder)
 ;;   <RET> -> open file at cursor pos
-;; C-<DWN> -> move to the next project
-;; C-<UP>  -> move to the previous project
-;;    q    -> quit project-buffer
+;; C-<DWN> -> move to the next folder/project
+;; C-<UP>  -> move to the previous folder/project
+;;    q    -> cancel search or bury project-buffer
 ;;    ?    -> show brief help!!
 ;;    /    -> find file name
 ;;    n    -> next file matching regexp
@@ -89,12 +39,26 @@
 ;;    S    -> seach in all marked files
 ;;    s    -> mark files containing regexp...
 
-;; To find how to do:
-;; - Grayed out exclude from build files??
-;; - Different coler for files referenced in the proj but don't exist?
-;; - Auto reload if file modified on disk?
+
+;; Header displaying:
+;;  . current project to build
+;;  . platform to build (win32/...)
+;;  . version to build (debug/release/...)
 ;;
 
+;; TODO:
+;;  - show project dependencies
+;;     e.g: [+] ProjName1           <deps: ProjName3, ProjName2>
+;;  - test color in dark background 
+;;  - adding button to collapse/expand folders/projects
+;;  - update function which could use the parent field.
+;;  - make sure no interactive function are complicated!!! (cf: toggle-expand-collapsed)
+;;     it's better to create a function and call it in the command
+;;  - flag to for the cursor to always to back up during the research (true by default?)
+;;  - flag to for the cursor to always to the top of the file for researchs
+;;  - Grayed out exclude from build files??
+;;  - Different color for files referenced in the proj but don't exist?
+;;  - Auto reload if file modified on disk?
 
 
 ;; Sample:
