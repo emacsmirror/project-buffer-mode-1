@@ -180,6 +180,10 @@
   :group 'project-buffer)
 
 
+(defcustom project-buffer-new-project-collapsed t
+  "Newly added project will be collapsed by default."
+  :group 'project-buffer
+  :type 'boolean)
 
 
 ;;
@@ -524,20 +528,23 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 
       ;; Once the node added we will need to check if it should be hidden or not. 
       ;; At first, if it's a file, it will be hidden to not have any glitch in the displayed buffer
-      (unless (eq type-data 'project)
-	(setf (project-buffer-node->hidden data) t)
-	(unless proj-root-node 
-	  (error "Project '%s' not found" proj-data)))
+      (if (eq type-data 'project)
+	  (progn (setf (project-buffer-node->project-collapsed data) project-buffer-new-project-collapsed)
+		 (setf (project-buffer-node->collapsed data) project-buffer-new-project-collapsed))
+	  (progn (setf (project-buffer-node->hidden data) t)
+		 (unless proj-root-node 
+		   (error "Project '%s' not found" proj-data))))
+
       (if here 
 	  (setq node (ewoc-enter-before status here data))
 	  (setq node (ewoc-enter-last status data)))
+
       (when (eq type-data 'project)
 	(setq proj-root-node node))
 
       ;;
 
       ;; If it's not a project type, search up in all possible parent to see if the node is supposed to be visible or not
-      ;; TODO: SLOW! Possible improvement: make the code doubled linked list! :) *or at least add a parent node to each nodes*
       (unless (eq type-data 'project)
 	(let* ((shown t)
 	       (parent (project-buffer-find-node-up status node)))
@@ -554,6 +561,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 	  (setf (project-buffer-node->hidden data) nil)
 	  (ewoc-invalidate status node)))
 
+      ;; In case some folder needed to be created:
       (when folder-data
 	(let* ((db-list     (and folder (split-string folder "/")))
 	       (curr-list   (split-string folder-data "/"))
@@ -575,9 +583,9 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 				(nth ndx curr-list)))
 
 		  (setq parent-node (or folder-node proj-root-node))
- 		  (setq folder-node (ewoc-enter-before status 
-						       node 
-						       (project-buffer-create-node str 'folder folder proj-data hidden-flag)))
+		  (let ((new-data (project-buffer-create-node str 'folder folder proj-data hidden-flag)))
+		    (setf (project-buffer-node->project-collapsed new-data) (project-buffer-node->project-collapsed data))
+		    (setq folder-node (ewoc-enter-before status node new-data)))
 		  (setf (project-buffer-node->parent (ewoc-data folder-node)) parent-node)
 		  
 		  (setf (project-buffer-node->parent data) folder-node)
