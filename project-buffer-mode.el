@@ -30,6 +30,8 @@
 ;;    c B  -> switch to the next build configuration
 ;;
 ;; Future improvement:
+;;    c t  -> prompt for the master project (project to build)
+;;    c T  -> switch the master project to be the current project
 ;;    g    -> reload/reparse project files
 ;;    c    -> compile current file / marked files? [?]
 ;;    B    -> launch build
@@ -102,7 +104,7 @@
 (defvar project-buffer-current-platform nil)
 (defvar project-buffer-build-configurations-list nil)
 (defvar project-buffer-current-build-configuration nil)
-
+(defvar project-buffer-master-project nil)
 
 
 ;;
@@ -146,6 +148,11 @@
   '((((class color) (background light)) (:foreground "red"))
     (((class color) (background dark)) (:foreground "salmon")))
   "Project buffer mode face used to highlight project nodes."
+  :group 'project-buffer)
+
+(defface project-buffer-master-project-face
+  '((default (:inherit project-buffer-project-face :bold t)))
+  "Master project buffer mode face used to highlight project nodes."
   :group 'project-buffer)
 
 (defface project-buffer-folder-face
@@ -327,7 +334,10 @@
 			    (node-collapsed                (propertize "[+]" 'face 'project-buffer-project-button-face) )
 			    (t                             (propertize "[-]" 'face 'project-buffer-project-button-face) ))
 		      " "
-		      (or (and (eq node-type 'project)  (propertize node-name 'face 'project-buffer-project-face))
+		      (or (and (eq node-type 'project)  (propertize node-name 'face (or (and project-buffer-master-project
+											     (string= node-name (car project-buffer-master-project))
+											     'project-buffer-master-project-face)
+											'project-buffer-project-face)))
 			  (project-buffer-convert-name-for-display node))))
 	(when (and (eq project-buffer-view-mode 'folder-hidden-view)
 		   (project-buffer-node->filename node)
@@ -360,6 +370,7 @@ Commands:
       (make-local-variable 'project-buffer-current-platform)
       (make-local-variable 'project-buffer-build-configurations-list)
       (make-local-variable 'project-buffer-current-build-configuration)
+      (make-local-variable 'project-buffer-master-project)
 
       (setq project-buffer-status status)
       (setq project-buffer-view-mode 'folder-view)
@@ -369,6 +380,7 @@ Commands:
       (setq project-buffer-current-platform nil)
       (setq project-buffer-build-configurations-list nil)
       (setq project-buffer-current-build-configuration nil)
+      (setq project-buffer-master-project nil)
 
       (project-buffer-refresh-ewoc-hf status))))
 
@@ -474,8 +486,6 @@ If ANY-PARENT-OK is set, any parent found will be valid"
       (unless project-buffer-current-build-configuration
 	(setq project-buffer-current-build-configuration (car project-buffer-build-configurations-list)))))
   (project-buffer-refresh-ewoc-hf status))
-      
-  
 
 
 (defun project-buffer-insert (status data)
@@ -597,7 +607,9 @@ If ANY-PARENT-OK is set, any parent found will be valid"
       ;; At first, if it's a file, it will be hidden to not have any glitch in the displayed buffer
       (if (eq type-data 'project)
 	  (progn (setf (project-buffer-node->project-collapsed data) project-buffer-new-project-collapsed)
-		 (setf (project-buffer-node->collapsed data) project-buffer-new-project-collapsed))
+		 (setf (project-buffer-node->collapsed data) project-buffer-new-project-collapsed)
+		 (unless project-buffer-master-project
+		   (setq project-buffer-master-project (cons name-data nil)))) ; to prevent blinking
 	  (progn (setf (project-buffer-node->hidden data) t)
 		 (unless proj-root-node 
 		   (error "Project '%s' not found" proj-data))))
@@ -607,6 +619,8 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 	  (setq node (ewoc-enter-last status data)))
 
       (when (eq type-data 'project)
+	(unless (cdr project-buffer-master-project)
+	  (setq project-buffer-master-project (cons name-data node)))
 	(setq proj-root-node node))
 
       ;;
@@ -670,8 +684,8 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 
 (defun project-buffer-refresh-all-items (status)
   "Refresh all ewoc item from the buffer"
-  (ewoc-map (lambda (info)  t) status) ; (ewoc-refresh status) doesn't work properly.
-  )
+  (ewoc-map (lambda (info)  t) status)) ; (ewoc-refresh status) doesn't work properly.
+
 
 
 
