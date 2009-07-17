@@ -31,7 +31,7 @@
 ;;    B    -> launch build
 ;;    C    -> launch clean
 ;;    D    -> launch run/with debugger
-;;    R    -> launch runexit !
+;;    R    -> launch run/without debugger
 ;;    T    -> touch marked files
 ;;    h    -> find corresponding header/source
 ;;    d    -> show/hide project dependencies
@@ -94,6 +94,11 @@
 (defvar project-buffer-view-mode nil)
 (defvar project-buffer-cache-project nil)
 (defvar project-buffer-cache-subdirectory nil)
+(defvar project-buffer-platforms-list nil)
+(defvar project-buffer-current-platform nil)
+(defvar project-buffer-build-configurations-list nil)
+(defvar project-buffer-current-build-configuration nil)
+
 
 
 ;;
@@ -106,19 +111,22 @@
 	    (:copier nil)
 	    (:constructor project-buffer-create-node (name type filename project &optional hidden))
 	    (:conc-name project-buffer-node->))
-  name              ;; string displayed to represent the file (usually the file.ext)
-  type              ;; project? file? folder?
+  name				;; string displayed to represent the file (usually the file.ext)
+  type				;; project? file? folder?
 
-  marked            ;; is the file marked?
-  hidden            ;; hidden files (currently: = project/folder close)
-  collapsed         ;; is the folder/project collapsed or not?
-  project-collapsed ;; t if the project the file belong to is collapsed
+  marked			;; is the file marked?
+  hidden			;; hidden files (currently: = project/folder close)
+  collapsed			;; is the folder/project collapsed or not?
+  project-collapsed		;; t if the project the file belong to is collapsed
 
-  matched           ;; the file matches the regexp search
+  matched			;; the file matches the regexp search
 
-  filename          ;; full path to the filename
-  project           ;; name of the project the file belongs to
-  parent            ;; parent node (parent folder or project or nil)
+  filename			;; full path to the filename
+  project			;; name of the project the file belongs to
+  parent			;; parent node (parent folder or project or nil)
+
+  platform-list			;; list of the platform available for the project (valid in project node only)
+  build-configurations-list	;; list of build configuration avalailable for the project (valid in project node only)
 )
 
 
@@ -203,6 +211,10 @@
     (define-key project-buffer-mode-map [?/] 'project-buffer-search-forward-regexp)
     (define-key project-buffer-mode-map [?n] 'project-buffer-goto-next-match)
     (define-key project-buffer-mode-map [?p] 'project-buffer-goto-prev-match)
+    (define-key project-buffer-mode-map [?c ?b] 'project-buffer-choose-build-configuration)
+    (define-key project-buffer-mode-map [?c ?p] 'project-buffer-choose-platform)
+    (define-key project-buffer-mode-map [?c ?B] 'project-buffer-next-build-configuration)
+    (define-key project-buffer-mode-map [?c ?P] 'project-buffer-next-platform)
     (define-key project-buffer-mode-map [backspace] 'project-buffer-goto-dir-up)
     (define-key project-buffer-mode-map [?\ ] 'project-buffer-next-file)
     (define-key project-buffer-mode-map [(shift ?\ )] 'project-buffer-prev-file)
@@ -340,11 +352,19 @@ Commands:
       (make-local-variable 'project-buffer-view-mode)
       (make-local-variable 'project-buffer-cache-project)
       (make-local-variable 'project-buffer-cache-subdirectory)
+      (make-local-variable 'project-buffer-platforms-list)
+      (make-local-variable 'project-buffer-current-platform)
+      (make-local-variable 'project-buffer-build-configurations-list)
+      (make-local-variable 'project-buffer-current-build-configuration)
 
       (setq project-buffer-status status)
       (setq project-buffer-view-mode 'folder-view)
       (setq project-buffer-cache-project nil)
       (setq project-buffer-cache-subdirectory nil)
+      (setq project-buffer-platforms-list nil)
+      (setq project-buffer-current-platform nil)
+      (setq project-buffer-build-configurations-list nil)
+      (setq project-buffer-current-build-configuration nil)
 
       (project-buffer-refresh-ewoc-hf status))))
 
@@ -352,7 +372,9 @@ Commands:
 (defun project-buffer-refresh-ewoc-hf(status)
   "Refresh ewoc header/footer"
   (ewoc-set-hf status 
-	       (concat (format "Project view mode: %s\n" project-buffer-view-mode)
+	       (concat (format "Project view mode:   %s\n" project-buffer-view-mode)
+		       (format "Platform:            %s\n" (or project-buffer-current-platform "N/A"))
+		       (format "Build configuration: %s\n" (or project-buffer-current-build-configuration "N/A"))
 		       "\n\n") ""))
 
 
@@ -407,6 +429,49 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 	  (while (not (eq (project-buffer-node->type (ewoc-data parent)) 'project))
 	    (setq parent (project-buffer-node->parent (ewoc-data parent))))))))
 
+
+(defun project-buffer-set-project-platforms(status project-name platform-list)
+  "Attached the platform list to the projects."
+  (let ((node (ewoc-nth status 0)))
+    ;; first: search for the project.
+    (if (string-equal (car project-buffer-cache-project) project-name)
+	(setq node (cdr project-buffer-cache-project))
+	(while (and node
+		    (not (eq (project-buffer-node->type (ewoc-data node)) 'project))
+		    (not (string-equal (project-buffer-node->name (ewoc-data node)))))
+	  (setq node (ewoc-next status node))))
+    ;; Now, if the project has been found:
+    (when node
+      (setf (project-buffer-node->platform-list (ewoc-data node)) platform-list)
+      ;; also:
+      (while platform-list
+	(add-to-list 'project-buffer-platforms-list (pop platform-list) t))
+      (unless project-buffer-current-platform
+	(setq project-buffer-current-platform (car project-buffer-platforms-list)))))
+  (project-buffer-refresh-ewoc-hf status))
+
+
+(defun project-buffer-set-project-build-configurations(status project-name build-configuration-list)
+  "Attached the build configuration list to node."
+  (let ((node (ewoc-nth status 0)))
+    ;; first: search for the project.
+    (if (string-equal (car project-buffer-cache-project) project-name)
+	(setq node (cdr project-buffer-cache-project))
+	(while (and node
+		    (not (eq (project-buffer-node->type (ewoc-data node)) 'project))
+		    (not (string-equal (project-buffer-node->name (ewoc-data node)))))
+	  (setq node (ewoc-next status node))))
+    ;; Now, if the project has been found:
+    (when node
+      (setf (project-buffer-node->build-configurations-list (ewoc-data node)) build-configuration-list)
+      ;; also:
+      (while build-configuration-list
+	(add-to-list 'project-buffer-build-configurations-list (pop build-configuration-list) t))
+      (unless project-buffer-current-build-configuration
+	(setq project-buffer-current-build-configuration (car project-buffer-build-configurations-list)))))
+  (project-buffer-refresh-ewoc-hf status))
+      
+  
 
 
 (defun project-buffer-insert (status data)
@@ -597,6 +662,13 @@ If ANY-PARENT-OK is set, any parent found will be valid"
     (setq project-buffer-cache-subdirectory (and folder-node
 						 (cons folder-data folder-node)))
 ))
+
+
+(defun project-buffer-refresh-all-items (status)
+  "Refresh all ewoc item from the buffer"
+  (ewoc-map (lambda (info)  t) status) ; (ewoc-refresh status) doesn't work properly.
+  )
+
 
 
 
@@ -974,16 +1046,11 @@ If the cursor is on a file - nothing will be done."
 	    (setq node nil))))))
 
 
-(defun project-buffer-refresh-all-items (status)
-  "Refresh all ewoc item from the buffer"
-  (ewoc-map (lambda (info)  t) status) ; (ewoc-refresh status) doesn't work properly.
-  )
-
 (defun project-buffer-toggle-view-mode()
   "Toggle between the different view mode (folder-view / flag-view / folder-hidden-view)"
   (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
   (let ((node (ewoc-locate project-buffer-status)))
-    (unless project-buffer-status (error "Not in project-buffer buffer."))
     (setq project-buffer-view-mode
 	  (cond ((eq project-buffer-view-mode 'folder-view)        'flat-view)
 		((eq project-buffer-view-mode 'flat-view)          'folder-hidden-view)
@@ -994,6 +1061,61 @@ If the cursor is on a file - nothing will be done."
       (project-buffer-refresh-ewoc-hf status)
       (ewoc-goto-node status node)
       )))
+
+
+(defun project-buffer-choose-build-configuration()
+  "Ask the user for the build configuration using a completion list"
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-build-configurations-list (error "No build configuration available"))
+  (if (cdr project-buffer-build-configurations-list)
+      (let ((new-build-configuration (completing-read "Build-Configuration: " project-buffer-build-configurations-list nil t)))
+	(when (and new-build-configuration (> (length new-build-configuration) 0))
+	  (setq project-buffer-current-build-configuration new-build-configuration)))
+      (message "This is the only one build configuration available."))
+  (project-buffer-refresh-ewoc-hf project-buffer-status))
+
+
+(defun project-buffer-next-build-configuration()
+  "Select next build configuration (rotate through them)."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-build-configurations-list (error "No build configuration available"))
+  (if (cdr project-buffer-build-configurations-list)
+      (let ((current (member project-buffer-current-build-configuration project-buffer-build-configurations-list)))
+	(unless current (error "The current build configuration is invalid."))
+	(setq project-buffer-current-build-configuration (or (and (cdr current) (cadr current))
+							 (car project-buffer-build-configurations-list))))
+      (message "This is the only one build configuration available."))
+  (project-buffer-refresh-ewoc-hf project-buffer-status))
+
+
+(defun project-buffer-choose-platform()
+  "Ask the user for the platform using a completion list"
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-platforms-list (error "No build configuration available"))
+  (if (cdr project-buffer-platforms-list)
+      (let ((new-platform (completing-read "Platform: " project-buffer-platforms-list nil t)))
+	(when (and new-platform (> (length new-platform) 0))
+	  (setq project-buffer-current-platform new-platform)))
+      (message "This is the only one platform available."))
+  (project-buffer-refresh-ewoc-hf project-buffer-status))
+
+
+(defun project-buffer-next-platform()
+  "Select next platform (rotate through them)."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-platforms-list (error "No build configuration available"))
+  (if (cdr project-buffer-platforms-list)
+      (let ((current (member project-buffer-current-platform project-buffer-platforms-list)))
+	(unless current (error "The current build configuration is invalid."))
+	(setq project-buffer-current-platform (or (and (cdr current) (cadr current))
+						    (car project-buffer-platforms-list))))
+      (message "This is the only one platform available."))
+  (project-buffer-refresh-ewoc-hf project-buffer-status))
+
 
 ;;
 (provide 'project-buffer-mode)
