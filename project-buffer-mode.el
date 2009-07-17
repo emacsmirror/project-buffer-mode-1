@@ -24,6 +24,10 @@
 ;;   <BCK> -> go to parent
 ;; <C-LFT> -> expand if collapsed move to the first folder; move inside if expanded
 ;; <C-RGT> -> move up if folded collapsed; collapse if in front of folder ; move to the folded if in front of a file
+;;    c p  -> prompt to change platform
+;;    c P  -> switch to the next platform
+;;    c b  -> prompt to change build configuration
+;;    c B  -> switch to the next build configuration
 ;;
 ;; Future improvement:
 ;;    g    -> reload/reparse project files
@@ -87,7 +91,7 @@
 (require 'ewoc)
 
 ;;
-;;  Global Variables:
+;;  Buffer local variables:
 ;;
 
 (defvar project-buffer-status nil)
