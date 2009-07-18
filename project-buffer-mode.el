@@ -30,14 +30,14 @@
 ;;    c B  -> switch to the next build configuration
 ;;    c t  -> prompt for the master project (project to build)
 ;;    c T  -> switch the master project to be the current project
-;;
-;; Future improvement:
-;;    g    -> reload/reparse project files
-;;    c    -> compile current file / marked files? [?]
 ;;    B    -> launch build
 ;;    C    -> launch clean
 ;;    D    -> launch run/with debugger
 ;;    R    -> launch run/without debugger
+;;
+;; Future improvement:
+;;    g    -> reload/reparse project files
+;;    c    -> compile current file / marked files? [?]
 ;;    T    -> touch marked files
 ;;    h    -> find corresponding header/source
 ;;    d    -> show/hide project dependencies
@@ -106,6 +106,24 @@
 (defvar project-buffer-current-build-configuration nil)
 (defvar project-buffer-master-project nil)
 (defvar project-buffer-projects-list nil)
+
+
+;;
+;;  User hook:
+;;
+
+(defvar project-buffer-action-hook nil
+  "Hook to perform the actions (build, clean, run...)
+
+The function should follow the prototype:
+  (lambda (action project-name project-path platform configuration)
+ Where ACTION represents the action to apply to the project, 
+ it may be: 'build 'clean 'run 'debug,
+ PROJECT-NAME is the name of the master project,
+ PROJECT-PATH is the file path of the project
+ PLATFORM is the name of the selected platform,
+ and CONFIGURATION correspond to the selected build configuration."
+)
 
 
 ;;
@@ -240,6 +258,10 @@
     (define-key project-buffer-mode-map [(control down)] 'project-buffer-go-to-next-folder-or-project)
     (define-key project-buffer-mode-map [??] 'project-buffer-help)
     (define-key project-buffer-mode-map [?q] 'project-buffer-quit)
+    (define-key project-buffer-mode-map [?B] 'project-buffer-perform-build-action)
+    (define-key project-buffer-mode-map [?C] 'project-buffer-perform-clean-action)
+    (define-key project-buffer-mode-map [?R] 'project-buffer-perform-run-action)
+    (define-key project-buffer-mode-map [?D] 'project-buffer-perform-debug-action)
     project-buffer-mode-map))
 
 
@@ -691,6 +713,15 @@ If ANY-PARENT-OK is set, any parent found will be valid"
   (ewoc-map (lambda (info)  t) status)) ; (ewoc-refresh status) doesn't work properly.
 
 
+(defun project-buffer-perform-action-hook(action)
+  "Refresh all ewoc item from the buffer"
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (run-hook-with-args 'project-buffer-action-hook 
+		      action
+		      (car project-buffer-master-project)
+		      (project-buffer-node->filename (ewoc-data (cdr project-buffer-master-project)))
+		      project-buffer-current-platform
+		      project-buffer-current-build-configuration))
 
 
 
@@ -1176,6 +1207,34 @@ If the cursor is on a file - nothing will be done."
     (ewoc-invalidate status old-node)
     (ewoc-invalidate status cur-node)
     (ewoc-goto-node status cur-node)))
+
+
+(defun project-buffer-perform-build-action()
+  "Run the user hook to perform the build action"
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (project-buffer-perform-action-hook 'build))
+
+
+(defun project-buffer-perform-clean-action()
+  "Run the user hook to perform the build action"
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (project-buffer-perform-action-hook 'clean))
+
+
+(defun project-buffer-perform-run-action()
+  "Run the user hook to perform the build action"
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (project-buffer-perform-action-hook 'run))
+
+
+(defun project-buffer-perform-debug-action()
+  "Run the user hook to perform the build action"
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (project-buffer-perform-action-hook 'debug))
 
 
 ;;
