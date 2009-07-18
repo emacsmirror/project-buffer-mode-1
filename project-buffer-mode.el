@@ -28,10 +28,10 @@
 ;;    c P  -> switch to the next platform
 ;;    c b  -> prompt to change build configuration
 ;;    c B  -> switch to the next build configuration
-;;
-;; Future improvement:
 ;;    c t  -> prompt for the master project (project to build)
 ;;    c T  -> switch the master project to be the current project
+;;
+;; Future improvement:
 ;;    g    -> reload/reparse project files
 ;;    c    -> compile current file / marked files? [?]
 ;;    B    -> launch build
@@ -105,6 +105,7 @@
 (defvar project-buffer-build-configurations-list nil)
 (defvar project-buffer-current-build-configuration nil)
 (defvar project-buffer-master-project nil)
+(defvar project-buffer-projects-list nil)
 
 
 ;;
@@ -224,8 +225,10 @@
     (define-key project-buffer-mode-map [?p] 'project-buffer-goto-prev-match)
     (define-key project-buffer-mode-map [?c ?b] 'project-buffer-choose-build-configuration)
     (define-key project-buffer-mode-map [?c ?p] 'project-buffer-choose-platform)
+    (define-key project-buffer-mode-map [?c ?t] 'project-buffer-choose-master-project)
     (define-key project-buffer-mode-map [?c ?B] 'project-buffer-next-build-configuration)
     (define-key project-buffer-mode-map [?c ?P] 'project-buffer-next-platform)
+    (define-key project-buffer-mode-map [?c ?T] 'project-buffer-select-current-as-master-project)
     (define-key project-buffer-mode-map [backspace] 'project-buffer-goto-dir-up)
     (define-key project-buffer-mode-map [?\ ] 'project-buffer-next-file)
     (define-key project-buffer-mode-map [(shift ?\ )] 'project-buffer-prev-file)
@@ -371,6 +374,7 @@ Commands:
       (make-local-variable 'project-buffer-build-configurations-list)
       (make-local-variable 'project-buffer-current-build-configuration)
       (make-local-variable 'project-buffer-master-project)
+      (make-local-variable 'project-buffer-projects-list)
 
       (setq project-buffer-status status)
       (setq project-buffer-view-mode 'folder-view)
@@ -381,6 +385,7 @@ Commands:
       (setq project-buffer-build-configurations-list nil)
       (setq project-buffer-current-build-configuration nil)
       (setq project-buffer-master-project nil)
+      (setq project-buffer-projects-list nil)
 
       (project-buffer-refresh-ewoc-hf status))))
 
@@ -446,16 +451,21 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 	    (setq parent (project-buffer-node->parent (ewoc-data parent))))))))
 
 
+(defun project-buffer-search-project-node(status project-name)
+  "Return the node of the project node named PROJECT-NAME or nil if absent"
+  (if (string-equal (car project-buffer-cache-project) project-name)
+      (cdr project-buffer-cache-project)
+      (let ((node (ewoc-nth status 0)))
+	(while (and node
+		    (or (not (eq (project-buffer-node->type (ewoc-data node)) 'project))
+			(not (string-equal (project-buffer-node->name (ewoc-data node)) project-name))))
+	  (setq node (ewoc-next status node)))
+	node)))
+
+
 (defun project-buffer-set-project-platforms(status project-name platform-list)
   "Attached the platform list to the projects."
-  (let ((node (ewoc-nth status 0)))
-    ;; first: search for the project.
-    (if (string-equal (car project-buffer-cache-project) project-name)
-	(setq node (cdr project-buffer-cache-project))
-	(while (and node
-		    (not (eq (project-buffer-node->type (ewoc-data node)) 'project))
-		    (not (string-equal (project-buffer-node->name (ewoc-data node)))))
-	  (setq node (ewoc-next status node))))
+  (let ((node (project-buffer-search-project-node status project-name)))
     ;; Now, if the project has been found:
     (when node
       (setf (project-buffer-node->platform-list (ewoc-data node)) platform-list)
@@ -469,14 +479,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 
 (defun project-buffer-set-project-build-configurations(status project-name build-configuration-list)
   "Attached the build configuration list to node."
-  (let ((node (ewoc-nth status 0)))
-    ;; first: search for the project.
-    (if (string-equal (car project-buffer-cache-project) project-name)
-	(setq node (cdr project-buffer-cache-project))
-	(while (and node
-		    (not (eq (project-buffer-node->type (ewoc-data node)) 'project))
-		    (not (string-equal (project-buffer-node->name (ewoc-data node)))))
-	  (setq node (ewoc-next status node))))
+  (let ((node (project-buffer-search-project-node status project-name)))
     ;; Now, if the project has been found:
     (when node
       (setf (project-buffer-node->build-configurations-list (ewoc-data node)) build-configuration-list)
@@ -608,6 +611,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
       (if (eq type-data 'project)
 	  (progn (setf (project-buffer-node->project-collapsed data) project-buffer-new-project-collapsed)
 		 (setf (project-buffer-node->collapsed data) project-buffer-new-project-collapsed)
+		 (add-to-list 'project-buffer-projects-list name-data)
 		 (unless project-buffer-master-project
 		   (setq project-buffer-master-project (cons name-data nil)))) ; to prevent blinking
 	  (progn (setf (project-buffer-node->hidden data) t)
@@ -1133,6 +1137,45 @@ If the cursor is on a file - nothing will be done."
 						    (car project-buffer-platforms-list))))
       (message "This is the only one platform available."))
   (project-buffer-refresh-ewoc-hf project-buffer-status))
+
+
+(defun project-buffer-choose-master-project()
+  "Prompt the user for the master project"
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let ((status    project-buffer-status)
+	(proj-name (completing-read "Enter the master project: " project-buffer-projects-list nil t)))
+    (when (and proj-name
+	      (> (length proj-name) 0))
+      (let ((old-node (cdr project-buffer-master-project))
+	    (cur-node (project-buffer-search-project-node status proj-name)))
+	;; Let's replace the old node by the new one
+	(message "Results: %s %s" proj-name (project-buffer-node->name (ewoc-data cur-node)))
+	(setq project-buffer-master-project (cons (project-buffer-node->name (ewoc-data cur-node)) cur-node))
+	;; Force the refresh:
+	(ewoc-invalidate status old-node)
+	(ewoc-invalidate status cur-node)
+	(ewoc-goto-node status cur-node)))))
+
+
+(defun project-buffer-select-current-as-master-project()
+  "Make the current project the new master project"
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let ((status project-buffer-status)
+	(old-node (cdr project-buffer-master-project))
+	(cur-node (ewoc-locate project-buffer-status)))
+    ;; Search for the project node:
+    (while (and cur-node
+		(not (eq (project-buffer-node->type (ewoc-data cur-node)) 'project)))
+      (setq cur-node (project-buffer-find-node-up status cur-node)))
+    ;; Let's replace the old node by the new one
+    (setq project-buffer-master-project (cons (project-buffer-node->name (ewoc-data cur-node))
+					      cur-node))
+    ;; Force the refresh:
+    (ewoc-invalidate status old-node)
+    (ewoc-invalidate status cur-node)
+    (ewoc-goto-node status cur-node)))
 
 
 ;;
