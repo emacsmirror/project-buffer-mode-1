@@ -4,7 +4,7 @@
 
 
 ;; Shortcut:
-;;    m    -> mark file
+;;    m    -> mark the 'matching regexp' filename or the current file
 ;;    u    -> unmark file
 ;;    t    -> toggle marked files
 ;;    M    -> mark all
@@ -18,7 +18,7 @@
 ;; C-<UP>  -> move to the previous folder/project
 ;;    q    -> cancel search or bury project-buffer
 ;;    ?    -> show brief help!!
-;;    /    -> find file name
+;;    /    -> search file name matching regexp
 ;;    n    -> next file matching regexp
 ;;    p    -> prev file matching regexp
 ;;   <BCK> -> go to parent
@@ -34,6 +34,7 @@
 ;;    C    -> launch clean
 ;;    D    -> launch run/with debugger
 ;;    R    -> launch run/without debugger
+;;    s    -> (un)mark files containing regexp...
 ;;
 ;; Future improvement:
 ;;    g    -> reload/reparse project files
@@ -43,7 +44,6 @@
 ;;    d    -> show/hide project dependencies
 ;;    b    -> buils marked files
 ;;    S    -> seach in all marked files
-;;    s    -> mark files containing regexp...
 
 
 ;; Header displaying:
@@ -106,6 +106,13 @@
 (defvar project-buffer-current-build-configuration nil)
 (defvar project-buffer-master-project nil)
 (defvar project-buffer-projects-list nil)
+
+;;
+;; History:
+;;
+
+(defvar project-buffer-regexp-history nil
+  "History list of regular expressions used in project-buffer commands.")
 
 
 ;;
@@ -231,7 +238,7 @@ The function should follow the prototype:
   (let ((project-buffer-mode-map (make-keymap)))
     (define-key project-buffer-mode-map [?+] 'project-buffer-toggle-expand-collapse)
     (define-key project-buffer-mode-map [?\t] 'project-buffer-toggle-expand-collapse-even-on-file)
-    (define-key project-buffer-mode-map [?m] 'project-buffer-mark-file)
+    (define-key project-buffer-mode-map [?m] 'project-buffer-mark-matched-files-or-current-file)
     (define-key project-buffer-mode-map [?u] 'project-buffer-unmark-file)
     (define-key project-buffer-mode-map [?M] 'project-buffer-mark-all)
     (define-key project-buffer-mode-map [?U] 'project-buffer-unmark-all)
@@ -262,6 +269,7 @@ The function should follow the prototype:
     (define-key project-buffer-mode-map [?C] 'project-buffer-perform-clean-action)
     (define-key project-buffer-mode-map [?R] 'project-buffer-perform-run-action)
     (define-key project-buffer-mode-map [?D] 'project-buffer-perform-debug-action)
+    (define-key project-buffer-mode-map [?s] 'project-buffer-mark-files-containing-regexp)
     project-buffer-mode-map))
 
 
@@ -291,6 +299,11 @@ The function should follow the prototype:
 	  (ewoc-invalidate status node)
 	  ))
       (setq node (ewoc-next status node)))))
+
+
+(defun project-buffer-read-regexp(prompt)
+  "Read a regular expression from the minibuffer."
+  (read-from-minibuffer prompt nil nil nil 'project-buffer-regexp-history))
 
 
 (defun project-buffer-clear-matched-mark(status)
@@ -1235,6 +1248,60 @@ If the cursor is on a file - nothing will be done."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer."))
   (project-buffer-perform-action-hook 'debug))
+
+
+(defun project-buffer-mark-files-containing-regexp(regexp &optional unmark)
+  "Mark all files containing REGEXP -- A prefix argument means to unmark the files containing the REGEXP instead."
+  (interactive
+   (list (project-buffer-read-regexp (concat (if current-prefix-arg "Unmark" "Mark")
+					     " files containing (regexp): "))
+	 current-prefix-arg))
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let ((marked-flag (not unmark))
+	(count 0))
+    (ewoc-map (lambda (node) 
+		(when (and (eq (project-buffer-node->type node) 'file)                ; check only files
+			   (not (eq (project-buffer-node->marked node) marked-flag))) ; which aren't already (un)marked (based on request)
+		  ;; Check if the file contain the regexp:
+		  (let ((filename (project-buffer-node->filename node)))
+		    (when (and filename
+			       (file-readable-p filename)
+			       (let ((fbuf (get-file-buffer filename)))
+				 (message "Searching in %s" (project-buffer-node->name node))
+				 (if fbuf
+				     (with-current-buffer fbuf
+				       (save-excursion
+					 (goto-char (point-min))
+					 (re-search-forward regexp nil t)))
+				     (with-temp-buffer
+				       (insert-file-contents filename)
+				       (goto-char (point-min))
+				       (re-search-forward regexp nil t)))))
+		      (setf (project-buffer-node->marked node) marked-flag)
+		      (setq count (1+ count))
+		      t  )))) ; to force the update of the display.
+	      project-buffer-status)
+    (message "%i files %s." count (if unmark "unmarked" "marked"))
+    ))
+
+
+(defun project-buffer-mark-matched-files-or-current-file(force-marked-current)
+  "Mark the matched files or the current file if no research are in progress or if FORCE-MARKED-CURRENT is set."
+  (interactive "P")
+  (let (result)
+    (unless force-marked-current
+      (ewoc-map (lambda (node)
+		  (when (and (eq (project-buffer-node->type node) 'file)
+			     (project-buffer-node->matched node))
+		    (setf (project-buffer-node->marked node) t)
+		    (setq result t)))
+		project-buffer-status))
+    (unless result
+      (project-buffer-mark-file))))
+	  
+
+      
+
 
 
 ;;
