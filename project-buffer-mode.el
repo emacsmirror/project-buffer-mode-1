@@ -1,29 +1,66 @@
+;;; project-buffer-mode.el --- Generic mode to browse project file
 ;;
-;; proj:folder/
+;; Author:   Cedric Lallain <kandjar76@hotmail.com>
+;; Version:  0.9
+;; Keywords: project mode buffer
+;; Description: Generic mode to handler projects.
+;; Tested with: GNU Emacs 22.x and GNU Emacs 23.x
+;;
+;; This file is *NOT* part of GNU Emacs.
+;;
+;;    This program is free software; you can redistribute it and/or modify
+;;    it under the terms of the GNU General Public License as published by
+;;    the Free Software Foundation; either version 2 of the License, or
+;;    (at your option) any later version.
+;;
+;;    This program is distributed in the hope that it will be useful,
+;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;    GNU General Public License for more details.
+;;
+;;    You should have received a copy of the GNU General Public License
+;;    along with this program; if not, write to the Free Software
+;;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 ;;
 
+;;; Commentary:
+;; 
 
-;; Shortcut:
+;; project-buffer-mode is a generic mode to handle project.
+;; It provides a hierarchical view of a project.
+;;
+;; In order to use it:
+;; - you need a script to parse your project file.
+;;   + the script has to initialize a buffer calling (project-buffer-mode)
+;;   + then add each file using the function: (project-buffer-insert...
+;; Check below for a sample code
+;;
+;;
+;; Shortkey in the project-buffer-mode:
+;;    +    -> collapse/expand folder/project (cursor has to be on a folder/project)
 ;;    m    -> mark the 'matching regexp' filename or the current file
 ;;    u    -> unmark file
 ;;    t    -> toggle marked files
 ;;    M    -> mark all
 ;;    U    -> unmark all
-;;    +    -> collapse/expand folder/project (cursor has to be on a folder/project)
-;;   <TAB> -> collapse/expand folder/project (work if the cursor is on a file)
 ;;    f    -> open marked files
-;;   <RET> -> open file at cursor pos
-;; C-<DWN> -> move to the next folder/project
-;; C-<UP>  -> move to the previous folder/project
 ;;    q    -> cancel search or bury project-buffer
 ;;    ?    -> show brief help!!
 ;;    /    -> search file name matching regexp
 ;;    n    -> next file matching regexp
 ;;    p    -> prev file matching regexp
+;;    v    -> view current file in view-mode
+;;    o    -> find file at current pos in other window
+;;    s    -> (un)mark files containing regexp...
+;;   <TAB> -> collapse/expand folder/project (work if the cursor is on a file)
+;;   <RET> -> open file at cursor pos
 ;;   <BCK> -> go to parent
-;; <C-LFT> -> expand if collapsed move to the first folder; move inside if expanded
-;; <C-RGT> -> move up if folded collapsed; collapse if in front of folder ; move to the folded if in front of a file
-;;    v    -> View current file in view-mode
+;;   <SPC> -> next line
+;; S-<SPC> -> prev line
+;; C-<DWN> -> move to the next folder/project
+;; C-<UP>  -> move to the previous folder/project
+;; C-<LFT> -> expand if collapsed move to the first folder; move inside if expanded
+;; C-<RGT> -> move up if folded collapsed; collapse if in front of folder ; move to the folded if in front of a file
 ;;    c v  -> Toggle view mode (flat / flat with the foldershidden / folder)
 ;;    c p  -> prompt to change platform
 ;;    c P  -> switch to the next platform
@@ -35,7 +72,6 @@
 ;;    C    -> launch clean
 ;;    D    -> launch run/with debugger
 ;;    R    -> launch run/without debugger
-;;    s    -> (un)mark files containing regexp...
 ;;
 ;; Future improvement:
 ;;    g    -> reload/reparse project files
@@ -47,27 +83,20 @@
 ;;    S    -> seach in all marked files
 
 
-;; Header displaying:
-;;  . current project to build
-;;  . platform to build (win32/...)
-;;  . version to build (debug/release/...)
+;;; TODO:
 ;;
-
-;; TODO:
 ;;  - show project dependencies
 ;;     e.g: [+] ProjName1           <deps: ProjName3, ProjName2>
-;;  - test color in dark background 
+;;  - test color in dark background
 ;;  - adding button to collapse/expand folders/projects
-;;  - update function which could use the parent field.
 ;;  - make sure no interactive function are complicated!!! (cf: toggle-expand-collapsed)
 ;;     it's better to create a function and call it in the command
-;;  - Grayed out exclude from build files??
-;;  - Different color for files referenced in the proj but don't exist?
-;;  - Auto reload if file modified on disk?
+;;  - grayed out exclude from build files??
+;;  - different color for files referenced in the proj but don't exist?
+;;  - auto reload if file modified on disk?
 
 
-;; Sample:
-;; -------
+;;; Sample:
 ;;
 ;; (defun test-projbuff()
 ;;   (interactive)
@@ -77,21 +106,29 @@
 ;;       (cd "~/temp")
 ;;       (project-buffer-mode)
 ;; 
-;;       (project-buffer-insert project-buffer-status (project-buffer-create-node "test1" 'project "test1.sln" "test1"))
-;;       (project-buffer-insert project-buffer-status (project-buffer-create-node "src/gfr.cpp" 'file  "~/temp/gfr.cpp" "test1"))
-;;       (project-buffer-insert project-buffer-status (project-buffer-create-node "src/abc.cpp" 'file  "~/temp/abc.cpp" "test1"))
+;;       (project-buffer-insert (project-buffer-create-node "test1" 'project "test1.sln" "test1"))
+;;       (project-buffer-insert (project-buffer-create-node "src/gfr.cpp" 'file  "~/temp/gfr.cpp" "test1"))
+;;       (project-buffer-insert (project-buffer-create-node "src/abc.cpp" 'file  "~/temp/abc.cpp" "test1"))
 ;; 
-;;       (project-buffer-insert project-buffer-status (project-buffer-create-node "test2" 'project "test2.sln" "test2"))
-;;       (project-buffer-insert project-buffer-status (project-buffer-create-node "header/zzz.h" 'file  "~/temp/zzz.h" "test2"))
-;;       (project-buffer-insert project-buffer-status (project-buffer-create-node "src/roo.c" 'file  "~/temp/roo.c" "test2"))
-;;       (project-buffer-insert project-buffer-status (project-buffer-create-node "script.awk" 'file "~/temp/script.awk" "test2"))
+;;       (project-buffer-insert (project-buffer-create-node "test2" 'project "test2.sln" "test2"))
+;;       (project-buffer-insert (project-buffer-create-node "header/zzz.h" 'file  "~/temp/zzz.h" "test2"))
+;;       (project-buffer-insert (project-buffer-create-node "src/roo.c" 'file  "~/temp/roo.c" "test2"))
+;;       (project-buffer-insert (project-buffer-create-node "script.awk" 'file "~/temp/script.awk" "test2"))
 ;; )))
 
 
 
+;;; History:
+;; 
+;; v1.0: First public release.
+
 
 (require 'cl)
 (require 'ewoc)
+
+
+;;; Code:
+
 
 ;;
 ;;  Buffer local variables:
@@ -125,7 +162,7 @@
 
 The function should follow the prototype:
   (lambda (action project-name project-path platform configuration)
- Where ACTION represents the action to apply to the project, 
+ Where ACTION represents the action to apply to the project,
  it may be: 'build 'clean 'run 'debug,
  PROJECT-NAME is the name of the master project,
  PROJECT-PATH is the file path of the project
@@ -242,36 +279,43 @@ The function should follow the prototype:
     (define-key project-buffer-mode-map [?m] 'project-buffer-mark-matched-files-or-current-file)
     (define-key project-buffer-mode-map [?u] 'project-buffer-unmark-file)
     (define-key project-buffer-mode-map [?M] 'project-buffer-mark-all)
+
     (define-key project-buffer-mode-map [?U] 'project-buffer-unmark-all)
     (define-key project-buffer-mode-map [?t] 'project-buffer-toggle-all-marks)
     (define-key project-buffer-mode-map [?f] 'project-buffer-find-marked-files)
     (define-key project-buffer-mode-map [?/] 'project-buffer-search-forward-regexp)
     (define-key project-buffer-mode-map [?n] 'project-buffer-goto-next-match)
+
     (define-key project-buffer-mode-map [?p] 'project-buffer-goto-prev-match)
     (define-key project-buffer-mode-map [?v] 'project-buffer-view-file)
     (define-key project-buffer-mode-map [?c ?v] 'project-buffer-toggle-view-mode)
     (define-key project-buffer-mode-map [?c ?b] 'project-buffer-choose-build-configuration)
     (define-key project-buffer-mode-map [?c ?p] 'project-buffer-choose-platform)
+
     (define-key project-buffer-mode-map [?c ?t] 'project-buffer-choose-master-project)
     (define-key project-buffer-mode-map [?c ?B] 'project-buffer-next-build-configuration)
     (define-key project-buffer-mode-map [?c ?P] 'project-buffer-next-platform)
     (define-key project-buffer-mode-map [?c ?T] 'project-buffer-select-current-as-master-project)
     (define-key project-buffer-mode-map [backspace] 'project-buffer-goto-dir-up)
+
     (define-key project-buffer-mode-map [?\ ] 'project-buffer-next-file)
     (define-key project-buffer-mode-map [(shift ?\ )] 'project-buffer-prev-file)
     (define-key project-buffer-mode-map [return] 'project-buffer-find-file)
     (define-key project-buffer-mode-map [?o] 'project-buffer-find-file-other-window)
     (define-key project-buffer-mode-map [(control left)] 'project-buffer-goto-dir-up-or-collapsed)
+
     (define-key project-buffer-mode-map [(control right)] 'project-buffer-next-file-or-expand)
     (define-key project-buffer-mode-map [(control up)] 'project-buffer-go-to-previous-folder-or-project)
     (define-key project-buffer-mode-map [(control down)] 'project-buffer-go-to-next-folder-or-project)
     (define-key project-buffer-mode-map [??] 'project-buffer-help)
     (define-key project-buffer-mode-map [?q] 'project-buffer-quit)
+
     (define-key project-buffer-mode-map [?B] 'project-buffer-perform-build-action)
     (define-key project-buffer-mode-map [?C] 'project-buffer-perform-clean-action)
     (define-key project-buffer-mode-map [?R] 'project-buffer-perform-run-action)
     (define-key project-buffer-mode-map [?D] 'project-buffer-perform-debug-action)
     (define-key project-buffer-mode-map [?s] 'project-buffer-mark-files-containing-regexp)
+
     project-buffer-mode-map))
 
 
@@ -330,22 +374,22 @@ The function should follow the prototype:
   (let* ((node-name  (project-buffer-node->name node-data))
 	 (file-color (if (project-buffer-node->matched node-data) 'project-buffer-matching-file-face 'project-buffer-file-face))
 	 (node-color (if (eq (project-buffer-node->type node-data) 'file) file-color 'project-buffer-folder-face)))
-    (cond ((eq project-buffer-view-mode 'flat-view) 
-	   (concat (propertize " `- " 'face 'project-buffer-indent-face) 
-		   (and (file-name-directory node-name) 
+    (cond ((eq project-buffer-view-mode 'flat-view)
+	   (concat (propertize " `- " 'face 'project-buffer-indent-face)
+		   (and (file-name-directory node-name)
 			(propertize (file-name-directory node-name) 'face 'project-buffer-folder-face))
 		   (propertize (file-name-nondirectory node-name) 'face file-color)))
 	  ((eq project-buffer-view-mode 'folder-hidden-view)
-	   (concat (propertize " `- " 'face 'project-buffer-indent-face) 
+	   (concat (propertize " `- " 'face 'project-buffer-indent-face)
 		   (propertize (file-name-nondirectory node-name) 'face file-color)))
 	  ((eq project-buffer-view-mode 'folder-view)
 	   (let ((dir-list (split-string node-name "/"))
 		 (str (if (project-buffer-node->collapsed node-data) " `+ " " `- "))
 		 (cur 1))
-	     (while (< cur (length dir-list)) 
+	     (while (< cur (length dir-list))
 	       (setq str (concat " |  " str)
 		     cur (1+ cur)))
-	     (concat (propertize str 'face 'project-buffer-indent-face) 
+	     (concat (propertize str 'face 'project-buffer-indent-face)
 		     (propertize (file-name-nondirectory node-name) 'face node-color) )))
 	  (t (format "Unknown view mode: %S" project-buffer-view-mode) ))))
 
@@ -367,7 +411,7 @@ The function should follow the prototype:
 		   (or (not node-prjcol)
 		       node-matching))
 	      (eq node-type 'project))
-      (insert (concat " " 
+      (insert (concat " "
 		      (if node-marked (propertize "*" 'face 'project-buffer-mark-face)" ")
 		      " "
 		      (cond ((not (eq node-type 'project)) "   ")
@@ -383,7 +427,7 @@ The function should follow the prototype:
 		   (project-buffer-node->filename node)
 		   (eq (project-buffer-node->type node) 'file))
 	  (indent-to-column 40)
-	  (insert (concat " " (propertize (project-buffer-node->filename node) 
+	  (insert (concat " " (propertize (project-buffer-node->filename node)
 					 'face 'project-buffer-filename-face))))
 	(insert "\n"))))
 
@@ -429,7 +473,7 @@ Commands:
 
 (defun project-buffer-refresh-ewoc-hf(status)
   "Refresh ewoc header/footer"
-  (ewoc-set-hf status 
+  (ewoc-set-hf status
 	       (concat (format "Project view mode:   %s\n" project-buffer-view-mode)
 		       (format "Platform:            %s\n" (or project-buffer-current-platform "N/A"))
 		       (format "Build configuration: %s\n" (or project-buffer-current-build-configuration "N/A"))
@@ -437,7 +481,8 @@ Commands:
 
 
 (defun project-buffer-extract-folder (name type)
-  "Return the folder associated to the node's name"
+  "Return the folder associated to the node's NAME of the type TYPE.
+Return nil if TYPE is project."
   (cond ((eq type 'folder) name)
 	((eq type 'project) nil)
 	(t (let ((dirname (file-name-directory name)))
@@ -445,7 +490,7 @@ Commands:
 
 
 (defun project-buffer-directory-lessp (dir1 dir2 type2)
-  "Return t if dir1 is less than (dir2,type2)"
+  "Return t if DIR1 is less than (DIR2,TYPE2)."
   (let* ((list1  (and dir1 (split-string dir1 "/")))
 	 (list2  (and dir2 (split-string dir2 "/")))
 	 (cnt 0))
@@ -457,14 +502,14 @@ Commands:
 	       (if (and (< cnt (length list1))
 			(< cnt (length list2)))
 		   (string-lessp (nth cnt list1) (nth cnt list2))
-		   (and (eq type2 'file) 
+		   (and (eq type2 'file)
 			(< cnt (length list1)))
 		   ))
 	(null list2))))
 
 
 (defun project-buffer-parent-of-p (child parent)
-  "Check if PARENT is a parent directory of CHILD"
+  "Check if CHILD is a child of the directory PARENT."
   (let* ((clist (and child  (split-string child "/")))
 	 (plist (and parent (split-string parent "/")))
 	 (cont t)
@@ -528,15 +573,15 @@ If ANY-PARENT-OK is set, any parent found will be valid"
   (project-buffer-refresh-ewoc-hf status))
 
 
-(defun project-buffer-insert (status data)
-  "Insert a file at the right place in it's project."
+(defun project-buffer-insert-data (status data)
+  "Insert a file in alphabetic order in it's project/directory."
   (let ((node           (ewoc-nth status 0))
 	(folder-data    (project-buffer-extract-folder (project-buffer-node->name data)      (project-buffer-node->type data)))
 	(name-data      (file-name-nondirectory (project-buffer-node->name data)))
 	(type-data      (project-buffer-node->type data))
 	(proj-data      (project-buffer-node->project data))
 	(node-data      nil)
-	(here           nil) 
+	(here           nil)
 	(proj-found     nil)
 	(folder         nil)
 	(hidden-flag    nil)
@@ -551,7 +596,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 
     ;; Cache check:
     (when project-buffer-cache-project
-      (cond 
+      (cond
        ;; cache-project < current-project -> we can start the search from here (at least).
        ((string-lessp (car project-buffer-cache-project) proj-data)
 	(setq node (cdr project-buffer-cache-project)
@@ -571,7 +616,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 	    (setq node (cdr project-buffer-cache-project)
 		  project-buffer-cache-subdirectory nil)))
        ;; other wise: cache miss...
-       (t 
+       (t
 	(setq project-buffer-cache-project nil
 	      project-buffer-cache-subdirectory nil))))
 	 
@@ -624,7 +669,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 		      ;;   -> or we'll search for the right place to add it.
 		      ;; - the current node has a folder, meaning:
 		      ;;   -> the new one has no folder, therefore, we need to carry on until we reach the no-folder area.
-		      (unless folder-db 
+		      (unless folder-db
 			(if folder-data
 			    (setq here node)
 			    (when (string-lessp name-data name-db)
@@ -643,7 +688,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 	(setf (project-buffer-node->parent data) folder-node)
 	(setf (project-buffer-node->parent data) proj-root-node))
 
-      ;; Once the node added we will need to check if it should be hidden or not. 
+      ;; Once the node added we will need to check if it should be hidden or not.
       ;; At first, if it's a file, it will be hidden to not have any glitch in the displayed buffer
       (if (eq type-data 'project)
 	  (progn (setf (project-buffer-node->project-collapsed data) project-buffer-new-project-collapsed)
@@ -652,10 +697,10 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 		 (unless project-buffer-master-project
 		   (setq project-buffer-master-project (cons name-data nil)))) ; to prevent blinking
 	  (progn (setf (project-buffer-node->hidden data) t)
-		 (unless proj-root-node 
+		 (unless proj-root-node
 		   (error "Project '%s' not found" proj-data))))
 
-      (if here 
+      (if here
 	  (setq node (ewoc-enter-before status here data))
 	  (setq node (ewoc-enter-last status data)))
 
@@ -672,14 +717,14 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 	       (parent (project-buffer-find-node-up status node)))
 	  (setf (project-buffer-node->project-collapsed data) (project-buffer-node->project-collapsed (ewoc-data parent)))
 	  (setq shown (not (and parent (project-buffer-node->collapsed (ewoc-data parent)))))
-	  (while (and parent 
+	  (while (and parent
 		      shown
 		      (not (eq (project-buffer-node->type (ewoc-data parent)) 'project)))
 	    (setq parent (project-buffer-find-node-up status parent))
 	    (setq shown  (not (and parent (project-buffer-node->collapsed (ewoc-data parent)))))
 	    )
 	  (setq hidden-flag (not shown)))
-	(unless hidden-flag 
+	(unless hidden-flag
 	  (setf (project-buffer-node->hidden data) nil)
 	  (ewoc-invalidate status node)))
 
@@ -724,21 +769,27 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 
 
 (defun project-buffer-refresh-all-items (status)
-  "Refresh all ewoc item from the buffer"
+  "Refresh all ewoc item from the buffer."
   (ewoc-map (lambda (info)  t) status)) ; (ewoc-refresh status) doesn't work properly.
 
 
 (defun project-buffer-perform-action-hook(action)
-  "Refresh all ewoc item from the buffer"
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
-  (run-hook-with-args 'project-buffer-action-hook 
+  "Call the user hook to perform ACTION."
+  (run-hook-with-args 'project-buffer-action-hook
 		      action
 		      (car project-buffer-master-project)
 		      (project-buffer-node->filename (ewoc-data (cdr project-buffer-master-project)))
 		      project-buffer-current-platform
 		      project-buffer-current-build-configuration))
 
+;;
 
+
+(defun project-buffer-insert(data)
+  "Insert a file in alphabetic order in it's project/directory."
+
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (project-buffer-insert-data project-buffer-status data))
 
 
 ;;
@@ -749,7 +800,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 (defun project-buffer-goto-dir-up()
   "Go to the project/folder containing the current file/folder"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((status project-buffer-status)
 	 (node (ewoc-locate status)))
     (setq node (and node (project-buffer-find-node-up status node)))
@@ -760,7 +811,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 (defun project-buffer-goto-dir-up-or-collapsed()
   "Go to the project/folder containing the current file/folder unless the cursor is on a expanded folder/project in which case, it will collapse it"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((status    project-buffer-status)
 	 (node      (ewoc-locate status))
 	 (node-data (and node (ewoc-data node))))
@@ -776,10 +827,10 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 (defun project-buffer-search-forward-regexp(regexp)
   "Search file matching REGEXP"
   (interactive "sSearch forward (regexp): ")
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (project-buffer-clear-matched-mark project-buffer-status)
-  (when (and regexp 
-	     (> (length regexp) 0)) 
+  (when (and regexp
+	     (> (length regexp) 0))
     (let* ((status project-buffer-status)
 	   (node (ewoc-locate status)))
       (project-buffer-mark-matching-file project-buffer-status regexp)
@@ -803,7 +854,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 (defun project-buffer-goto-next-match()
   "Go to the next matching"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((status project-buffer-status)
 	 (node (ewoc-locate status)))
     (if node (setq node (ewoc-next status node)))
@@ -820,7 +871,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 (defun project-buffer-goto-prev-match()
   "Go to the previous matching"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((status project-buffer-status)
 	 (node (ewoc-locate status)))
     (if node (setq node (ewoc-prev status node)))
@@ -837,7 +888,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 (defun project-buffer-quit ()
   "Burry project-buffer mode or cancel the research."
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (unless (project-buffer-clear-matched-mark project-buffer-status)
     (bury-buffer)))
 
@@ -851,14 +902,14 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 (defun project-buffer-next-file (&optional n)
   "Move the cursor down N files."
   (interactive "p")
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (ewoc-goto-next project-buffer-status n))
 
 
 (defun project-buffer-next-file-or-expand()
   "Go to the project/folder containing the current file/folder unless the cursor is on a expanded folder/project in which case, it will collapse it"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((status    project-buffer-status)
 	 (node      (ewoc-locate status))
 	 (node-data (and node (ewoc-data node))))
@@ -873,14 +924,14 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 (defun project-buffer-prev-file (&optional n)
   "Move the cursor up N files."
   (interactive "p")
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (ewoc-goto-prev project-buffer-status n))
 
 
 (defun project-buffer-find-marked-files()
   "Run find-files on the marked files"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((file-list (project-buffer-get-marked-nodes project-buffer-status))
 	 (cnt 0)
 	 buffer)
@@ -898,7 +949,7 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 (defun project-buffer-go-to-previous-project()
   "Go to previous project line"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((status project-buffer-status)
 	 (node (ewoc-locate project-buffer-status))
 	 (search (ewoc-prev status node)))
@@ -914,11 +965,11 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 If the cursor is on a folder, search up for the previous project/folder.
 If the cursor is on a project, go to previous project."
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((status    project-buffer-status)
 	 (node      (ewoc-locate project-buffer-status))
 	 (node-data (and node (ewoc-data node))))
-    (cond ((eq (project-buffer-node->type node-data) 'file) 
+    (cond ((eq (project-buffer-node->type node-data) 'file)
 	   (project-buffer-goto-dir-up))
 	  ((eq (project-buffer-node->type node-data) 'folder)
 	   (let ((search (ewoc-prev status node)))
@@ -940,7 +991,7 @@ If the cursor is on a project, go to previous project."
 (defun project-buffer-go-to-next-project()
   "Go to next project line"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((status project-buffer-status)
 	 (node (ewoc-locate project-buffer-status))
 	 (search (ewoc-next status node)))
@@ -956,11 +1007,11 @@ If the cursor is on a project, go to previous project."
 If the cursor is on a folder, search down for the next project/folder.
 If the cursor is on a project, go to next project."
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((status    project-buffer-status)
 	 (node      (ewoc-locate project-buffer-status))
 	 (node-data (and node (ewoc-data node)))
-	 (fold-ok   (and node 
+	 (fold-ok   (and node
 			 (not (eq (project-buffer-node->type node-data) 'project))
 			 (eq project-buffer-view-mode 'folder-view)))
 	 (search    (and node (ewoc-next status node))))
@@ -977,7 +1028,7 @@ If the cursor is on a project, go to next project."
 (defun project-buffer-find-file()
   "Open the file that the cursor is on."
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((node (ewoc-locate project-buffer-status))
 	 (node-data (ewoc-data node)))
     (project-buffer-clear-matched-mark project-buffer-status)
@@ -989,7 +1040,7 @@ If the cursor is on a project, go to next project."
 (defun project-buffer-find-file-other-window()
   "Open the file that the cursor is on in another window."
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((node (ewoc-locate project-buffer-status))
 	 (node-data (ewoc-data node)))
     (project-buffer-clear-matched-mark project-buffer-status)
@@ -1001,10 +1052,10 @@ If the cursor is on a project, go to next project."
 (defun project-buffer-mark-file()
   "Mark the file that the cursor is on and move to the next one."
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((node (ewoc-locate project-buffer-status))
 	 (node-data (ewoc-data node)))
-    (when (eq (project-buffer-node->type node-data) 'file) 
+    (when (eq (project-buffer-node->type node-data) 'file)
       (setf (project-buffer-node->marked node-data) t)
       (ewoc-invalidate project-buffer-status node))
     (ewoc-goto-next project-buffer-status 1)))
@@ -1013,7 +1064,7 @@ If the cursor is on a project, go to next project."
 (defun project-buffer-unmark-file()
   "Unmark the file that the cursor is on and move to the next one."
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((node (ewoc-locate project-buffer-status))
 	 (node-data (ewoc-data node)))
     (setf (project-buffer-node->marked node-data) nil)
@@ -1024,17 +1075,17 @@ If the cursor is on a project, go to next project."
 (defun project-buffer-mark-all()
   "Mark all files."
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (ewoc-map (lambda (node) (when (and (eq (project-buffer-node->type node) 'file)
 				      (not (project-buffer-node->marked node)))
-                             (setf (project-buffer-node->marked node) t))) 
+                             (setf (project-buffer-node->marked node) t)))
 	    project-buffer-status))
 
 
 (defun project-buffer-unmark-all()
   "Unmark all files."
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (ewoc-map (lambda (node) (when (and (eq (project-buffer-node->type node) 'file)
 				      (project-buffer-node->marked node))
                              (setf (project-buffer-node->marked node) nil) t))
@@ -1044,7 +1095,7 @@ If the cursor is on a project, go to next project."
 (defun project-buffer-toggle-all-marks()
   "Toggle all file marks."
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (ewoc-map (lambda (node) (when (eq (project-buffer-node->type node) 'file)
 			     (setf (project-buffer-node->marked node) (not (project-buffer-node->marked node))) t))
 	    project-buffer-status))
@@ -1054,7 +1105,7 @@ If the cursor is on a project, go to next project."
   "Expand / Collapse project and folder that the cursor is on.
 If the cursor is on a file - search up for the nearest folder and collapse it."
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((node      (ewoc-locate project-buffer-status))
 	 (node-data (ewoc-data node))
 	 (status    project-buffer-status))
@@ -1070,13 +1121,13 @@ If the cursor is on a file - search up for the nearest folder and collapse it."
   "Expand / Collapse project and folder that the cursor is on.
 If the cursor is on a file - nothing will be done."
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((node      (ewoc-locate project-buffer-status))
 	 (node-data (ewoc-data node))
 	 (status    project-buffer-status)
 	 prj-sel
 	 hidden-flag
-	 project 
+	 project
 	 skip-under
 	 folder)
     (project-buffer-clear-matched-mark status)
@@ -1117,7 +1168,7 @@ If the cursor is on a file - nothing will be done."
 (defun project-buffer-toggle-view-mode()
   "Toggle between the different view mode (folder-view / flag-view / folder-hidden-view)"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((node (ewoc-locate project-buffer-status)))
     (setq project-buffer-view-mode
 	  (cond ((eq project-buffer-view-mode 'folder-view)        'flat-view)
@@ -1134,7 +1185,7 @@ If the cursor is on a file - nothing will be done."
 (defun project-buffer-choose-build-configuration()
   "Ask the user for the build configuration using a completion list"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (unless project-buffer-build-configurations-list (error "No build configuration available"))
   (if (cdr project-buffer-build-configurations-list)
       (let ((new-build-configuration (completing-read "Build-Configuration: " project-buffer-build-configurations-list nil t)))
@@ -1147,11 +1198,11 @@ If the cursor is on a file - nothing will be done."
 (defun project-buffer-next-build-configuration()
   "Select next build configuration (rotate through them)."
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (unless project-buffer-build-configurations-list (error "No build configuration available"))
   (if (cdr project-buffer-build-configurations-list)
       (let ((current (member project-buffer-current-build-configuration project-buffer-build-configurations-list)))
-	(unless current (error "The current build configuration is invalid."))
+	(unless current (error "The current build configuration is invalid"))
 	(setq project-buffer-current-build-configuration (or (and (cdr current) (cadr current))
 							 (car project-buffer-build-configurations-list))))
       (message "This is the only one build configuration available."))
@@ -1161,7 +1212,7 @@ If the cursor is on a file - nothing will be done."
 (defun project-buffer-choose-platform()
   "Ask the user for the platform using a completion list"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (unless project-buffer-platforms-list (error "No build configuration available"))
   (if (cdr project-buffer-platforms-list)
       (let ((new-platform (completing-read "Platform: " project-buffer-platforms-list nil t)))
@@ -1174,11 +1225,11 @@ If the cursor is on a file - nothing will be done."
 (defun project-buffer-next-platform()
   "Select next platform (rotate through them)."
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (unless project-buffer-platforms-list (error "No build configuration available"))
   (if (cdr project-buffer-platforms-list)
       (let ((current (member project-buffer-current-platform project-buffer-platforms-list)))
-	(unless current (error "The current build configuration is invalid."))
+	(unless current (error "The current build configuration is invalid"))
 	(setq project-buffer-current-platform (or (and (cdr current) (cadr current))
 						    (car project-buffer-platforms-list))))
       (message "This is the only one platform available."))
@@ -1188,7 +1239,7 @@ If the cursor is on a file - nothing will be done."
 (defun project-buffer-choose-master-project()
   "Prompt the user for the master project"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((status    project-buffer-status)
 	(proj-name (completing-read "Enter the master project: " project-buffer-projects-list nil t)))
     (when (and proj-name
@@ -1207,7 +1258,7 @@ If the cursor is on a file - nothing will be done."
 (defun project-buffer-select-current-as-master-project()
   "Make the current project the new master project"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((status project-buffer-status)
 	(old-node (cdr project-buffer-master-project))
 	(cur-node (ewoc-locate project-buffer-status)))
@@ -1227,28 +1278,28 @@ If the cursor is on a file - nothing will be done."
 (defun project-buffer-perform-build-action()
   "Run the user hook to perform the build action"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (project-buffer-perform-action-hook 'build))
 
 
 (defun project-buffer-perform-clean-action()
   "Run the user hook to perform the build action"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (project-buffer-perform-action-hook 'clean))
 
 
 (defun project-buffer-perform-run-action()
   "Run the user hook to perform the build action"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (project-buffer-perform-action-hook 'run))
 
 
 (defun project-buffer-perform-debug-action()
   "Run the user hook to perform the build action"
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (project-buffer-perform-action-hook 'debug))
 
 
@@ -1258,10 +1309,10 @@ If the cursor is on a file - nothing will be done."
    (list (project-buffer-read-regexp (concat (if current-prefix-arg "Unmark" "Mark")
 					     " files containing (regexp): "))
 	 current-prefix-arg))
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((marked-flag (not unmark))
 	(count 0))
-    (ewoc-map (lambda (node) 
+    (ewoc-map (lambda (node)
 		(when (and (eq (project-buffer-node->type node) 'file)                ; check only files
 			   (not (eq (project-buffer-node->marked node) marked-flag))) ; which aren't already (un)marked (based on request)
 		  ;; Check if the file contain the regexp:
@@ -1290,7 +1341,7 @@ If the cursor is on a file - nothing will be done."
 (defun project-buffer-mark-matched-files-or-current-file(force-marked-current)
   "Mark the matched files or the current file if no research are in progress or if FORCE-MARKED-CURRENT is set."
   (interactive "P")
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let (result)
     (unless force-marked-current
       (ewoc-map (lambda (node-data)
@@ -1306,7 +1357,7 @@ If the cursor is on a file - nothing will be done."
 (defun project-buffer-view-file()
   "Examine the current file in view-mode."
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((node (ewoc-locate project-buffer-status))
 	 (node-data (ewoc-data node)))
     (when (eq (project-buffer-node->type node-data) 'file)
@@ -1317,3 +1368,5 @@ If the cursor is on a file - nothing will be done."
 
 ;;
 (provide 'project-buffer-mode)
+
+;;; project-buffer-mode.el ends here
