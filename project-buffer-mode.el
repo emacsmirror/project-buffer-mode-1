@@ -63,12 +63,12 @@
 ;; C-<RGT> -> move up if folded collapsed; collapse if in front of folder ; move to the folded if in front of a file
 ;;    c s  -> Toggle search mode
 ;;    c v  -> Toggle view mode (flat / flat with the foldershidden / folder)
-;;    c p  -> prompt to change platform
-;;    c P  -> switch to the next platform
-;;    c b  -> prompt to change build configuration
-;;    c B  -> switch to the next build configuration
-;;    c t  -> prompt for the master project (project to build)
-;;    c T  -> switch the master project to be the current project
+;;    c b  -> switch to the next build configuration
+;;    c t  -> switch the master project to be the current project
+;;    c p  -> switch to the next platform
+;;    c B  -> prompt to change build configuration
+;;    c T  -> prompt for the master project (project to build)
+;;    c P  -> prompt to change platform
 ;;    B    -> launch build
 ;;    C    -> launch clean
 ;;    D    -> launch run/with debugger
@@ -300,13 +300,12 @@ Note: if no files are marked while using narrow-marked-files, the search will oc
     (define-key project-buffer-mode-map [?v] 'project-buffer-view-file)
     (define-key project-buffer-mode-map [?c ?s] 'project-buffer-toggle-search-mode)
     (define-key project-buffer-mode-map [?c ?v] 'project-buffer-toggle-view-mode)
-    (define-key project-buffer-mode-map [?c ?b] 'project-buffer-choose-build-configuration)
-    (define-key project-buffer-mode-map [?c ?p] 'project-buffer-choose-platform)
-
-    (define-key project-buffer-mode-map [?c ?t] 'project-buffer-choose-master-project)
-    (define-key project-buffer-mode-map [?c ?B] 'project-buffer-next-build-configuration)
-    (define-key project-buffer-mode-map [?c ?P] 'project-buffer-next-platform)
-    (define-key project-buffer-mode-map [?c ?T] 'project-buffer-select-current-as-master-project)
+    (define-key project-buffer-mode-map [?c ?b] 'project-buffer-next-build-configuration)
+    (define-key project-buffer-mode-map [?c ?p] 'project-buffer-next-platform)
+    (define-key project-buffer-mode-map [?c ?t] 'project-buffer-select-current-as-master-project)
+    (define-key project-buffer-mode-map [?c ?B] 'project-buffer-choose-build-configuration)
+    (define-key project-buffer-mode-map [?c ?P] 'project-buffer-choose-platform)
+    (define-key project-buffer-mode-map [?c ?T] 'project-buffer-choose-master-project)
     (define-key project-buffer-mode-map [backspace] 'project-buffer-goto-dir-up)
 
     (define-key project-buffer-mode-map [?\ ] 'project-buffer-next-file)
@@ -1270,7 +1269,7 @@ If the cursor is on a file - nothing will be done."
 
 
 (defun project-buffer-toggle-view-mode ()
-  "Toggle between the different view mode (folder-view / flag-view / folder-hidden-view)."
+  "Toggle between the different view mode (folder-view / flat-view / folder-hidden-view)."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((node (ewoc-locate project-buffer-status)))
@@ -1287,7 +1286,7 @@ If the cursor is on a file - nothing will be done."
 
 
 (defun project-buffer-toggle-search-mode()
-  "Toggle between the different view mode (folder-view / flag-view / folder-hidden-view)"
+  "Toggle between the different search-in-files mode (narrow-marked-files / all-files / current-project)."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer."))
   (let ((node (ewoc-locate project-buffer-status)))
