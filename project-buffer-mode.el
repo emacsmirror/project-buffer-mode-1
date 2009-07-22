@@ -1288,12 +1288,13 @@ If the cursor is on a file - nothing will be done."
 (defun project-buffer-mark-matched-files-or-current-file(force-marked-current)
   "Mark the matched files or the current file if no research are in progress or if FORCE-MARKED-CURRENT is set."
   (interactive "P")
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
   (let (result)
     (unless force-marked-current
-      (ewoc-map (lambda (node)
-		  (when (and (eq (project-buffer-node->type node) 'file)
-			     (project-buffer-node->matched node))
-		    (setf (project-buffer-node->marked node) t)
+      (ewoc-map (lambda (node-data)
+		  (when (and (eq (project-buffer-node->type node-data) 'file)
+			     (project-buffer-node->matched node-data))
+		    (setf (project-buffer-node->marked node-data) t)
 		    (setq result t)))
 		project-buffer-status))
     (unless result
