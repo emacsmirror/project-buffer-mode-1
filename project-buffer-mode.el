@@ -61,6 +61,7 @@
 ;; C-<UP>  -> move to the previous folder/project
 ;; C-<LFT> -> expand if collapsed move to the first folder; move inside if expanded
 ;; C-<RGT> -> move up if folded collapsed; collapse if in front of folder ; move to the folded if in front of a file
+;;    c s  -> Toggle search mode
 ;;    c v  -> Toggle view mode (flat / flat with the foldershidden / folder)
 ;;    c p  -> prompt to change platform
 ;;    c P  -> switch to the next platform
@@ -74,10 +75,10 @@
 ;;    R    -> launch run/without debugger
 ;;
 ;; Future improvement:
-;;    g    -> reload/reparse project files
+;;    g    -> reload/reparse project files (mmm should probably be done in the upper file or handler should be provided)
 ;;    c    -> compile current file / marked files? [?]
-;;    T    -> touch marked files
-;;    h    -> find corresponding header/source
+;;    T    -> touch marked files (need a variable to make sure touch is always available)
+;;    h    -> find corresponding header/source (need regexps to match one and the other such as: source/header = ( "\.c\(pp\)?" . "\.h\(pp\)?" ) )
 ;;    d    -> show/hide project dependencies
 ;;    b    -> buils marked files
 ;;    S    -> seach in all marked files
@@ -266,6 +267,15 @@ The function should follow the prototype:
   :group 'project-buffer
   :type 'boolean)
 
+(defcustom project-buffer-search-in-files-mode 'narrow-marked-files
+  "Enumarated value, set to 'narrow-marked-files it will search in the selected marked files, removing the one failing the research,
+set to 'all-files it will launch the search on all files in the projects, 'current-project will only search with the current project
+Note: if no files are marked while using narrow-marked-files, the search will occur in all files in the project."
+  :group 'project-buffer
+  :type '(choice (const :tag "Narrow the marked files" 'narrow-marked-files)
+		 (const :tag "All files" 'all-files)
+		 (const :tag "Current project" 'current-project)))
+
 
 ;;
 ;;  Key Bindings:
@@ -288,6 +298,7 @@ The function should follow the prototype:
 
     (define-key project-buffer-mode-map [?p] 'project-buffer-goto-prev-match)
     (define-key project-buffer-mode-map [?v] 'project-buffer-view-file)
+    (define-key project-buffer-mode-map [?c ?s] 'project-buffer-toggle-search-mode)
     (define-key project-buffer-mode-map [?c ?v] 'project-buffer-toggle-view-mode)
     (define-key project-buffer-mode-map [?c ?b] 'project-buffer-choose-build-configuration)
     (define-key project-buffer-mode-map [?c ?p] 'project-buffer-choose-platform)
@@ -438,6 +449,7 @@ The function should follow the prototype:
 	       (concat (format "Project view mode:   %s\n" project-buffer-view-mode)
 		       (format "Platform:            %s\n" (or project-buffer-current-platform "N/A"))
 		       (format "Build configuration: %s\n" (or project-buffer-current-build-configuration "N/A"))
+		       (format "Search mode:         %s\n" project-buffer-search-in-files-mode)
 		       "\n\n") ""))
 
 
@@ -815,6 +827,73 @@ note: regarding the project node, it's recommended to have NAME = PROJECT"
 							project
 							build-configuration-list))
 
+(defun project-buffer-search-and-mark-files(status regexp project marked-flag)
+  "Search REGEXP in with all files if PROJECT is nil or in each file of the specified PROJECT. 
+If REGEXP is found, the marked-flag field associated to the file get set to MARKED-FLAG
+The function returns the number of files whose marked-flag field changed"
+  (let ((count 0))
+    (ewoc-map (lambda (node) 
+		(when (and (eq (project-buffer-node->type node) 'file)				; check only files
+			   (or (not project)							; ( if a project is specified,
+			       (string-equal (project-buffer-node->project node) project))	;   make sure it matches the node's project )
+			   (not (eq (project-buffer-node->marked node) marked-flag)))		; which aren't already (un)marked (based on request)
+		  ;; Check if the file contain the regexp:
+		  (let ((filename (project-buffer-node->filename node)))
+		    (when (and filename
+			       (file-readable-p filename)
+			       (let ((fbuf (get-file-buffer filename)))
+				 (message "Project '%s' -- Searching in '%s'" (project-buffer-node->project node) (project-buffer-node->name node))
+				 (if fbuf
+				     (with-current-buffer fbuf
+				       (save-excursion
+					 (goto-char (point-min))
+					 (re-search-forward regexp nil t)))
+				     (with-temp-buffer
+				       (insert-file-contents filename)
+				       (goto-char (point-min))
+				       (re-search-forward regexp nil t)))))
+		      (setf (project-buffer-node->marked node) marked-flag)
+		      (setq count (1+ count))
+		      t  )))) ; to force the update of the display.
+	      status)
+    count))
+
+
+(defun project-buffer-refine-mark-files(status regexp marked-flag)
+  "Search REGEXP in with all marked files. 
+If REGEXP is found, the marked-flag field associated to the file get set to MARKED-FLAG
+The function returns the number of files whose marked-flag field changed
+Note: if no files are marked, the search will occur in all existing files of the project"
+  (let ((count 0)
+	marked-file-found)
+    (ewoc-map (lambda (node) 
+		(when (and (eq (project-buffer-node->type node) 'file)	; check only files
+			   (project-buffer-node->marked node))		; which are already marked
+		  (setq marked-file-found t)
+		  ;; Check if the file contain the regexp:
+		  (let ((filename (project-buffer-node->filename node)))
+		    (when (and filename
+			       (file-readable-p filename)
+			       (let ((found (let ((fbuf (get-file-buffer filename)))
+					      (message "Project '%s' -- Searching in '%s'" (project-buffer-node->project node) (project-buffer-node->name node))
+					      (if fbuf
+						  (with-current-buffer fbuf
+						    (save-excursion
+						      (goto-char (point-min))
+						      (re-search-forward regexp nil t)))
+						  (with-temp-buffer
+						    (insert-file-contents filename)
+						    (goto-char (point-min))
+						    (re-search-forward regexp nil t))))))
+				 (or (and found (not marked-flag))
+				     (and (not found) marked-flag))))
+		      (setf (project-buffer-node->marked node) nil)
+		      (setq count (1+ count))
+		      t  )))) ; to force the update of the display.
+	      status)
+    (if marked-file-found
+	count
+	(project-buffer-search-and-mark-files status regexp nil marked-flag))))
 
 
 ;;
@@ -1207,8 +1286,23 @@ If the cursor is on a file - nothing will be done."
       )))
 
 
-(defun project-buffer-choose-build-configuration ()
-  "Ask the user for the build configuration using a completion list."
+(defun project-buffer-toggle-search-mode()
+  "Toggle between the different view mode (folder-view / flag-view / folder-hidden-view)"
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let ((node (ewoc-locate project-buffer-status)))
+    (setq project-buffer-search-in-files-mode
+	  (cond ((eq project-buffer-search-in-files-mode 'narrow-marked-files) 'all-files)
+		((eq project-buffer-search-in-files-mode 'all-files)         'current-project)
+		((eq project-buffer-search-in-files-mode 'current-project)   'narrow-marked-files)))
+    (let ((status project-buffer-status))
+      (project-buffer-refresh-ewoc-hf status)
+      (ewoc-goto-node status node)
+      )))
+
+
+(defun project-buffer-choose-build-configuration()
+  "Ask the user for the build configuration using a completion list"
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (unless project-buffer-build-configurations-list (error "No build configuration available"))
@@ -1334,32 +1428,21 @@ If the cursor is on a file - nothing will be done."
    (list (project-buffer-read-regexp (concat (if current-prefix-arg "Unmark" "Mark")
 					     " files containing (regexp): "))
 	 current-prefix-arg))
-  (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (let ((marked-flag (not unmark))
-	(count 0))
-    (ewoc-map (lambda (node)
-		(when (and (eq (project-buffer-node->type node) 'file)                ; check only files
-			   (not (eq (project-buffer-node->marked node) marked-flag))) ; which aren't already (un)marked (based on request)
-		  ;; Check if the file contain the regexp:
-		  (let ((filename (project-buffer-node->filename node)))
-		    (when (and filename
-			       (file-readable-p filename)
-			       (let ((fbuf (get-file-buffer filename)))
-				 (message "Searching in %s" (project-buffer-node->name node))
-				 (if fbuf
-				     (with-current-buffer fbuf
-				       (save-excursion
-					 (goto-char (point-min))
-					 (re-search-forward regexp nil t)))
-				     (with-temp-buffer
-				       (insert-file-contents filename)
-				       (goto-char (point-min))
-				       (re-search-forward regexp nil t)))))
-		      (setf (project-buffer-node->marked node) marked-flag)
-		      (setq count (1+ count))
-		      t  )))) ; to force the update of the display.
-	      project-buffer-status)
-    (message "%i files %s." count (if unmark "unmarked" "marked"))
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((node (ewoc-locate project-buffer-status))
+	 (node-data (ewoc-data node))
+	 (current-project (project-buffer-node->project node-data))
+	 (count (cond ((eq project-buffer-search-in-files-mode 'narrow-marked-files)
+		      (project-buffer-refine-mark-files project-buffer-status regexp (not unmark)))
+		     ((eq project-buffer-search-in-files-mode 'all-files)
+		      (project-buffer-search-and-mark-files project-buffer-status regexp nil (not unmark)))
+		     ((eq project-buffer-search-in-files-mode 'current-project)
+		      (project-buffer-search-and-mark-files project-buffer-status regexp current-project (not unmark))))))
+    (message "%i files %s." 
+	     count 
+	     (if (or unmark
+		     (eq project-buffer-search-in-files-mode 'narrow-marked-files))
+		 "unmarked" "marked"))
     ))
 
 
