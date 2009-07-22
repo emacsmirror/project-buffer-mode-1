@@ -432,45 +432,6 @@ The function should follow the prototype:
 	(insert "\n"))))
 
 
-(defun project-buffer-mode()
-  "Major mode to view project.
-
-Commands:
-\\{project-buffer-mode-map}"
-  (kill-all-local-variables)
-  (buffer-disable-undo)
-  (setq mode-name "project-buffer"
-	major-mode 'project-buffer-mode
-	buffer-read-only t)
-  (use-local-map project-buffer-mode-map)
-  (let ((buffer-read-only nil))
-    (erase-buffer)
-    (let ((status (ewoc-create 'project-buffer-prettyprint "" "" t)))
-      (make-local-variable 'project-buffer-status)
-      (make-local-variable 'project-buffer-view-mode)
-      (make-local-variable 'project-buffer-cache-project)
-      (make-local-variable 'project-buffer-cache-subdirectory)
-      (make-local-variable 'project-buffer-platforms-list)
-      (make-local-variable 'project-buffer-current-platform)
-      (make-local-variable 'project-buffer-build-configurations-list)
-      (make-local-variable 'project-buffer-current-build-configuration)
-      (make-local-variable 'project-buffer-master-project)
-      (make-local-variable 'project-buffer-projects-list)
-
-      (setq project-buffer-status status)
-      (setq project-buffer-view-mode 'folder-view)
-      (setq project-buffer-cache-project nil)
-      (setq project-buffer-cache-subdirectory nil)
-      (setq project-buffer-platforms-list nil)
-      (setq project-buffer-current-platform nil)
-      (setq project-buffer-build-configurations-list nil)
-      (setq project-buffer-current-build-configuration nil)
-      (setq project-buffer-master-project nil)
-      (setq project-buffer-projects-list nil)
-
-      (project-buffer-refresh-ewoc-hf status))))
-
-
 (defun project-buffer-refresh-ewoc-hf(status)
   "Refresh ewoc header/footer"
   (ewoc-set-hf status
@@ -787,12 +748,50 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 ;;
 
 
+(defun project-buffer-mode()
+  "Major mode to view project.
+
+Commands:
+\\{project-buffer-mode-map}"
+  (kill-all-local-variables)
+  (buffer-disable-undo)
+  (setq mode-name "project-buffer"
+	major-mode 'project-buffer-mode
+	buffer-read-only t)
+  (use-local-map project-buffer-mode-map)
+  (let ((buffer-read-only nil))
+    (erase-buffer)
+    (let ((status (ewoc-create 'project-buffer-prettyprint "" "" t)))
+      (make-local-variable 'project-buffer-status)
+      (make-local-variable 'project-buffer-view-mode)
+      (make-local-variable 'project-buffer-cache-project)
+      (make-local-variable 'project-buffer-cache-subdirectory)
+      (make-local-variable 'project-buffer-platforms-list)
+      (make-local-variable 'project-buffer-current-platform)
+      (make-local-variable 'project-buffer-build-configurations-list)
+      (make-local-variable 'project-buffer-current-build-configuration)
+      (make-local-variable 'project-buffer-master-project)
+      (make-local-variable 'project-buffer-projects-list)
+
+      (setq project-buffer-status status)
+      (setq project-buffer-view-mode 'folder-view)
+      (setq project-buffer-cache-project nil)
+      (setq project-buffer-cache-subdirectory nil)
+      (setq project-buffer-platforms-list nil)
+      (setq project-buffer-current-platform nil)
+      (setq project-buffer-build-configurations-list nil)
+      (setq project-buffer-current-build-configuration nil)
+      (setq project-buffer-master-project nil)
+      (setq project-buffer-projects-list nil)
+
+      (project-buffer-refresh-ewoc-hf status))))
+
+
 (defun project-buffer-insert(name type filename project)
   "Insert a file in alphabetic order in it's project/directory.
 NAME is the name of the file in the project with it's virtual project directory,
 both name and directory may be virtual
-TYPE type of the node in the project: should be either 'project 'folder or 'file
-note: folder node will be automatically created when necessary
+TYPE type of the node in the project: should be either 'project or 'file
 FILENAME should be either a full path to the project's file or a relative path based 
 on the current directory of the buffer
 PROJECT is the name of the project in which to insert the node
@@ -804,12 +803,14 @@ note: regarding the project node, it's recommended to have NAME = PROJECT"
 
 (defun project-buffer-set-project-platforms(project platform-list)
   "Attached the list of platform contained in PLATFORM-LIST to the project named PROJECT."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (project-buffer-set-project-platforms-data project-buffer-status
 					     project
 					     platform-list))
 
 (defun project-buffer-set-project-build-configurations(project build-configuration-list)
   "Attached the list build configurations in BUILD-CONFIGURATION-LIST to the project named PROJECT."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (project-buffer-set-project-build-configurations-data project-buffer-status
 							project 
 							build-configuration-list))
