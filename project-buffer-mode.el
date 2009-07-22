@@ -12,7 +12,6 @@
 ;;    +    -> collapse/expand folder/project (cursor has to be on a folder/project)
 ;;   <TAB> -> collapse/expand folder/project (work if the cursor is on a file)
 ;;    f    -> open marked files
-;;    v    -> Toggle view mode (flat / flat with the foldershidden / folder)
 ;;   <RET> -> open file at cursor pos
 ;; C-<DWN> -> move to the next folder/project
 ;; C-<UP>  -> move to the previous folder/project
@@ -24,6 +23,8 @@
 ;;   <BCK> -> go to parent
 ;; <C-LFT> -> expand if collapsed move to the first folder; move inside if expanded
 ;; <C-RGT> -> move up if folded collapsed; collapse if in front of folder ; move to the folded if in front of a file
+;;    v    -> View current file in view-mode
+;;    c v  -> Toggle view mode (flat / flat with the foldershidden / folder)
 ;;    c p  -> prompt to change platform
 ;;    c P  -> switch to the next platform
 ;;    c b  -> prompt to change build configuration
@@ -243,11 +244,12 @@ The function should follow the prototype:
     (define-key project-buffer-mode-map [?M] 'project-buffer-mark-all)
     (define-key project-buffer-mode-map [?U] 'project-buffer-unmark-all)
     (define-key project-buffer-mode-map [?t] 'project-buffer-toggle-all-marks)
-    (define-key project-buffer-mode-map [?v] 'project-buffer-toggle-view-mode)
     (define-key project-buffer-mode-map [?f] 'project-buffer-find-marked-files)
     (define-key project-buffer-mode-map [?/] 'project-buffer-search-forward-regexp)
     (define-key project-buffer-mode-map [?n] 'project-buffer-goto-next-match)
     (define-key project-buffer-mode-map [?p] 'project-buffer-goto-prev-match)
+    (define-key project-buffer-mode-map [?v] 'project-buffer-view-file)
+    (define-key project-buffer-mode-map [?c ?v] 'project-buffer-toggle-view-mode)
     (define-key project-buffer-mode-map [?c ?b] 'project-buffer-choose-build-configuration)
     (define-key project-buffer-mode-map [?c ?p] 'project-buffer-choose-platform)
     (define-key project-buffer-mode-map [?c ?t] 'project-buffer-choose-master-project)
@@ -1301,6 +1303,14 @@ If the cursor is on a file - nothing will be done."
       (project-buffer-mark-file))))
 	  
 
+(defun project-buffer-view-file()
+  "Examine the current file in view-mode."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let* ((node (ewoc-locate project-buffer-status))
+	 (node-data (ewoc-data node)))
+    (when (eq (project-buffer-node->type node-data) 'file)
+      (view-file (project-buffer-node->filename node-data)))))
       
 
 
