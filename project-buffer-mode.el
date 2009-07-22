@@ -75,7 +75,6 @@
 ;;    R    -> launch run/without debugger
 ;;
 ;; Future improvement:
-;;    g    -> reload/reparse project files (mmm should probably be done in the upper file or handler should be provided)
 ;;    c    -> compile current file / marked files? [?]
 ;;    T    -> touch marked files (need a variable to make sure touch is always available)
 ;;    h    -> find corresponding header/source (need regexps to match one and the other such as: source/header = ( "\.c\(pp\)?" . "\.h\(pp\)?" ) )
@@ -90,11 +89,13 @@
 ;;     e.g: [+] ProjName1           <deps: ProjName3, ProjName2>
 ;;  - test color in dark background
 ;;  - adding button to collapse/expand folders/projects
+;;  - add collapsed all / expand all commands
+;;  - check if there is any other one: update function which could use the parent field.
 ;;  - make sure no interactive function are complicated!!! (cf: toggle-expand-collapsed)
 ;;     it's better to create a function and call it in the command
 ;;  - grayed out exclude from build files??
 ;;  - different color for files referenced in the proj but don't exist?
-;;  - auto reload if file modified on disk?
+;;  - add delete-node function
 
 
 ;;; Sample:
