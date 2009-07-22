@@ -106,14 +106,14 @@
 ;;       (cd "~/temp")
 ;;       (project-buffer-mode)
 ;; 
-;;       (project-buffer-insert (project-buffer-create-node "test1" 'project "test1.sln" "test1"))
-;;       (project-buffer-insert (project-buffer-create-node "src/gfr.cpp" 'file  "~/temp/gfr.cpp" "test1"))
-;;       (project-buffer-insert (project-buffer-create-node "src/abc.cpp" 'file  "~/temp/abc.cpp" "test1"))
+;;       (project-buffer-insert "test1" 'project "test1.sln" "test1")
+;;       (project-buffer-insert "src/gfr.cpp" 'file  "~/temp/gfr.cpp" "test1")
+;;       (project-buffer-insert "src/abc.cpp" 'file  "~/temp/abc.cpp" "test1")
 ;; 
-;;       (project-buffer-insert (project-buffer-create-node "test2" 'project "test2.sln" "test2"))
-;;       (project-buffer-insert (project-buffer-create-node "header/zzz.h" 'file  "~/temp/zzz.h" "test2"))
-;;       (project-buffer-insert (project-buffer-create-node "src/roo.c" 'file  "~/temp/roo.c" "test2"))
-;;       (project-buffer-insert (project-buffer-create-node "script.awk" 'file "~/temp/script.awk" "test2"))
+;;       (project-buffer-insert "test2" 'project "test2.sln" "test2")
+;;       (project-buffer-insert "header/zzz.h" 'file  "~/temp/zzz.h" "test2")
+;;       (project-buffer-insert "src/roo.c" 'file  "~/temp/roo.c" "test2")
+;;       (project-buffer-insert "script.awk" 'file "~/temp/script.awk" "test2")
 ;; )))
 
 
@@ -545,9 +545,9 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 	node)))
 
 
-(defun project-buffer-set-project-platforms(status project-name platform-list)
-  "Attached the platform list to the projects."
-  (let ((node (project-buffer-search-project-node status project-name)))
+(defun project-buffer-set-project-platforms-data(status project platform-list)
+  "Attached the list of platform contained in PLATFORM-LIST to the project named PROJECT."
+  (let ((node (project-buffer-search-project-node status project)))
     ;; Now, if the project has been found:
     (when node
       (setf (project-buffer-node->platform-list (ewoc-data node)) platform-list)
@@ -559,9 +559,9 @@ If ANY-PARENT-OK is set, any parent found will be valid"
   (project-buffer-refresh-ewoc-hf status))
 
 
-(defun project-buffer-set-project-build-configurations(status project-name build-configuration-list)
-  "Attached the build configuration list to node."
-  (let ((node (project-buffer-search-project-node status project-name)))
+(defun project-buffer-set-project-build-configurations-data(status project build-configuration-list)
+  "Attached the list build configurations in BUILD-CONFIGURATION-LIST to the project named PROJECT."
+  (let ((node (project-buffer-search-project-node status project)))
     ;; Now, if the project has been found:
     (when node
       (setf (project-buffer-node->build-configurations-list (ewoc-data node)) build-configuration-list)
@@ -783,13 +783,37 @@ If ANY-PARENT-OK is set, any parent found will be valid"
 		      project-buffer-current-build-configuration))
 
 ;;
+;;  External functions:
+;;
 
 
-(defun project-buffer-insert(data)
-  "Insert a file in alphabetic order in it's project/directory."
-
+(defun project-buffer-insert(name type filename project)
+  "Insert a file in alphabetic order in it's project/directory.
+NAME is the name of the file in the project with it's virtual project directory,
+both name and directory may be virtual
+TYPE type of the node in the project: should be either 'project 'folder or 'file
+note: folder node will be automatically created when necessary
+FILENAME should be either a full path to the project's file or a relative path based 
+on the current directory of the buffer
+PROJECT is the name of the project in which to insert the node
+note: regarding the project node, it's recommended to have NAME = PROJECT"
   (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (project-buffer-insert-data project-buffer-status data))
+  (project-buffer-insert-data project-buffer-status 
+			      (project-buffer-create-node name type filename project)))
+
+
+(defun project-buffer-set-project-platforms(project platform-list)
+  "Attached the list of platform contained in PLATFORM-LIST to the project named PROJECT."
+  (project-buffer-set-project-platforms-data project-buffer-status
+					     project
+					     platform-list))
+
+(defun project-buffer-set-project-build-configurations(project build-configuration-list)
+  "Attached the list build configurations in BUILD-CONFIGURATION-LIST to the project named PROJECT."
+  (project-buffer-set-project-build-configurations-data project-buffer-status
+							project 
+							build-configuration-list))
+
 
 
 ;;
