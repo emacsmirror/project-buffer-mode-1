@@ -1454,7 +1454,8 @@ If the cursor is on a file - nothing will be done."
   (interactive "P")
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let (result)
-    (unless force-marked-current
+    (unless (or force-marked-current
+		(eq last-command 'project-buffer-mark-matched-files-or-current-file))
       (ewoc-map (lambda (node-data)
 		  (when (and (eq (project-buffer-node->type node-data) 'file)
 			     (project-buffer-node->matched node-data))
