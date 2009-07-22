@@ -287,7 +287,7 @@ Note: if no files are marked while using narrow-marked-files, the search will oc
     (define-key project-buffer-mode-map [?+] 'project-buffer-toggle-expand-collapse)
     (define-key project-buffer-mode-map [?\t] 'project-buffer-toggle-expand-collapse-even-on-file)
     (define-key project-buffer-mode-map [?m] 'project-buffer-mark-matched-files-or-current-file)
-    (define-key project-buffer-mode-map [?u] 'project-buffer-unmark-file)
+    (define-key project-buffer-mode-map [?u] 'project-buffer-unmark-matched-files-or-current-file)
     (define-key project-buffer-mode-map [?M] 'project-buffer-mark-all)
 
     (define-key project-buffer-mode-map [?U] 'project-buffer-unmark-all)
@@ -401,6 +401,11 @@ Note: if no files are marked while using narrow-marked-files, the search will oc
 		     cur (1+ cur)))
 	     (concat (propertize str 'face 'project-buffer-indent-face)
 		     (propertize (file-name-nondirectory node-name) 'face node-color) )))
+	  ((eq project-buffer-view-mode 'marked-view)
+	   (concat (propertize " - " 'face 'project-buffer-indent-face)
+		   (and (file-name-directory node-name) 
+			(propertize (file-name-directory node-name) 'face 'project-buffer-folder-face))
+		   (propertize (file-name-nondirectory node-name) 'face file-color)))
 	  (t (format "Unknown view mode: %S" project-buffer-view-mode) ))))
 
 
@@ -412,34 +417,48 @@ Note: if no files are marked while using narrow-marked-files, the search will oc
 	(node-type     (project-buffer-node->type node))
 	(node-hidden   (project-buffer-node->hidden node))
 	(node-matching (project-buffer-node->matched node))
-	(node-prjcol   (project-buffer-node->project-collapsed node)))
-    (when (or (and (eq project-buffer-view-mode 'folder-view)
-		   (or (not node-hidden)
-		       node-matching))
-	      (and (not (eq project-buffer-view-mode 'folder-view))
-		   (not (eq node-type 'folder))
-		   (or (not node-prjcol)
-		       node-matching))
-	      (eq node-type 'project))
-      (insert (concat " "
-		      (if node-marked (propertize "*" 'face 'project-buffer-mark-face)" ")
-		      " "
-		      (cond ((not (eq node-type 'project)) "   ")
-			    (node-collapsed                (propertize "[+]" 'face 'project-buffer-project-button-face) )
-			    (t                             (propertize "[-]" 'face 'project-buffer-project-button-face) ))
-		      " "
-		      (or (and (eq node-type 'project)  (propertize node-name 'face (or (and project-buffer-master-project
-											     (string= node-name (car project-buffer-master-project))
-											     'project-buffer-master-project-face)
-											'project-buffer-project-face)))
-			  (project-buffer-convert-name-for-display node))))
-	(when (and (eq project-buffer-view-mode 'folder-hidden-view)
-		   (project-buffer-node->filename node)
-		   (eq (project-buffer-node->type node) 'file))
-	  (indent-to-column 40)
-	  (insert (concat " " (propertize (project-buffer-node->filename node)
-					 'face 'project-buffer-filename-face))))
-	(insert "\n"))))
+	(node-prjcol   (project-buffer-node->project-collapsed node))
+	(node-project  (project-buffer-node->project node)))
+    (if (eq project-buffer-view-mode 'marked-view)
+	(when node-marked
+	  (insert (concat " " 
+			  (if node-marked (propertize "*" 'face 'project-buffer-mark-face) " ")
+			  " "
+			  (propertize (if (> (length node-project) 15)
+					  (substring node-project 0 15)
+					  node-project)
+				      'face 'project-buffer-project-face)))
+   	  (indent-to-column 19)
+	  (insert (concat (project-buffer-convert-name-for-display node)
+			  "\n")))
+	(when (or (and (eq project-buffer-view-mode 'folder-view)
+		       (or (not node-hidden)
+			   node-matching))
+		  (and (not (eq project-buffer-view-mode 'folder-view))
+		       (not (eq node-type 'folder))
+		       (or (not node-prjcol)
+			   node-matching))
+		  (eq node-type 'project))
+	  (insert (concat " " 
+			  (if node-marked (propertize "*" 'face 'project-buffer-mark-face)" ")
+			  " "
+			  (cond ((not (eq node-type 'project)) "   ")
+				(node-collapsed                (propertize "[+]" 'face 'project-buffer-project-button-face) )
+				(t                             (propertize "[-]" 'face 'project-buffer-project-button-face) ))
+			  " "
+			  (or (and (eq node-type 'project)  (propertize node-name 'face (or (and project-buffer-master-project
+												 (string= node-name (car project-buffer-master-project))
+												 'project-buffer-master-project-face)
+											    'project-buffer-project-face)))
+			      (project-buffer-convert-name-for-display node))))
+	  (when (and (eq project-buffer-view-mode 'folder-hidden-view)
+		     (project-buffer-node->filename node)
+		     (eq (project-buffer-node->type node) 'file))
+	    (indent-to-column 40)
+	    (insert (concat " " (propertize (project-buffer-node->filename node) 
+					    'face 'project-buffer-filename-face))))
+	  (insert "\n"))
+	)))
 
 
 (defun project-buffer-refresh-ewoc-hf(status)
@@ -1172,7 +1191,8 @@ If the cursor is on a project, go to next project."
 	 (node-data (ewoc-data node)))
     (setf (project-buffer-node->marked node-data) nil)
     (ewoc-invalidate project-buffer-status node)
-    (ewoc-goto-next project-buffer-status 1)))
+    (when (eq node (ewoc-locate project-buffer-status))
+      (ewoc-goto-next project-buffer-status 1))))
 
 
 (defun project-buffer-mark-all ()
@@ -1276,7 +1296,9 @@ If the cursor is on a file - nothing will be done."
     (setq project-buffer-view-mode
 	  (cond ((eq project-buffer-view-mode 'folder-view)        'flat-view)
 		((eq project-buffer-view-mode 'flat-view)          'folder-hidden-view)
-		((eq project-buffer-view-mode 'folder-hidden-view) 'folder-view)))
+		((eq project-buffer-view-mode 'folder-hidden-view) 'marked-view)
+		((eq project-buffer-view-mode 'marked-view) 'folder-view)
+		))
     (let ((status project-buffer-status))
 
       (project-buffer-refresh-all-items status)
@@ -1448,8 +1470,8 @@ If the cursor is on a file - nothing will be done."
     ))
 
 
-(defun project-buffer-mark-matched-files-or-current-file (force-marked-current)
-  "Mark the matched files or the current file if no research are in progress or if FORCE-MARKED-CURRENT is set."
+(defun project-buffer-mark-matched-files-or-current-file(force-marked-current)
+  "Mark the matched files or the current file if no filename research are in progress or if FORCE-MARKED-CURRENT is set."
   (interactive "P")
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let (result)
@@ -1463,7 +1485,24 @@ If the cursor is on a file - nothing will be done."
 		project-buffer-status))
     (unless result
       (project-buffer-mark-file))))
-	  
+
+
+(defun project-buffer-unmark-matched-files-or-current-file(force-unmarked-current)
+  "Unmark the matched files or the current file if no filename research are in progress or if FORCE-UNMARKED-CURRENT is set."
+  (interactive "P")
+  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (let (result)
+    (unless (or force-unmarked-current
+		(eq last-command 'project-buffer-unmark-matched-files-or-current-file))
+      (ewoc-map (lambda (node-data)
+		  (when (and (eq (project-buffer-node->type node-data) 'file)
+			     (project-buffer-node->matched node-data))
+		    (setf (project-buffer-node->marked node-data) nil)
+		    (setq result t)))
+		project-buffer-status))
+    (unless result
+      (project-buffer-unmark-file))))
+
 
 (defun project-buffer-view-file ()
   "Examine the current file using the view mode."
