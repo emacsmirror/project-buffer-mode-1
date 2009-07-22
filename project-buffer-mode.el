@@ -1296,6 +1296,7 @@ If the cursor is on a file - nothing will be done."
 		((eq project-buffer-search-in-files-mode 'all-files)         'current-project)
 		((eq project-buffer-search-in-files-mode 'current-project)   'narrow-marked-files)))
     (let ((status project-buffer-status))
+      (message "Search mode set to: %s" project-buffer-search-in-files-mode)
       (project-buffer-refresh-ewoc-hf status)
       (ewoc-goto-node status node)
       )))
@@ -1323,7 +1324,8 @@ If the cursor is on a file - nothing will be done."
       (let ((current (member project-buffer-current-build-configuration project-buffer-build-configurations-list)))
 	(unless current (error "The current build configuration is invalid"))
 	(setq project-buffer-current-build-configuration (or (and (cdr current) (cadr current))
-							 (car project-buffer-build-configurations-list))))
+							 (car project-buffer-build-configurations-list)))
+	(message "Build configuration set to: %s" project-buffer-current-build-configuration))
       (message "This is the only one build configuration available."))
   (project-buffer-refresh-ewoc-hf project-buffer-status))
 
@@ -1350,7 +1352,8 @@ If the cursor is on a file - nothing will be done."
       (let ((current (member project-buffer-current-platform project-buffer-platforms-list)))
 	(unless current (error "The current build configuration is invalid"))
 	(setq project-buffer-current-platform (or (and (cdr current) (cadr current))
-						    (car project-buffer-platforms-list))))
+						    (car project-buffer-platforms-list)))
+	(message "Platform set to: %s" project-buffer-current-platform))
       (message "This is the only one platform available."))
   (project-buffer-refresh-ewoc-hf project-buffer-status))
 
