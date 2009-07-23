@@ -425,8 +425,8 @@ Note: if no files are marked while using narrow-marked-files, the search will oc
 	  (insert (concat " " 
 			  (if node-marked (propertize "*" 'face 'project-buffer-mark-face) " ")
 			  " "
-			  (propertize (if (> (length node-project) 15)
-					  (substring node-project 0 15)
+			  (propertize (if (> (length node-project) 16)
+					  (substring node-project 0 16)
 					  node-project)
 				      'face 'project-buffer-project-face)))
    	  (indent-to-column 19)
