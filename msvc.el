@@ -249,10 +249,16 @@
 ;;
 
 ;;;###autoload
-(defun find-sln()
+(defun find-sln(solution-name)
   "Open an sln file and create a project buffer using the data in it."
-  (interactive)
-  (let ((solution-name (read-file-name "SLN file: " nil nil t nil 'is-sln-file)))
-    (when (and solution-name 
-	       (> (length solution-name) 0))
-      (make-sln-project-buffer solution-name))))
+  (interactive
+   (list (read-file-name "SLN file: " nil nil t nil 'is-sln-file)))
+  (when (and solution-name 
+	     (> (length solution-name) 0))
+    (make-sln-project-buffer solution-name)))
+
+
+;;
+(provide 'msvc)
+
+;;; project-buffer-mode.el ends here
