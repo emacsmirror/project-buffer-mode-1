@@ -122,7 +122,7 @@
   
 
 (defun vcproj-extract-data(vcproj-file)
-  "Extract files and directory from the vcproj file"
+  "Extract files and directory from VCPROJ-FILE"
   (save-excursion
     (let* ((xml-tags (with-temp-buffer
 		       (insert-file vcproj-file)
@@ -181,6 +181,7 @@
 	result))))
 
 (defun is-sln-file (filename)
+  "Check if FILENAME is a sln file."
   (or 
    (null (file-name-extension filename))
    (string= (file-name-extension filename) "sln")))
@@ -207,13 +208,8 @@
 	     prj-str sln-cmd))))
 
 
-;;
-;; Interactive command:
-;;
-
-(defun open-sln-project-buffer(sln-file)
-  "Open a project buffer"
-  (interactive "fSLN file: ")
+(defun make-sln-project-buffer(sln-file)
+  "Create a project buffer interpreting SLN-FILE to populate it."
   (let ((buffer (generate-new-buffer (concat "ms:" (file-name-nondirectory sln-file))))
 	(sln-projects (sln-extract-projects sln-file)) ; list of proj-nane / project file
 	)
@@ -225,7 +221,7 @@
       (project-buffer-mode)
       (make-local-variable 'solution-name)
       (setq solution-name (file-name-nondirectory sln-file))
-      (add-hook 'project-buffer-action-hook 'sln-action-handler-2008 nil t)
+      (add-hook 'project-buffer-action-hook 'sln-action-handler-2005 nil t)
       ;;
       (while sln-projects
 	;; For every project reference in the SLN file,
@@ -248,9 +244,15 @@
 		  (project-buffer-insert (car file) 'file (cdr file) project)))))
 	  )))))
 
-(defun create-sln-project-buffer()
+;;
+;; Interactive command:
+;;
+
+;;;###autoload
+(defun find-sln()
+  "Open an sln file and create a project buffer using the data in it."
   (interactive)
   (let ((solution-name (read-file-name "SLN file: " nil nil t nil 'is-sln-file)))
     (when (and solution-name 
 	       (> (length solution-name) 0))
-      (open-sln-project-buffer solution-name))))
+      (make-sln-project-buffer solution-name))))
