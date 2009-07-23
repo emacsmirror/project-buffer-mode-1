@@ -1297,10 +1297,10 @@ If the cursor is on a file - nothing will be done."
 	  (cond ((eq project-buffer-view-mode 'folder-view)        'flat-view)
 		((eq project-buffer-view-mode 'flat-view)          'folder-hidden-view)
 		((eq project-buffer-view-mode 'folder-hidden-view) 'marked-view)
-		((eq project-buffer-view-mode 'marked-view) 'folder-view)
+		((eq project-buffer-view-mode 'marked-view)        'folder-view)
 		))
     (let ((status project-buffer-status))
-
+      (message "View mode set to: %s" project-buffer-view-mode)
       (project-buffer-refresh-all-items status)
       (project-buffer-refresh-ewoc-hf status)
       (ewoc-goto-node status node)
