@@ -90,12 +90,8 @@
 ;;  - test color in dark background
 ;;  - adding button to collapse/expand folders/projects
 ;;  - add collapsed all / expand all commands
-;;  - check if there is any other one: update function which could use the parent field.
-;;  - make sure no interactive function are complicated!!! (cf: toggle-expand-collapsed)
-;;     it's better to create a function and call it in the command
 ;;  - grayed out exclude from build files??
 ;;  - different color for files referenced in the proj but don't exist?
-;;  - add delete-node function
 
 
 ;;; Sample:
