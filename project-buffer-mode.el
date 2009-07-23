@@ -514,9 +514,8 @@ Return nil if TYPE is project."
 
 
 (defun project-buffer-find-node-up(status node)
-  "Return the directory or project in which the node belong
-This may change depending on the view mode
-If ANY-PARENT-OK is set, any parent found will be valid"
+  "Return the directory or project in which the node belong.
+This may change depending on the view mode."
   (if (eq project-buffer-view-mode 'folder-view)
       (project-buffer-node->parent (ewoc-data node))
       (let ((parent (project-buffer-node->parent (ewoc-data node))))
