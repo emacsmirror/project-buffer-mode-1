@@ -421,7 +421,7 @@ Note: if no files are marked while using narrow-marked-files, the search will oc
 	(node-prjcol   (project-buffer-node->project-collapsed node))
 	(node-project  (project-buffer-node->project node)))
     (if (eq project-buffer-view-mode 'marked-view)
-	(when node-marked
+	(when (or node-marked node-matching)
 	  (insert (concat " " 
 			  (if node-marked (propertize "*" 'face 'project-buffer-mark-face) " ")
 			  " "
