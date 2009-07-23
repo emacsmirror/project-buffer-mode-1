@@ -565,7 +565,7 @@ This may change depending on the view mode."
   (project-buffer-refresh-ewoc-hf status))
 
 
-(defun project-buffer-insert-data(status data)
+(defun project-buffer-insert-node(status data)
   "Insert a file in alphabetic order in it's project/directory."
   (let ((node           (ewoc-nth status 0))
 	(folder-data    (project-buffer-extract-folder (project-buffer-node->name data)      (project-buffer-node->type data)))
@@ -759,6 +759,115 @@ This may change depending on the view mode."
 						 (cons folder-data folder-node)))
 ))
 
+(defun project-buffer-delete-file-node(status name project)
+  "Delete the node named NAME which belongs to PROJECT.
+Empty folder node will also be cleared up."
+  (let ((node           (ewoc-nth status 0))
+	(folder-data    (project-buffer-extract-folder name 'file))
+	(proj-data      project)
+	(found          nil)
+	(folder-found   nil)
+	(node-data      nil))
+
+    ;; Cache check: <deleting a file node doesn't update the cache>
+    (when project-buffer-cache-project
+      (cond
+       ;; cache-project < current-project -> we can start the search from here (at least).
+       ((string-lessp (car project-buffer-cache-project) proj-data)
+	(setq node (cdr project-buffer-cache-project))
+
+       ;; cache-project == current-project -> check the folders...
+       ((string-equal (car project-buffer-cache-project) proj-data)
+	;; cache-subdir < current-subdir -> we can start from here.
+	;; cache-subdir = current-subdir -> good starting point
+	(if (and project-buffer-cache-subdirectory
+		 folder-data
+		 (or (string-equal (car project-buffer-cache-subdirectory) folder-data)
+		     (project-buffer-directory-lessp (car project-buffer-cache-subdirectory) folder-data 'folder)))
+	    (setq node (cdr project-buffer-cache-subdirectory))
+	    (setq node (cdr project-buffer-cache-project))))
+       ;; other wise: cache miss...
+       )))
+
+    ;; Search where is the node to delete:
+    (while (and node (not found))
+      (setq node-data (ewoc-data node))
+
+      (cond
+       ;; data.project < node.project -> not found...
+       ((string-lessp proj-data (project-buffer-node->project node-data))
+	(setq node nil))
+
+       ;; node.project == data.project -> check folder/file name
+       ((string-equal proj-data (project-buffer-node->project node-data))
+	(let* ((folder-db (project-buffer-extract-folder (project-buffer-node->name node-data) (project-buffer-node->type node-data)))
+	       (type-db   (project-buffer-node->type node-data)))
+	  ;; Make sure it's not the project line:
+	  (unless (eq type-db 'project)
+	    (setq found (and (string-equal (project-buffer-node->name node-data) name) node))))))
+
+      ;; next node:
+      (setq node (and node (ewoc-next status node))))
+
+    ;; Time to delete it:
+    (when found
+      (let ((parent-node (project-buffer-node->parent node-data))
+	    (inhibit-read-only t))
+	;; Delete the found node:
+	(ewoc-delete status found)
+	
+	;; Now it's time to check the parent node the file belong to:
+	(while parent-node
+	  (let ((next-node   (ewoc-next status parent-node))
+		(parent-data (ewoc-data parent-node)))
+	    (if (and next-node
+		     (eq (project-buffer-node->parent (ewoc-data next-node)) parent-node))
+		(setq parent-node nil)
+		(let ((new-parent-node (and (not (eq (project-buffer-node->type parent-data) 'project))
+					    (project-buffer-node->parent parent-data))))
+		  (if (not new-parent-node)
+		      (project-buffer-delete-project-node status project parent-node)
+		      (ewoc-delete status parent-node))
+		  (setq parent-node new-parent-node))
+		)))
+	))
+    ))
+
+(defun project-buffer-delete-project-node(status proj-name proj-node)
+  "Delete the project node PROJ-NODE.
+Each files/folder under the project will also be deleted."
+  (when proj-node
+    (let ((proj-data (ewoc-data proj-node))
+	  (prev-node (ewoc-prev status proj-node))
+	  (curr-node proj-node))
+      ;; Let's start by removing the project from the project list:
+      (setq project-buffer-projects-list (remove proj-name project-buffer-projects-list))
+
+      ;; Delete the nodes:
+      (let ((inhibit-read-only t))
+	(while (and curr-node
+		    (string-equal (project-buffer-node->project (ewoc-data curr-node)) proj-name))
+	  (let ((next-node (ewoc-next status curr-node)))
+	    (ewoc-delete status curr-node)
+	    (setq curr-node next-node)
+	    )))
+      
+      ;; Now: the master project may need to be readjusted
+      (when (string-equal proj-name (car project-buffer-master-project))
+	(if curr-node
+	    ;; By default the next project become the new master one:
+	    (progn  (setq project-buffer-master-project (cons (project-buffer-node->project (ewoc-data curr-node)) curr-node))
+		    (ewoc-invalidate status curr-node))
+	    ;; Otherwise: if the previous node is invalid, it's project will become the new master one:
+	    (if prev-node
+		(let ((prev-parent (project-buffer-node->parent (ewoc-data prev-node))))
+		  (while (not (eq (project-buffer-node->type (ewoc-data prev-parent)) 'project))
+		    (setq prev-parent (project-buffer-node->parent (ewoc-data prev-parent))))
+		  (setq project-buffer-master-project (cons (project-buffer-node->project (ewoc-data prev-parent)) prev-parent))
+		  (ewoc-invalidate status prev-parent))
+		(setq project-buffer-master-project nil))))
+      )))
+
 
 (defun project-buffer-refresh-all-items(status)
   "Refresh all ewoc item from the buffer."
@@ -828,8 +937,23 @@ on the current directory of the buffer
 PROJECT is the name of the project in which to insert the node
 note: regarding the project node, it's recommended to have NAME = PROJECT"
   (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (project-buffer-insert-data project-buffer-status
+  (project-buffer-insert-node project-buffer-status
 			      (project-buffer-create-node name type filename project)))
+
+(defun project-buffer-delete-file (name project)
+  "Delete the node named NAME which belongs to PROJECT.
+Empty folder node will also be cleared up."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (project-buffer-delete-file-node project-buffer-status name project))
+
+
+(defun project-buffer-delete-project (project)
+  "Delete the project PROJECT.
+Each files/folder under the project will also be deleted."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (project-buffer-delete-project-node project-buffer-status 
+				      project
+				      (project-buffer-search-project-node project-buffer-status project)))
 
 
 (defun project-buffer-set-project-platforms(project platform-list)
