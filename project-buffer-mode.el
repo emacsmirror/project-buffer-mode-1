@@ -1476,7 +1476,7 @@ If the cursor is on a file - nothing will be done."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let (result)
     (unless (or force-marked-current
-		(eq last-command 'project-buffer-mark-matched-files-or-current-file))
+		(not (project-buffer-node->matched (ewoc-data (ewoc-locate project-buffer-status)))))
       (ewoc-map (lambda (node-data)
 		  (when (and (eq (project-buffer-node->type node-data) 'file)
 			     (project-buffer-node->matched node-data))
@@ -1493,7 +1493,7 @@ If the cursor is on a file - nothing will be done."
   (unless project-buffer-status (error "Not in project-buffer buffer."))
   (let (result)
     (unless (or force-unmarked-current
-		(eq last-command 'project-buffer-unmark-matched-files-or-current-file))
+		(not (project-buffer-node->matched (ewoc-data (ewoc-locate project-buffer-status)))))
       (ewoc-map (lambda (node-data)
 		  (when (and (eq (project-buffer-node->type node-data) 'file)
 			     (project-buffer-node->matched node-data))
