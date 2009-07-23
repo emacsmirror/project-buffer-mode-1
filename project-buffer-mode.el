@@ -265,9 +265,14 @@ The function should follow the prototype:
   :type 'boolean)
 
 (defcustom project-buffer-search-in-files-mode 'narrow-marked-files
-  "Enumarated value, set to 'narrow-marked-files it will search in the selected marked files, removing the one failing the research,
-set to 'all-files it will launch the search on all files in the projects, 'current-project will only search with the current project
-Note: if no files are marked while using narrow-marked-files, the search will occur in all files in the project."
+  "Variable defining the current search-in-files mode.
+The different search mode set to 'narrow-marked-files it will
+search in the selected marked files, removing the one failing the
+research, set to 'all-files it will launch the search on all
+files in the projects, 'current-project will only search with the
+current project Note: if no files are marked while using
+narrow-marked-files, the search will occur in all files in the
+project."
   :group 'project-buffer
   :type '(choice (const :tag "Narrow the marked files" 'narrow-marked-files)
 		 (const :tag "All files" 'all-files)
@@ -400,7 +405,7 @@ Note: if no files are marked while using narrow-marked-files, the search will oc
 		     (propertize (file-name-nondirectory node-name) 'face node-color) )))
 	  ((eq project-buffer-view-mode 'marked-view)
 	   (concat (propertize " - " 'face 'project-buffer-indent-face)
-		   (and (file-name-directory node-name) 
+		   (and (file-name-directory node-name)
 			(propertize (file-name-directory node-name) 'face 'project-buffer-folder-face))
 		   (propertize (file-name-nondirectory node-name) 'face file-color)))
 	  (t (format "Unknown view mode: %S" project-buffer-view-mode) ))))
@@ -419,7 +424,7 @@ Note: if no files are marked while using narrow-marked-files, the search will oc
     (if (eq project-buffer-view-mode 'marked-view)
 	(when (and (eq node-type 'file)
 		   (or node-marked node-matching))
-	  (insert (concat " " 
+	  (insert (concat " "
 			  (if node-marked (propertize "*" 'face 'project-buffer-mark-face) " ")
 			  " "
 			  (propertize (if (> (length node-project) 16)
@@ -437,7 +442,7 @@ Note: if no files are marked while using narrow-marked-files, the search will oc
 		       (or (not node-prjcol)
 			   node-matching))
 		  (eq node-type 'project))
-	  (insert (concat " " 
+	  (insert (concat " "
 			  (if node-marked (propertize "*" 'face 'project-buffer-mark-face)" ")
 			  " "
 			  (cond ((not (eq node-type 'project)) "   ")
@@ -453,7 +458,7 @@ Note: if no files are marked while using narrow-marked-files, the search will oc
 		     (project-buffer-node->filename node)
 		     (eq (project-buffer-node->type node) 'file))
 	    (indent-to-column 40)
-	    (insert (concat " " (propertize (project-buffer-node->filename node) 
+	    (insert (concat " " (propertize (project-buffer-node->filename node)
 					    'face 'project-buffer-filename-face))))
 	  (insert "\n"))
 	)))
@@ -947,7 +952,7 @@ Empty folder node will also be cleared up."
   "Delete the project PROJECT.
 Each files/folder under the project will also be deleted."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (project-buffer-delete-project-node project-buffer-status 
+  (project-buffer-delete-project-node project-buffer-status
 				      project
 				      (project-buffer-search-project-node project-buffer-status project)))
 
@@ -967,11 +972,11 @@ Each files/folder under the project will also be deleted."
 							build-configuration-list))
 
 (defun project-buffer-search-and-mark-files(status regexp project marked-flag)
-  "Search REGEXP in with all files if PROJECT is nil or in each file of the specified PROJECT. 
+  "Search REGEXP in with all files if PROJECT is nil or in each file of the specified PROJECT.
 If REGEXP is found, the marked-flag field associated to the file get set to MARKED-FLAG
 The function returns the number of files whose marked-flag field changed"
   (let ((count 0))
-    (ewoc-map (lambda (node) 
+    (ewoc-map (lambda (node)
 		(when (and (eq (project-buffer-node->type node) 'file)				; check only files
 			   (or (not project)							; ( if a project is specified,
 			       (string-equal (project-buffer-node->project node) project))	;   make sure it matches the node's project )
@@ -999,13 +1004,13 @@ The function returns the number of files whose marked-flag field changed"
 
 
 (defun project-buffer-refine-mark-files(status regexp marked-flag)
-  "Search REGEXP in with all marked files. 
+  "Search REGEXP in with all marked files.
 If REGEXP is found, the marked-flag field associated to the file get set to MARKED-FLAG
 The function returns the number of files whose marked-flag field changed
 Note: if no files are marked, the search will occur in all existing files of the project"
   (let ((count 0)
 	marked-file-found)
-    (ewoc-map (lambda (node) 
+    (ewoc-map (lambda (node)
 		(when (and (eq (project-buffer-node->type node) 'file)	; check only files
 			   (project-buffer-node->marked node))		; which are already marked
 		  (setq marked-file-found t)
@@ -1431,7 +1436,7 @@ If the cursor is on a file - nothing will be done."
 (defun project-buffer-toggle-search-mode()
   "Toggle between the different search-in-files mode (narrow-marked-files / all-files / current-project)."
   (interactive)
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((node (ewoc-locate project-buffer-status)))
     (setq project-buffer-search-in-files-mode
 	  (cond ((eq project-buffer-search-in-files-mode 'narrow-marked-files) 'all-files)
@@ -1573,7 +1578,7 @@ If the cursor is on a file - nothing will be done."
    (list (project-buffer-read-regexp (concat (if current-prefix-arg "Unmark" "Mark")
 					     " files containing (regexp): "))
 	 current-prefix-arg))
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((node (ewoc-locate project-buffer-status))
 	 (node-data (ewoc-data node))
 	 (current-project (project-buffer-node->project node-data))
@@ -1583,8 +1588,8 @@ If the cursor is on a file - nothing will be done."
 		      (project-buffer-search-and-mark-files project-buffer-status regexp nil (not unmark)))
 		     ((eq project-buffer-search-in-files-mode 'current-project)
 		      (project-buffer-search-and-mark-files project-buffer-status regexp current-project (not unmark))))))
-    (message "%i files %s." 
-	     count 
+    (message "%i files %s."
+	     count
 	     (if (or unmark
 		     (eq project-buffer-search-in-files-mode 'narrow-marked-files))
 		 "unmarked" "marked"))
@@ -1611,7 +1616,7 @@ If the cursor is on a file - nothing will be done."
 (defun project-buffer-unmark-matched-files-or-current-file(force-unmarked-current)
   "Unmark the matched files or the current file if no filename research are in progress or if FORCE-UNMARKED-CURRENT is set."
   (interactive "P")
-  (unless project-buffer-status (error "Not in project-buffer buffer."))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let (result)
     (unless (or force-unmarked-current
 		(not (project-buffer-node->matched (ewoc-data (ewoc-locate project-buffer-status)))))
