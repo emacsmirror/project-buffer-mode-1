@@ -35,11 +35,54 @@
 ;; 
 ;; Note: this library doesn't provide any user commands!
 ;;
-;; In order to use it, you can either create your own
+;; In order to use it, you can either create your own command, or call
+;;   fsproj-create-project from your init.el.
+;; 
+;; I haven't found a satisfied way to create a uniform command for this
+;; file, that's why there is none.
+;; 
 ;;
-;;
-;; function to allow an easy creation of project-buffer based on the
-;; files names themselves.
+;; Here is an example of a command:
+;; 
+;; 
+;; (autoload 'fsproj-create-project "fsproj")
+;; (defun fsproj-new(root-folder)
+;;   (interactive "sRoot folder: ")
+;;   (let ((regexp-project-name  "[Mm]akefile")
+;;         (regexp-file-filter   '("\\.cpp$" "\\.h$" "\\.inl$" "\\.mak$" "Makefile"))
+;;         (ignore-folders       '("build" "docs" "bin"))
+;;         (pattern-modifier     nil)
+;;         (build-configurations '("debug" "release"))
+;;         (platforms            '("Linux")))
+;;     (fsproj-create-project root-folder
+;;                            regexp-project-name
+;;                            regexp-file-filter
+;;                            ignore-folders
+;;                            pattern-modifier
+;;                            build-configurations
+;;                            platforms)))
+;; 
+;; And if you want to have only have a source and include folder inside each projects:
+;; 
+;; (autoload 'fsproj-create-project "fsproj")
+;; (defun fsproj-new(root-folder)
+;;   (interactive "sRoot folder: ")
+;;   (let ((regexp-project-name  "[Mm]akefile")
+;;         (regexp-file-filter   '("\\.cpp$" "\\.h$" "\\.inl$" "\\.mak$" "Makefile"))
+;;         (ignore-folders       '("build" "docs" "bin"))
+;;         (pattern-modifier     '(("^\\(?:.*/\\)?\\([a-zA-Z0-9_]*\\.cpp\\)$" . "source/\\1")
+;;                                 ("^\\(?:.*/\\)?\\([a-zA-Z0-9_]*\\.\\(?:h\\|inl\\)\\)$" . "include/\\1")))
+;;         (build-configurations '("debug" "release"))
+;;         (platforms            '("Linux")))
+;;     (fsproj-create-project root-folder
+;;                            regexp-project-name
+;;                            regexp-file-filter
+;;                            ignore-folders
+;;                            pattern-modifier
+;;                            build-configurations
+;;                            platforms)))
+;; 
+
 
 ;;; History:
 ;; 
