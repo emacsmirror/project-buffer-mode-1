@@ -23,18 +23,105 @@
 ;;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 ;;
 
+;;; Summary:
+;; 
+
+;; project-buffer-mode is a generic mode to handle projects.  Its goal
+;; is to provide an easy and intuitive way to interact with the
+;; multiple projects.
+;;
+;; 
+;; Two extensions already exist for this mode:
+;;  - fsproj which creates a project based on the file system
+;;  - msvc   which parses a sln files and create a project representing it
+;;
+;;
+;; Key features:
+;;  - find file based on regular expression
+;;  - advance 'search in files' system
+;;  - notion of master project to launch build/clean/run and debug.
+;;  - 
+
 ;;; Commentary:
 ;; 
 
-;; project-buffer-mode is a generic mode to handle project.
-;; It provides a hierarchical view of a project.
+;; The project-buffe-mode's goal is to handle multiple projects in a
+;; buffer.  
+;; 
+;; A Project is defined by:
+;;  - its name
+;;  - its main file (Makefile, Jam, Scons...)
+;;  - a build configuration list (Debug, Release, ...)
+;;  - a platform list (Win32, PocketPC, Linux...)
+;;  - and obviously a list of files.
 ;;
-;; In order to use it:
-;; - you need a script to parse your project file.
-;;   + the script has to initialize a buffer calling (project-buffer-mode)
-;;   + then add each file using the function: (project-buffer-insert...
-;; Check below for a sample code
 ;;
+;; QUICK FIND FILE USING REGEXP:
+;; 
+;; Through a hierarchical view, the project-buffer mode provides an
+;; very easy and intuitive way to search for a particular files (key:
+;; '/', then 'n' or 'p' to go to the next or previous matching
+;; result).  Note: press 'q' to cancel the research.
+;; 
+;; Opening the current is a simple as pressing <enter> or
+;; 'o' to open it in another window.
+;; Press 'f' if you wan to open all marked files.
+;;
+;;
+;; MARKING FILE MATCHING A REGEXP:
+;; 
+;; Files can be marked/unmarked individually, but you can also easily
+;; mark all files whose names are matching a regular expression ('/'
+;; then 'm'). 
+;; 
+;;
+;; ADVANCE SEARCH IN FILES SYSTEM:
+;; 
+;; The search in files functionality comes in three different behavior:
+;; - Narrow the marked files (<default>)
+;; - All files
+;; - Current project
+;; 
+;; Before talking about the "Narrow the marked files" behavior which
+;; is the default one; let's quickly go throught the two others: 
+;;
+;; - If the search behavior is set to "All files", the search-in-files
+;; command ('s') will do a search-regexp in files for each unmarked
+;; files (all projects) and mark each one which contain the regexp.
+;;
+;; - If the search behavior is set to "Current Project" the
+;; search-in-file will do search-regexp in files for each files
+;; contained in the current project.  The current project being
+;; defined by the position of the cursor.  Again, each marching files
+;; will be marked.
+;;
+;; Note: it is possible to have the search-regexp in file unmark files
+;; instead by using the prefix argument (C-u).
+;;
+;; Finally in case the search behavior is set to "Narrow the marked
+;; files": if no files are actually marked, it will behave the same
+;; way as the "All files" behavior.  In case some files are marked, it
+;; will only perform a "search-regexp in files" on the marked files,
+;; unmarking the ones which don't contain the regular expression.
+;; 
+;; This provide an easy way to narrow/refine some research.
+;;
+;; The search behavior can be either customized or locally change
+;; (pressing 'c s')
+;;
+;;
+;; MASTER PROJECT / BUILD CONFIGURATION / PLATFORM:
+;;
+;; The master project, build configuration and platform can be easily
+;; changed using respectively: 'c t' 'c b' 'c p' Using the capital
+;; letter ('c T' 'c B' and 'c P') will prompt the user for the new
+;; value.
+;;
+;; This value allow to take quick action for the master project:
+;; build/clean/run/debug (keys: 'B' 'C' 'R' 'D')
+;;
+;;
+;; KEY BINDINGS:
 ;;
 ;; Shortkey in the project-buffer-mode:
 ;;    +    -> collapse/expand folder/project (cursor has to be on a folder/project)
@@ -44,7 +131,7 @@
 ;;    M    -> mark all
 ;;    U    -> unmark all
 ;;    f    -> open marked files
-;;    q    -> cancel search or bury project-buffer
+;;    q    -> cancel file search or bury project-buffer
 ;;    ?    -> show brief help!!
 ;;    /    -> search file name matching regexp
 ;;    n    -> next file matching regexp
@@ -75,16 +162,63 @@
 ;;    R    -> launch run/without debugger
 ;;
 ;; Future improvement:
-;;    c    -> compile current file / marked files? [?]
 ;;    T    -> touch marked files (need a variable to make sure touch is always available)
 ;;    h    -> find corresponding header/source (need regexps to match one and the other such as: source/header = ( "\.c\(pp\)?" . "\.h\(pp\)?" ) )
 ;;    d    -> show/hide project dependencies
-;;    b    -> buils marked files
-;;    S    -> seach in all marked files
-
-
-;;; TODO:
+;;    b    -> compile/buils marked files
 ;;
+;;
+
+
+
+;;; Raw mode:
+;; 
+
+;; As it was mentioned earlier, project-buffer-mode is just a abstract
+;; project manager.  Even if some extensions already exist, you may
+;; want to be able to handle you own project system.
+;;
+;; The sample code below show how to do it:
+;;   + the script has to initialize a buffer calling (project-buffer-mode)
+;;   + then add each file using the function: (project-buffer-insert...
+;;
+;; Here's a the list of user function available to handle your own project:
+;; - project-buffer-mode                     which initialize the project-buffer mode
+;; - project-buffer-insert                   to insert a file or project to the view
+;; - project-buffer-delete-file              to remove a file
+;; - project-buffer-delete-project           to remove a project and all it's file
+;; - project-buffer-set-project-platforms    to set the platform configuration for a particular project
+;; - project-buffer-set-build-configurations to set the build configurations for a particular project
+;;
+
+
+
+;;; Sample code:
+;;
+
+;; (defun test-projbuff()
+;;   (interactive)
+;;   (let ((buffer (generate-new-buffer "test-project-buffer")))                       ; Creation of a buffer for the project
+;;     (display-buffer buffer)                                                         ; We want to switch to this buffer right away.
+;;     (with-current-buffer buffer
+;;       (cd "~/temp")                                                                 ; It's always better to set the root directory if it's known.
+;;       (project-buffer-mode)                                                         ; Initialize the project buffer mode
+;; 
+;;       (project-buffer-insert "test1" 'project "test1/Makefile" "test1")             ; Create an insert a project node called 'test1' (note: it's recommended to have project and node being the same)
+;;       (project-buffer-insert "src/gfr.cpp" 'file  "~/temp/test1/gfr.cpp" "test1")   ; Add "~/tenp/gfr.cpp" to the project 'test1' it's project path will be: "src/gfr.cpp"
+;;       (project-buffer-insert "src/abc.cpp" 'file  "~/temp/test1/abc.cpp" "test1")   ; Add "~/tenp/abc.cpp" to the project 'test1' it's project path will be: "src/abc.cpp"
+;; 
+;;       (project-buffer-insert "test2" 'project "test2/Makefile" "test2")             ; Creation of a second project namded "test2"
+;;       (project-buffer-insert "header/yyy.h" 'file  "~/temp/test2/zzz.h" "test2")    ; Add some file to this project; note that the project path and the physical file name can be completely different
+;;       (project-buffer-insert "src/roo.c" 'file  "~/temp/test2/roo.c" "test2")       ;  the file name research will be based on the project-path and not on the physical file name
+;;       (project-buffer-insert "script.awk" 'file "~/temp/test2/script.awk" "test2")  ;
+;; )))
+
+
+
+;;; Todo:
+;;
+
 ;;  - show project dependencies
 ;;     e.g: [+] ProjName1           <deps: ProjName3, ProjName2>
 ;;  - test color in dark background
@@ -92,32 +226,16 @@
 ;;  - add collapsed all / expand all commands
 ;;  - grayed out exclude from build files??
 ;;  - different color for files referenced in the proj but don't exist?
+;;  - provide a touch marked files command
+;;  - provide a compile/build marked files command
+;;  - add a command to easily find the corresponding header/source for the current file (or specified file)
 
-
-;;; Sample:
-;;
-;; (defun test-projbuff()
-;;   (interactive)
-;;   (let ((buffer (generate-new-buffer "test-project-buffer")))
-;;     (display-buffer buffer)
-;;     (with-current-buffer buffer
-;;       (cd "~/temp")
-;;       (project-buffer-mode)
-;; 
-;;       (project-buffer-insert "test1" 'project "test1.sln" "test1")
-;;       (project-buffer-insert "src/gfr.cpp" 'file  "~/temp/gfr.cpp" "test1")
-;;       (project-buffer-insert "src/abc.cpp" 'file  "~/temp/abc.cpp" "test1")
-;; 
-;;       (project-buffer-insert "test2" 'project "test2.sln" "test2")
-;;       (project-buffer-insert "header/zzz.h" 'file  "~/temp/zzz.h" "test2")
-;;       (project-buffer-insert "src/roo.c" 'file  "~/temp/roo.c" "test2")
-;;       (project-buffer-insert "script.awk" 'file "~/temp/script.awk" "test2")
-;; )))
 
 
 
 ;;; History:
 ;; 
+
 ;; v1.0: First public release.
 
 
@@ -884,6 +1002,76 @@ Each files/folder under the project will also be deleted."
 		      project-buffer-current-platform
 		      project-buffer-current-build-configuration))
 
+
+(defun project-buffer-search-and-mark-files(status regexp project marked-flag)
+  "Search REGEXP in with all files if PROJECT is nil or in each file of the specified PROJECT.
+If REGEXP is found, the marked-flag field associated to the file get set to MARKED-FLAG
+The function returns the number of files whose marked-flag field changed"
+  (let ((count 0))
+    (ewoc-map (lambda (node)
+		(when (and (eq (project-buffer-node->type node) 'file)				; check only files
+			   (or (not project)							; ( if a project is specified,
+			       (string-equal (project-buffer-node->project node) project))	;   make sure it matches the node's project )
+			   (not (eq (project-buffer-node->marked node) marked-flag)))		; which aren't already (un)marked (based on request)
+		  ;; Check if the file contain the regexp:
+		  (let ((filename (project-buffer-node->filename node)))
+		    (when (and filename
+			       (file-readable-p filename)
+			       (let ((fbuf (get-file-buffer filename)))
+				 (message "Project '%s' -- Searching in '%s'" (project-buffer-node->project node) (project-buffer-node->name node))
+				 (if fbuf
+				     (with-current-buffer fbuf
+				       (save-excursion
+					 (goto-char (point-min))
+					 (re-search-forward regexp nil t)))
+				     (with-temp-buffer
+				       (insert-file-contents filename)
+				       (goto-char (point-min))
+				       (re-search-forward regexp nil t)))))
+		      (setf (project-buffer-node->marked node) marked-flag)
+		      (setq count (1+ count))
+		      t  )))) ; to force the update of the display.
+	      status)
+    count))
+
+
+(defun project-buffer-refine-mark-files(status regexp marked-flag)
+  "Search REGEXP in with all marked files.
+If REGEXP is found, the marked-flag field associated to the file get set to MARKED-FLAG
+The function returns the number of files whose marked-flag field changed
+Note: if no files are marked, the search will occur in all existing files of the project"
+  (let ((count 0)
+	marked-file-found)
+    (ewoc-map (lambda (node)
+		(when (and (eq (project-buffer-node->type node) 'file)	; check only files
+			   (project-buffer-node->marked node))		; which are already marked
+		  (setq marked-file-found t)
+		  ;; Check if the file contain the regexp:
+		  (let ((filename (project-buffer-node->filename node)))
+		    (when (and filename
+			       (file-readable-p filename)
+			       (let ((found (let ((fbuf (get-file-buffer filename)))
+					      (message "Project '%s' -- Searching in '%s'" (project-buffer-node->project node) (project-buffer-node->name node))
+					      (if fbuf
+						  (with-current-buffer fbuf
+						    (save-excursion
+						      (goto-char (point-min))
+						      (re-search-forward regexp nil t)))
+						  (with-temp-buffer
+						    (insert-file-contents filename)
+						    (goto-char (point-min))
+						    (re-search-forward regexp nil t))))))
+				 (or (and found (not marked-flag))
+				     (and (not found) marked-flag))))
+		      (setf (project-buffer-node->marked node) nil)
+		      (setq count (1+ count))
+		      t  )))) ; to force the update of the display.
+	      status)
+    (if marked-file-found
+	count
+	(project-buffer-search-and-mark-files status regexp nil marked-flag))))
+
+
 ;;
 ;;  External functions:
 ;;
@@ -970,74 +1158,6 @@ Each files/folder under the project will also be deleted."
   (project-buffer-set-project-build-configurations-data project-buffer-status
 							project
 							build-configuration-list))
-
-(defun project-buffer-search-and-mark-files(status regexp project marked-flag)
-  "Search REGEXP in with all files if PROJECT is nil or in each file of the specified PROJECT.
-If REGEXP is found, the marked-flag field associated to the file get set to MARKED-FLAG
-The function returns the number of files whose marked-flag field changed"
-  (let ((count 0))
-    (ewoc-map (lambda (node)
-		(when (and (eq (project-buffer-node->type node) 'file)				; check only files
-			   (or (not project)							; ( if a project is specified,
-			       (string-equal (project-buffer-node->project node) project))	;   make sure it matches the node's project )
-			   (not (eq (project-buffer-node->marked node) marked-flag)))		; which aren't already (un)marked (based on request)
-		  ;; Check if the file contain the regexp:
-		  (let ((filename (project-buffer-node->filename node)))
-		    (when (and filename
-			       (file-readable-p filename)
-			       (let ((fbuf (get-file-buffer filename)))
-				 (message "Project '%s' -- Searching in '%s'" (project-buffer-node->project node) (project-buffer-node->name node))
-				 (if fbuf
-				     (with-current-buffer fbuf
-				       (save-excursion
-					 (goto-char (point-min))
-					 (re-search-forward regexp nil t)))
-				     (with-temp-buffer
-				       (insert-file-contents filename)
-				       (goto-char (point-min))
-				       (re-search-forward regexp nil t)))))
-		      (setf (project-buffer-node->marked node) marked-flag)
-		      (setq count (1+ count))
-		      t  )))) ; to force the update of the display.
-	      status)
-    count))
-
-
-(defun project-buffer-refine-mark-files(status regexp marked-flag)
-  "Search REGEXP in with all marked files.
-If REGEXP is found, the marked-flag field associated to the file get set to MARKED-FLAG
-The function returns the number of files whose marked-flag field changed
-Note: if no files are marked, the search will occur in all existing files of the project"
-  (let ((count 0)
-	marked-file-found)
-    (ewoc-map (lambda (node)
-		(when (and (eq (project-buffer-node->type node) 'file)	; check only files
-			   (project-buffer-node->marked node))		; which are already marked
-		  (setq marked-file-found t)
-		  ;; Check if the file contain the regexp:
-		  (let ((filename (project-buffer-node->filename node)))
-		    (when (and filename
-			       (file-readable-p filename)
-			       (let ((found (let ((fbuf (get-file-buffer filename)))
-					      (message "Project '%s' -- Searching in '%s'" (project-buffer-node->project node) (project-buffer-node->name node))
-					      (if fbuf
-						  (with-current-buffer fbuf
-						    (save-excursion
-						      (goto-char (point-min))
-						      (re-search-forward regexp nil t)))
-						  (with-temp-buffer
-						    (insert-file-contents filename)
-						    (goto-char (point-min))
-						    (re-search-forward regexp nil t))))))
-				 (or (and found (not marked-flag))
-				     (and (not found) marked-flag))))
-		      (setf (project-buffer-node->marked node) nil)
-		      (setq count (1+ count))
-		      t  )))) ; to force the update of the display.
-	      status)
-    (if marked-file-found
-	count
-	(project-buffer-search-and-mark-files status regexp nil marked-flag))))
 
 
 ;;
