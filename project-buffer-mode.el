@@ -1422,11 +1422,41 @@ If the cursor is on a project, go to next project."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((node (ewoc-locate project-buffer-status))
-	 (node-data (ewoc-data node)))
-    (when (eq (project-buffer-node->type node-data) 'file)
+	 (node-data (ewoc-data node))
+	 (status project-buffer-status))
+    (cond 
+     ;; Mark the current file:
+     ((eq (project-buffer-node->type node-data) 'file)
       (setf (project-buffer-node->marked node-data) t)
-      (ewoc-invalidate project-buffer-status node))
-    (ewoc-goto-next project-buffer-status 1)))
+      (ewoc-invalidate status node)
+      (ewoc-goto-next status 1))
+     ;; Or all files which belong to the project:
+     ((eq (project-buffer-node->type node-data) 'project)
+      (let ((prj-name (project-buffer-node->name node-data)))
+	(save-excursion
+	  (setq node      (ewoc-next status node)
+		node-data (and node (ewoc-data node)))
+	  (while (and node (string-equal (project-buffer-node->project node-data) prj-name))
+	    (when (eq (project-buffer-node->type node-data) 'file)
+	      (setf (project-buffer-node->marked node-data) t)
+	      (ewoc-invalidate status node))
+	    (setq node      (ewoc-next status node)
+		  node-data (and node (ewoc-data node)))))))
+     ;; Or finally, all files which are under the current folder:
+     ((eq (project-buffer-node->type node-data) 'folder)
+      (let ((folder (project-buffer-node->name node-data)))
+	(save-excursion
+	  (setq node      (ewoc-next status node)
+		node-data (and node (ewoc-data node)))
+	  (while (and node 
+		      (not (eq (project-buffer-node->type node-data) 'project))
+		      (project-buffer-parent-of-p (project-buffer-node->name node-data) folder))
+	    (when (eq (project-buffer-node->type node-data) 'file)
+	      (setf (project-buffer-node->marked node-data) t)
+	      (ewoc-invalidate status node))
+	    (setq node      (ewoc-next status node)
+		  node-data (and node (ewoc-data node)))))))
+     )))
 
 
 (defun project-buffer-unmark-file ()
@@ -1434,11 +1464,42 @@ If the cursor is on a project, go to next project."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((node (ewoc-locate project-buffer-status))
-	 (node-data (ewoc-data node)))
-    (setf (project-buffer-node->marked node-data) nil)
-    (ewoc-invalidate project-buffer-status node)
-    (when (eq node (ewoc-locate project-buffer-status))
-      (ewoc-goto-next project-buffer-status 1))))
+	 (node-data (ewoc-data node))
+	 (status project-buffer-status))
+    (cond 
+     ;; Mark the current file:
+     ((eq (project-buffer-node->type node-data) 'file)
+      (setf (project-buffer-node->marked node-data) nil)
+      (ewoc-invalidate project-buffer-status node)
+      (when (eq node (ewoc-locate project-buffer-status))
+	(ewoc-goto-next project-buffer-status 1)))
+     ;; Or all files which belong to the project:
+     ((eq (project-buffer-node->type node-data) 'project)
+      (let ((prj-name (project-buffer-node->name node-data)))
+	(save-excursion
+	  (setq node      (ewoc-next status node)
+		node-data (and node (ewoc-data node)))
+	  (while (and node (string-equal (project-buffer-node->project node-data) prj-name))
+	    (when (eq (project-buffer-node->type node-data) 'file)
+	      (setf (project-buffer-node->marked node-data) nil)
+	      (ewoc-invalidate status node))
+	    (setq node      (ewoc-next status node)
+		  node-data (and node (ewoc-data node)))))))
+     ;; Or finally, all files which are under the current folder:
+     ((eq (project-buffer-node->type node-data) 'folder)
+      (let ((folder (project-buffer-node->name node-data)))
+	(save-excursion
+	  (setq node      (ewoc-next status node)
+		node-data (and node (ewoc-data node)))
+	  (while (and node 
+		      (not (eq (project-buffer-node->type node-data) 'project))
+		      (project-buffer-parent-of-p (project-buffer-node->name node-data) folder))
+	    (when (eq (project-buffer-node->type node-data) 'file)
+	      (setf (project-buffer-node->marked node-data) nil)
+	      (ewoc-invalidate status node))
+	    (setq node      (ewoc-next status node)
+		  node-data (and node (ewoc-data node)))))))
+     )))
 
 
 (defun project-buffer-mark-all ()
