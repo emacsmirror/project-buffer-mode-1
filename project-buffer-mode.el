@@ -38,9 +38,12 @@
 ;;
 ;; Key features:
 ;;  - find file based on regular expression
+;;  - four different view mode
 ;;  - advance 'search in files' system
 ;;  - notion of master project to launch build/clean/run and debug.
-;;  - 
+;;  - intuitive key bindings (at least I hope)
+
+
 
 ;;; Commentary:
 ;; 
@@ -68,11 +71,33 @@
 ;; Press 'f' if you wan to open all marked files.
 ;;
 ;;
+;; FOUR DIFFERENT VIEW-MODE:
+;;
+;; This mode support 4 different view modes (you can switch between
+;; the different view using 'c v'):
+;; - folder-view (<default>)
+;; - flat-view
+;; - folder-hidden-view
+;; - marked-view
+;;
+;; The first three views show the project with their associated files:
+;; - folder-view shows a tree-view of files
+;; - flat-view shows the list of the files prefix by their folder
+;; - folder-hiddent-view shows the list of just the file names, next
+;; to it, it displays the real path for each of them.
+;;
+;; The final view mode named marked-view will only the list of marked
+;; files, prefixed by their project and folders.
+;;
+;;
 ;; MARKING FILE MATCHING A REGEXP:
 ;; 
 ;; Files can be marked/unmarked individually, but you can also easily
 ;; mark all files whose names are matching a regular expression ('/'
 ;; then 'm'). 
+;; Note: using the mark/unmark command in front of a folder of a
+;; project results in marking each files which belong to this folder
+;; or this project.
 ;; 
 ;;
 ;; ADVANCE SEARCH IN FILES SYSTEM:
@@ -260,6 +285,7 @@
 (defvar project-buffer-current-build-configuration nil)
 (defvar project-buffer-master-project nil)
 (defvar project-buffer-projects-list nil)
+
 
 ;;
 ;; History:
@@ -1822,8 +1848,8 @@ If the cursor is on a file - nothing will be done."
       
 
 
-
 ;;
+
 (provide 'project-buffer-mode)
 
 ;;; project-buffer-mode.el ends here
