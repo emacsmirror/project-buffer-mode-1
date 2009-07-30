@@ -1,7 +1,7 @@
 ;;; fsproj.el --- File System Project Viewer
 ;;
 ;; Author:   Cedric Lallain <kandjar76@hotmail.com>
-;; Version:  0.9
+;; Version:  1.0
 ;; Keywords: project mode buffer
 ;; Description: Generic mode to handler projects.
 ;; Tested with: GNU Emacs 22.x and GNU Emacs 23.x
