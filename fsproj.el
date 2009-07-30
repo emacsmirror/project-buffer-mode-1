@@ -1,6 +1,51 @@
+;;; fsproj.el --- File System Project Viewer
 ;;
-;; fsproj - File System Project
+;; Author:   Cedric Lallain <kandjar76@hotmail.com>
+;; Version:  0.9
+;; Keywords: project mode buffer
+;; Description: Generic mode to handler projects.
+;; Tested with: GNU Emacs 22.x and GNU Emacs 23.x
 ;;
+;; This file is *NOT* part of GNU Emacs.
+;;
+;;    This program is free software; you can redistribute it and/or modify
+;;    it under the terms of the GNU General Public License as published by
+;;    the Free Software Foundation; either version 2 of the License, or
+;;    (at your option) any later version.
+;;
+;;    This program is distributed in the hope that it will be useful,
+;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;    GNU General Public License for more details.
+;;
+;;    You should have received a copy of the GNU General Public License
+;;    along with this program; if not, write to the Free Software
+;;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;;
+
+;;; Commentary:
+;; 
+
+;; This is an add-on library for project-buffer-mode.  
+;;
+;; This library provides a function to create a project-buffer based
+;; on a root directory and it's sub folders.  It detects the project
+;; root using a regular expression, and accept filter to create base
+;; path.
+;; 
+;; Note: this library doesn't provide any user commands!
+;;
+;; In order to use it, you can either create your own
+;;
+;;
+;; function to allow an easy creation of project-buffer based on the
+;; files names themselves.
+
+;;; History:
+;; 
+;; v1.0: First official release.
+;; 
+
 
 (require 'cl)
 (require 'project-buffer-mode)
@@ -9,7 +54,7 @@
 ;;
 ;; - [x] Extract the whole file list
 ;; - [X] Detect the projects
-;; - [X] Create a list of files associated to their project 
+;; - [X] Create a list of files associated to their project
 ;; - [X] Keep the relative path based on the project 'root' folder
 ;; - [X] Remap the files
 ;; - [X] Create the project buffer window
@@ -39,9 +84,8 @@
 ;; Ignore-Folder string list
 
 
-;;
-;;  User
-;;
+;;; Code:
+
 
 
 (defun fsproj-collect-files(root project-regexp file-filter &optional ignore-folders)
@@ -61,7 +105,7 @@ Note: the project list is sorted in descending alphabetic order."
 	     (is-dir   (eq (car (cdr cur-node)) t))
 	     (is-file  (not (car (cdr cur-node))))
 	     (basename (file-name-nondirectory fullpath)))
-	(cond 
+	(cond
 	 ;; if the current node is a directory different from "." or "..", all it's file gets added to the list
 	 ((and is-dir
 	       (not (string-equal basename "."))
@@ -120,8 +164,8 @@ The code assume that no folders will be named with a '(n)' suffix."
 						   (sub  (cdr node))
 						   (name (if sub (concat sub "/" prj) prj))
 						   (cnt  (gethash name name-check)))
-					      (if cnt 
-						  (setq cnt (1+ cnt)) 
+					      (if cnt
+						  (setq cnt (1+ cnt))
 						  (setq cnt 1))
 					      (puthash name cnt name-check)
 					      (format "%s (%i)" name cnt)))
@@ -153,7 +197,7 @@ PROJECT-LIST should be a list of couple: (project-path . project-file-name)"
 	  (while (and (not subproj) subprojects)
 	    (if (fsproj-parent-of-p current (cdr (car subprojects)))
 		(setq subproj     (car (car subprojects))
-		      subprojects (cons (cons (concat (car (car subprojects)) "/" (file-name-nondirectory current)) 
+		      subprojects (cons (cons (concat (car (car subprojects)) "/" (file-name-nondirectory current))
 					      current)
 					subprojects))
 		(setq subprojects (cdr subprojects))))
@@ -167,9 +211,9 @@ PROJECT-LIST should be a list of couple: (project-path . project-file-name)"
 
     ;; Build the hash table:
     ;; each node of the hash table will be initially be a list of : '("basepath" "subproj")
-    ;; Note: subproj can be nil. 
+    ;; Note: subproj can be nil.
 
-    ;; First path: initialization of the hash table throught the list: 
+    ;; First path: initialization of the hash table throught the list:
     (let ((name-list project-name-list)
 	  (base-list project-base-list)
 	  (sub-list  subproject-list))
@@ -177,9 +221,9 @@ PROJECT-LIST should be a list of couple: (project-path . project-file-name)"
 	(let ((cur-name (pop name-list))
 	      (cur-base (pop base-list))
 	      (cur-subp (pop sub-list)))
-	  (puthash cur-name 
+	  (puthash cur-name
 		   (cons (cons cur-base cur-subp)
-			 (gethash cur-name project-ht)) 
+			 (gethash cur-name project-ht))
 		   project-ht))))
 
     ;; The second path will solve the conflicts and patch theses values.
@@ -225,7 +269,7 @@ PROJECT-LIST should be a list of couple: (project-path . project-file-name)"
 FILE-FILTER is a list of regexp which are used to filter the file list.
 PROJECT-REGEXP should represent a regular expression which will help finding the project folders
 If IGNORE-FOLDERS is non nil, it should specify a list of folder name to ignore.
-If PATTERN-MODIFIER is non nil, it should specify a list of couple string (regexp . replace) which are going to get apply 
+If PATTERN-MODIFIER is non nil, it should specify a list of couple string (regexp . replace) which are going to get apply
 to the final project file name.
 
 The return value is a list of nodes, each node will also be a list as described:
@@ -281,7 +325,7 @@ If PROJECT-PLATFORMS isn't nil, it should also be a list of string representing 
 
 ;; Note: the build command has yet to be set and used!
 (defun fsproj-create-project (root-folder regexp-project-name regexp-file-filter &optional ignore-folders pattern-modifier build-configurations platforms)
-  "User function to create a project-buffer parsing the file-system to get projects and files.
+  "Create a project-buffer parsing the file-system to get projects and files.
 
 ROOT-FOLDER is a string representing a folder as a starting point
 for the research, the last subfolder will also be used to name
@@ -322,6 +366,7 @@ e.g:
 
 
 ;;
-(provide 'fsproj-mode)
 
-;;; fsproj-mode.el ends here
+(provide 'fsproj)
+
+;;; fsproj.el ends here
