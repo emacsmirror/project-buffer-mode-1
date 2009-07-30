@@ -93,42 +93,16 @@
 (require 'cl)
 (require 'project-buffer-mode)
 
-;; TODO
+;;; Todo:
 ;;
-;; - [x] Extract the whole file list
-;; - [X] Detect the projects
-;; - [X] Create a list of files associated to their project
-;; - [X] Keep the relative path based on the project 'root' folder
-;; - [X] Remap the files
-;; - [X] Create the project buffer window
-;; - [X] Add the files to it
-;; - [ ] Create a interactive user-friendly function!
-;; - [ ] Create the reload project function, map it to 'g
+;; - Allow the user to build / clean using the makefile
+;; - Create a interactive user-friendly function!
+;; - Create the reload project function, map it to 'g
 
 
-;;
-;; Structure definition:
-;;
-
-;;(defrecord fsproj-def
-;;  "Structure to create a fsproj"
-;;  :root-folder           'stringp   ;; where the recursive file search start (e.g: "~/work")
-;;  :file-filter           'listp     ;; which files to include in the project (e.g: '("\.h$" "\.cpp$"))
-;;  :proj-filename         'stringp   ;; name of the file which will determine where the project start (e.g: "[Mm]akefile" or "prj/Makefile")
-;;  :ignore-folder         'stringp   ;; which folder to ignore (eg: '("temp" "build")
-;;  :command-hook          'functionp ;; function which will be called to build the project.
-;;  :remap-patterns        'listp     ;; list of remapping pattern (e.q: '( (".*/include" . "include") ("source/\(.*\)$" "\1")) -- can be nil
-;;  :project-configuration 'listp     ;; list of string representing the different build configurations (e.g: '("debug" "release")) -- can be nil
-;;  :project-platform      'listp     ;; list of string representing the different platforms (e.g: '("win32")) -- can be nil
-;;)
-
-;; File-Filter regexp list applied to basename only
-;; Proj-Regexp regexp applied to the full path
-;; Ignore-Folder string list
 
 
 ;;; Code:
-
 
 
 (defun fsproj-collect-files(root project-regexp file-filter &optional ignore-folders)
@@ -377,7 +351,8 @@ REGEXP-PROJECT-NAME is a regular expression used to search the
 different project's root folder; it may contains '/' in it and
 can also match just a part of the name.
 REGEXP-FILE-FILTER is a list of regular expressions used to
-filter the list of file contained in the projects.
+filter the list of file contained in the projects. 
+Note: the filter is only applied to the basenames.
 IGNORE-FOLDERS is a list of folder name to ignore during the
 creation of the file list.
 PATTERN-MODIFIER is a list of cons (\"regexp\" . \"repl-str\"),
