@@ -1,28 +1,113 @@
+;;; msvc.el --- Create a project-buffer using sln file
 ;;
-;; Function to open a sln project in emacs:
-;;  
+;; Author:      Cedric Lallain <kandjar76@hotmail.com>
+;; Version:     1.0
+;; Keywords:    project buffer msvc sln vcproj viewer
+;; Description: SLN File Project Viewer
+;; Tested with: GNU Emacs 22.x and GNU Emacs 23.x
+;;
+;; This file is *NOT* part of GNU Emacs.
+;;
+;;    This program is free software; you can redistribute it and/or modify
+;;    it under the terms of the GNU General Public License as published by
+;;    the Free Software Foundation; either version 2 of the License, or
+;;    (at your option) any later version.
+;;
+;;    This program is distributed in the hope that it will be useful,
+;;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;    GNU General Public License for more details.
+;;
+;;    You should have received a copy of the GNU General Public License
+;;    along with this program; if not, write to the Free Software
+;;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;;
 
-;; TODO:
+
+;;; Commentary:
+;; 
+
+;; This is an add-on library for project-buffer-mode
+;; 
+;; This library provides a function to create a project-buffer
+;; extracting the project information from a SLN file.
+;;
+;; To install it: just add the following lines to your init file:
+;;   (autoload 'find-sln "msvc")
+;;
+;; find-sln is the command to execute to open a 'sln project'.
+;;
+;; Then check the project-buffer-mode for more documentation about
+;; this mode.
+;;
+
+;; Note about the build/clean/run/debug actions:
+;; 
+;; The command line are different between a 2005 and a 2008 project;
+;; by default it will use the 2005 configuration mode; use the prefix
+;; argument to switch to the 2008 mode.
+;;
+;; -------
+
+;; Extra note: 
+;;
+;; It doesn't currently support modifying the SLN file. It's currently
+;; just a 'viewer'.  Note that it doens't have to stay that way if
+;; people really need this feature. ;-)
+;;
+;; -------
+
+
+;;; History:
+;; 
+;; v1.0: First official release.
+;; 
+
+
+;;; Todo:
 ;;  - Auto reload if file modified on disk?
 ;;  - Add refresh command.
 ;;
 ;; Need to update the keys:
 ;;    g    -> reload/reparse project files (mmm should probably be done in the upper file or handler should be provided)
 
-(require 'project-buffer-mode)
 (require 'cl)
+(require 'project-buffer-mode)
 
+
+;;; Code:
+
+
+;;
+;; Customize data:
+;;
+
+(defgroup msvc nil
+  "Customize the msvc library.")
+
+
+(defcustom msvc-devenv-2005 "Devenv"
+  "Path to Devenv 2005."
+  :group 'msvc
+  :type 'string
+  )
+
+(defcustom msvc-devenv-2008 "Devenv"
+  "Path to Devenv 2008."
+  :group 'msvc
+  :type 'string
+  )
 
 ;;
 ;; Helper function:
 ;;
 
-(defvar solution-name nil
-  "Local variable to store the solution name")
+(defvar msvc-solution-name nil
+  "Local variable to store the solution name.")
 
 
 (defun vcproj-extract-platforms (current-block)
-  "Extract a list of platform from CURRENT-BLOCK"
+  "Extract a list of platform from CURRENT-BLOCK."
   (unless (eq (car current-block) 'Platforms) (error "Expected a list like '(Platforms ...)"))
   (let ((data (cdddr current-block))
 	cur ret)
@@ -36,7 +121,7 @@
 
 
 (defun vcproj-extract-configurations (current-block)
-  "Extract a list of configuration from CURRENT-BLOCK"
+  "Extract a list of configuration from CURRENT-BLOCK."
   (unless (eq (car current-block) 'Configurations) (error "Expected a list like '(Configurations ...)"))
   (let ((data (cdddr current-block))
 	cur ret)
@@ -83,7 +168,7 @@
 
 
 (defun vcproj-convert-file-list(file-list)
-  "Convert FILE-LIST from a list '((\"virt-subfolder\" \"virt-subfolder\"...) \"full-path\") to a list '(\"virtual-folder\" \"full-path\")" 
+  "Convert FILE-LIST from a list '((\"virt-subfolder\" \"virt-subfolder\"...) \"full-path\") to a list '(\"virtual-folder\" \"full-path\")"
   (let (ret)
     (while file-list
       (let* ((node (pop file-list))
@@ -149,7 +234,7 @@
 		    ((eq block-tag 'Files)
 		     (setq vc-files (append (vcproj-extract-files cur-block) vc-files)))
 		    ((eq block-tag 'Globals))       ; Currently ignored
-		    (t (error (format "Unknown block tag: %S" block-tag)))) 
+		    (t (error (format "Unknown block tag: %S" block-tag))))
 	    ))))
       (list vc-platforms vc-configurations vc-files))))
 
@@ -157,7 +242,7 @@
 (defun vcproj-update-file-folders(vc-files folder)
   "Update the folder of each files in VC-FILES adding FOLDER in front of them"
   (mapcar '(lambda (item)
-	     (cons (car item) 
+	     (cons (car item)
 		   (if (file-name-absolute-p (cdr item))
 		       (cdr item)
 		       (let ((rela-path (file-relative-name (expand-file-name (concat folder (cdr item)))))
@@ -176,24 +261,25 @@
       (goto-char (point-min))
       (let ((result nil))
 	(while (re-search-forward "Project(\"{[-A-Z0-9]+}\")[ 	]+=[ 	]+\"\\([A-Za-z0-9_]+\\)\"[ 	]*,[ 	]+\"\\([\\A-Za-z0-9_.]+\\)\""
-				  (point-max)  t) 
+				  (point-max)  t)
 	  (add-to-list 'result (cons (match-string-no-properties 1) (replace-regexp-in-string "\\\\" "/" (match-string-no-properties 2)))))
 	result))))
 
-(defun is-sln-file (filename)
+(defun sln-file-p (filename)
   "Check if FILENAME is a sln file."
-  (or 
+  (or
    (null (file-name-extension filename))
    (string= (file-name-extension filename) "sln")))
+
 
 (defun sln-action-handler-2005(action project-name project-path platform configuration)
   "Project-Buffer action handler."
   (let ((sln-cmd (cond ((eq action 'build) "Build")
 		       ((eq action 'clean) "Clean")
 		       ((eq action 'run)   "RunExit")
-		       ((eq action 'debug) "Debug"))))
-    (compile 
-     (concat "Devenv \"" solution-name "\" /" sln-cmd " \""  (concat configuration "|" platform) "\" /project \"" project-path "\""))))
+		       ((eq action 'debug) "DebugExe"))))
+    (compile
+     (concat msvc-devenv-2005 " \"" msvc-solution-name "\" /" sln-cmd " \""  (concat configuration "|" platform) "\" /project \"" project-path "\""))))
 
 (defun sln-action-handler-2008(action project-name project-path platform configuration)
   "Project-Buffer action handler."
@@ -201,14 +287,14 @@
 	 (cfg-str (concat "\"" configuration "|" platform "\" "))
 	 (sln-cmd (cond ((eq action 'build) (concat "/Build " cfg-str))
 			((eq action 'clean) (concat "/Clean " cfg-str))
-			((eq action 'run)   (concat "/ProjectConfig " cfg-str "/RunExit "))
-			((eq action 'debug) (concat "/ProjectConfig " cfg-str "/Run ")))))
-    (compile 
-     (concat "Devenv \"" solution-name "\" " 
+			((eq action 'run)   (concat "/ProjectConfig " cfg-str ))
+			((eq action 'debug) (concat "/ProjectConfig " cfg-str )))))
+    (compile
+     (concat msvc-devenv-2008 " \"" msvc-solution-name "\" "
 	     prj-str sln-cmd))))
 
 
-(defun make-sln-project-buffer(sln-file)
+(defun make-sln-project-buffer(sln-file &optional using2008)
   "Create a project buffer interpreting SLN-FILE to populate it."
   (let ((buffer (generate-new-buffer (concat "ms:" (file-name-nondirectory sln-file))))
 	(sln-projects (sln-extract-projects sln-file)) ; list of proj-nane / project file
@@ -219,9 +305,11 @@
       (cd (file-name-directory sln-file))
       ;; Turn on the project-buffer-mode
       (project-buffer-mode)
-      (make-local-variable 'solution-name)
-      (setq solution-name (file-name-nondirectory sln-file))
-      (add-hook 'project-buffer-action-hook 'sln-action-handler-2005 nil t)
+      (make-local-variable 'msvc-solution-name)
+      (setq msvc-solution-name (file-name-nondirectory sln-file))
+      (if using2008
+	  (add-hook 'project-buffer-action-hook 'sln-action-handler-2008 nil t)
+	  (add-hook 'project-buffer-action-hook 'sln-action-handler-2005 nil t))
       ;;
       (while sln-projects
 	;; For every project reference in the SLN file,
@@ -238,7 +326,7 @@
 	  (project-buffer-set-project-build-configurations project configurations)
 	  (when project-data
 	    (let ((files (vcproj-update-file-folders (caddr project-data) project-dir)))
-	      (while files		
+	      (while files
 		(let ((file (pop files)))
 		  ;; then insert each project file into the buffer
 		  (project-buffer-insert (car file) 'file (cdr file) project)))))
@@ -249,16 +337,18 @@
 ;;
 
 ;;;###autoload
-(defun find-sln(solution-name)
+(defun find-sln(solution-name &optional using2008)
   "Open an sln file and create a project buffer using the data in it."
   (interactive
-   (list (read-file-name "SLN file: " nil nil t nil 'is-sln-file)))
-  (when (and solution-name 
+   (list (read-file-name "SLN file: " nil nil t nil 'sln-file-p)
+	 current-prefix-arg))
+  (when (and solution-name
 	     (> (length solution-name) 0))
-    (make-sln-project-buffer solution-name)))
+    (make-sln-project-buffer solution-name using2008)))
 
 
 ;;
+
 (provide 'msvc)
 
-;;; project-buffer-mode.el ends here
+;;; msvc.el ends here
