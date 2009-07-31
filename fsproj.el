@@ -1,8 +1,8 @@
 ;;; fsproj.el --- File System Project Viewer
 ;;
-;; Author:   Cedric Lallain <kandjar76@hotmail.com>
-;; Version:  1.0
-;; Keywords: project mode buffer
+;; Author:      Cedric Lallain <kandjar76@hotmail.com>
+;; Version:     1.0
+;; Keywords:    project buffer makefile filesystem management
 ;; Description: Generic mode to handler projects.
 ;; Tested with: GNU Emacs 22.x and GNU Emacs 23.x
 ;;
@@ -42,8 +42,19 @@
 ;; file, that's why there is none.
 ;; 
 ;;
-;; Here is an example of a command:
-;; 
+;; Here is an example of a command with an implementation of an action
+;; handler:
+;;
+;; (defun my-action-handler(action project-name project-path platform configuration)
+;;   "project action handler."
+;;   (let ((make-cmd (cond ((eq action 'build) "")
+;;                         ((eq action 'clean) "clean")
+;;                         ((eq action 'run)   "run")
+;;                         ((eq action 'debug) "debug"))))
+;;     (compile 
+;;      (concat "make -j16 -C " (file-name-directory project-path) 
+;;                       " -f " (file-name-nondirectory project-path) 
+;;                          " " make-cmd))))
 ;; 
 ;; (autoload 'fsproj-create-project "fsproj")
 ;; (defun fsproj-new(root-folder)
@@ -57,6 +68,7 @@
 ;;     (fsproj-create-project root-folder
 ;;                            regexp-project-name
 ;;                            regexp-file-filter
+;;                            'my-action-handler
 ;;                            ignore-folders
 ;;                            pattern-modifier
 ;;                            build-configurations
@@ -77,6 +89,7 @@
 ;;     (fsproj-create-project root-folder
 ;;                            regexp-project-name
 ;;                            regexp-file-filter
+;;                            'my-action-handler
 ;;                            ignore-folders
 ;;                            pattern-modifier
 ;;                            build-configurations
@@ -341,23 +354,40 @@ If PROJECT-PLATFORMS isn't nil, it should also be a list of string representing 
 ;;
 
 ;; Note: the build command has yet to be set and used!
-(defun fsproj-create-project (root-folder regexp-project-name regexp-file-filter &optional ignore-folders pattern-modifier build-configurations platforms)
+(defun fsproj-create-project (root-folder regexp-project-name regexp-file-filter &optional action-handler ignore-folders pattern-modifier build-configurations platforms)
   "Create a project-buffer parsing the file-system to get projects and files.
 
 ROOT-FOLDER is a string representing a folder as a starting point
 for the research, the last subfolder will also be used to name
 the project-buffer.
+
 REGEXP-PROJECT-NAME is a regular expression used to search the
 different project's root folder; it may contains '/' in it and
 can also match just a part of the name.
+
 REGEXP-FILE-FILTER is a list of regular expressions used to
 filter the list of file contained in the projects. 
 Note: the filter is only applied to the basenames.
+
+ACTION-HANDLER is function which is going to get call to perform
+the following action: Build, Clean, Run and Debug.
+The prototype of this function should be: 
+  lambda (action project-name project-path platform configuration)
+  Where ACTION represents the action to apply to the project,
+  it may be: 'build 'clean 'run 'debug,
+  PROJECT-NAME is the name of the master project,
+  PROJECT-PATH is the file path of the project
+  PLATFORM is the name of the selected platform,
+  and CONFIGURATION correspond to the selected build 
+  configuration.
+
 IGNORE-FOLDERS is a list of folder name to ignore during the
 creation of the file list.
+
 PATTERN-MODIFIER is a list of cons (\"regexp\" . \"repl-str\"),
 each couple regexp/repl-str will be applied successively to
 project's path of each project's file
+
 BUILD-CONFIGURATIONS is a list of string representing the
 different build configuration available for the projects
 PLATFORMS is a list of string representing each available
@@ -380,6 +410,8 @@ e.g:
       ;; Make sure the buffer path match the project's path
       (cd (file-name-directory root-folder))
       (project-buffer-mode)
+      (when action-handler
+	(add-hook 'project-buffer-action-hook action-handler nil t))
       (fsproj-populate-project-buffer buffer node-list build-configurations platforms))))
 
 
