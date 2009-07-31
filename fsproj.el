@@ -103,15 +103,14 @@
 ;; 
 
 
-(require 'cl)
-(require 'project-buffer-mode)
-
 ;;; Todo:
 ;;
-;; - Allow the user to build / clean using the makefile
-;; - Create a interactive user-friendly function!
 ;; - Create the reload project function, map it to 'g
 
+
+
+(require 'cl)
+(require 'project-buffer-mode)
 
 
 
