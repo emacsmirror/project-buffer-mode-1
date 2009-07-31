@@ -1,9 +1,9 @@
 ;;; project-buffer-mode.el --- Generic mode to browse project file
 ;;
-;; Author:   Cedric Lallain <kandjar76@hotmail.com>
-;; Version:  1.0
-;; Keywords: project mode buffer
-;; Description: Generic mode to handler projects.
+;; Author:      Cedric Lallain <kandjar76@hotmail.com>
+;; Version:     1.0
+;; Keywords:    project mode buffer viewer generic
+;; Description: Generic mode to handle projects.
 ;; Tested with: GNU Emacs 22.x and GNU Emacs 23.x
 ;;
 ;; This file is *NOT* part of GNU Emacs.
@@ -1144,6 +1144,7 @@ Commands:
 
 (defun project-buffer-insert (name type filename project)
   "Insert a file in alphabetic order in it's project/directory.
+
 NAME is the name of the file in the project with it's virtual project directory,
 both name and directory may be virtual
 TYPE type of the node in the project: should be either 'project or 'file
