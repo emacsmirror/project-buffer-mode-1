@@ -3,7 +3,7 @@
 ;; Author:      Cedric Lallain <kandjar76@hotmail.com>
 ;; Version:     1.0
 ;; Keywords:    project buffer makefile filesystem management
-;; Description: Generic mode to handler projects.
+;; Description: File System Project Viewer
 ;; Tested with: GNU Emacs 22.x and GNU Emacs 23.x
 ;;
 ;; This file is *NOT* part of GNU Emacs.
