@@ -246,7 +246,6 @@
 
 ;;  - show project dependencies
 ;;     e.g: [+] ProjName1           <deps: ProjName3, ProjName2>
-;;  - test color in dark background
 ;;  - adding button to collapse/expand folders/projects
 ;;  - add collapsed all / expand all commands
 ;;  - grayed out exclude from build files??
@@ -363,7 +362,7 @@ The function should follow the prototype:
 
 (defface project-buffer-folder-face
   '((((class color) (background light)) (:foreground "purple"))
-    (((class color) (background dark)) (:foreground "salmon")))
+    (((class color) (background dark)) (:foreground "cyan")))
   "Project buffer mode face used to highlight folder nodes."
   :group 'project-buffer)
 
