@@ -285,6 +285,8 @@
 (defvar project-buffer-master-project nil)
 (defvar project-buffer-projects-list nil)
 
+(defvar project-buffer-mode-hook nil)
+
 
 ;;
 ;; History:
@@ -1138,7 +1140,9 @@ Commands:
       (setq project-buffer-master-project nil)
       (setq project-buffer-projects-list nil)
 
-      (project-buffer-refresh-ewoc-hf status))))
+      (project-buffer-refresh-ewoc-hf status)
+
+      (run-hooks 'project-buffer-mode-hook))))
 
 
 (defun project-buffer-insert (name type filename project)
