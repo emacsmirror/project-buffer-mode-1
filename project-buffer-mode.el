@@ -285,8 +285,6 @@
 (defvar project-buffer-master-project nil)
 (defvar project-buffer-projects-list nil)
 
-(defvar project-buffer-mode-hook nil)
-
 
 ;;
 ;; History:
@@ -299,6 +297,9 @@
 ;;
 ;;  User hook:
 ;;
+
+(defvar project-buffer-mode-hook nil
+  "Post `project-buffer-mode' initialization hook.")
 
 (defvar project-buffer-action-hook nil
   "Hook to perform the actions (build, clean, run...)
