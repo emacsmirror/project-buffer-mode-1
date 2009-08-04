@@ -182,7 +182,8 @@ CHILD and PARENT are two string representing directories."
       (let ((cname (pop clist))
 	    (pname (pop plist)))
 	(setq cont (string-equal cname pname))))
-    (and cont (null plist))))
+    (and cont (and (null plist)
+		   (not (null clist))))))
   
 
 (defun fsproj-resolve-conflict(conflict-list)
