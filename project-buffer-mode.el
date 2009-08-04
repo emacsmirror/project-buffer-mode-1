@@ -80,8 +80,8 @@
 ;; - folder-hidden-view
 ;; - marked-view
 ;;
-;; The first three views show the project with their associated files:
-;; - folder-view shows a tree-view of files
+;; The first three modes show the project with their associated files:
+;; - folder-view shows a tree-view of files.
 ;; - flat-view shows the list of the files prefix by their folder
 ;; - folder-hiddent-view shows the list of just the file names, next
 ;; to it, it displays the real path for each of them.
@@ -1094,7 +1094,7 @@ Note: if no files are marked, the search will occur in all existing files of the
 	      status)
     (if marked-file-found
 	count
-	(project-buffer-search-and-mark-files status regexp nil marked-flag))))
+	( - 0 (project-buffer-search-and-mark-files status regexp nil marked-flag)))))
 
 
 ;;
@@ -1795,11 +1795,13 @@ If the cursor is on a file - nothing will be done."
 		      (project-buffer-search-and-mark-files project-buffer-status regexp nil (not unmark)))
 		     ((eq project-buffer-search-in-files-mode 'current-project)
 		      (project-buffer-search-and-mark-files project-buffer-status regexp current-project (not unmark))))))
-    (message "%i files %s."
-	     count
-	     (if (or unmark
-		     (eq project-buffer-search-in-files-mode 'narrow-marked-files))
-		 "unmarked" "marked"))
+    (if (< count 0)
+	(message "%i files marked." (- 0 count))
+	(message "%i files %s."
+		 count
+		 (if (or unmark
+			 (eq project-buffer-search-in-files-mode 'narrow-marked-files))
+		     "unmarked" "marked")))
     ))
 
 
