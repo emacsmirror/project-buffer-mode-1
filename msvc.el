@@ -88,14 +88,14 @@
 
 (defcustom msvc-devenv-2005 "Devenv"
   "Path to Devenv 2005."
-  :group 'msvc
   :type 'string
+  :group 'msvc
   )
 
 (defcustom msvc-devenv-2008 "Devenv"
   "Path to Devenv 2008."
-  :group 'msvc
   :type 'string
+  :group 'msvc
   )
 
 ;;
