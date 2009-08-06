@@ -290,8 +290,8 @@
 
 (defcustom project-buffer-new-project-collapsed t
   "Newly added project will be collapsed by default."
-  :group 'project-buffer
-  :type 'boolean)
+  :type 'boolean
+  :group 'project-buffer)
 
 
 (defcustom project-buffer-search-in-files-mode 'narrow-marked-files
@@ -303,18 +303,18 @@ files in the projects, 'current-project will only search with the
 current project Note: if no files are marked while using
 narrow-marked-files, the search will occur in all files in the
 project."
-  :group 'project-buffer
-  :type '(choice (const :tag "Narrow the marked files" 'narrow-marked-files)
-		 (const :tag "All files" 'all-files)
-		 (const :tag "Current project" 'current-project)))
+  :type '(choice (const :tag "Narrow the marked files" narrow-marked-files)
+		 (const :tag "All files" all-files)
+		 (const :tag "Current project" current-project))
+  :group 'project-buffer)
 
 
 (defcustom project-buffer-autoswitch-marked-view-mode t
   "If set to t, the view-mode will automatically be switched to
 the marked-view mode after performing a search-in-files (unless
 no files got marked/unmarked)."
-  :group 'project-buffer
-  :type 'boolean)
+  :type 'boolean
+  :group 'project-buffer)
 
 
 
@@ -382,10 +382,12 @@ no files got marked/unmarked)."
 ;;
 
 
-(defvar project-buffer-mode-hook nil
-  "Post `project-buffer-mode' initialization hook.")
+(defcustom project-buffer-mode-hook nil
+  "Post `project-buffer-mode' initialization hook."
+  :type 'hook
+  :group 'project-buffer)
 
-(defvar project-buffer-action-hook nil
+(defcustom project-buffer-action-hook nil
   "Hook to perform the actions (build, clean, run...)
 
 The function should follow the prototype:
@@ -396,7 +398,8 @@ The function should follow the prototype:
  PROJECT-PATH is the file path of the project
  PLATFORM is the name of the selected platform,
  and CONFIGURATION correspond to the selected build configuration."
-)
+  :type 'hook
+  :group 'project-buffer)
 
 
 
