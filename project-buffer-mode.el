@@ -267,90 +267,61 @@
 (require 'ewoc)
 
 
+
 ;;; Code:
 
 
-;;
-;;  Buffer local variables:
-;;
-
-(defvar project-buffer-status nil)
-(defvar project-buffer-view-mode nil)
-(defvar project-buffer-cache-project nil)
-(defvar project-buffer-cache-subdirectory nil)
-(defvar project-buffer-platforms-list nil)
-(defvar project-buffer-current-platform nil)
-(defvar project-buffer-build-configurations-list nil)
-(defvar project-buffer-current-build-configuration nil)
-(defvar project-buffer-master-project nil)
-(defvar project-buffer-projects-list nil)
-
 
 ;;
-;; History:
+;; Group definition:
 ;;
 
-(defvar project-buffer-regexp-history nil
-  "History list of regular expressions used in project-buffer commands.")
 
-
-;;
-;;  User hook:
-;;
-
-(defvar project-buffer-mode-hook nil
-  "Post `project-buffer-mode' initialization hook.")
-
-(defvar project-buffer-action-hook nil
-  "Hook to perform the actions (build, clean, run...)
-
-The function should follow the prototype:
-  (lambda (action project-name project-path platform configuration)
- Where ACTION represents the action to apply to the project,
- it may be: 'build 'clean 'run 'debug,
- PROJECT-NAME is the name of the master project,
- PROJECT-PATH is the file path of the project
- PLATFORM is the name of the selected platform,
- and CONFIGURATION correspond to the selected build configuration."
+(defgroup project-buffer nil
+  "A special mode to manage projects."
 )
 
 
+
 ;;
-;;  Data type:
+;; Customizable variables:
 ;;
 
-;; Structure to store data attached to each ewoc-node.
-;; Each node represents either a file or a project or a folder indide the project"
-(defstruct (project-buffer-node
-	    (:copier nil)
-	    (:constructor project-buffer-create-node (name type filename project &optional hidden))
-	    (:conc-name project-buffer-node->))
-  name				;; string displayed to represent the file (usually the file.ext)
-  type				;; project? file? folder?
 
-  marked			;; is the file marked?
-  hidden			;; hidden files (currently: = project/folder close)
-  collapsed			;; is the folder/project collapsed or not?
-  project-collapsed		;; t if the project the file belong to is collapsed
+(defcustom project-buffer-new-project-collapsed t
+  "Newly added project will be collapsed by default."
+  :group 'project-buffer
+  :type 'boolean)
 
-  matched			;; the file matches the regexp search
 
-  filename			;; full path to the filename
-  project			;; name of the project the file belongs to
-  parent			;; parent node (parent folder or project or nil)
+(defcustom project-buffer-search-in-files-mode 'narrow-marked-files
+  "Variable defining the current search-in-files mode.
+The different search mode set to 'narrow-marked-files it will
+search in the selected marked files, removing the one failing the
+research, set to 'all-files it will launch the search on all
+files in the projects, 'current-project will only search with the
+current project Note: if no files are marked while using
+narrow-marked-files, the search will occur in all files in the
+project."
+  :group 'project-buffer
+  :type '(choice (const :tag "Narrow the marked files" 'narrow-marked-files)
+		 (const :tag "All files" 'all-files)
+		 (const :tag "Current project" 'current-project)))
 
-  platform-list			;; list of the platform available for the project (valid in project node only)
-  build-configurations-list	;; list of build configuration avalailable for the project (valid in project node only)
-)
+
+(defcustom project-buffer-autoswitch-marked-view-mode t
+  "If set to t, the view-mode will automatically be switched to
+the marked-view mode after performing a search-in-files (unless
+no files got marked/unmarked)."
+  :group 'project-buffer
+  :type 'boolean)
+
 
 
 ;;
 ;;  Font
 ;;
 
-(defgroup project-buffer nil
-  "A special mode to manager project files."
-)
 
 (defface project-buffer-project-face
   '((((class color) (background light)) (:foreground "red"))
@@ -405,37 +376,93 @@ The function should follow the prototype:
   :group 'project-buffer)
 
 
-(defcustom project-buffer-new-project-collapsed t
-  "Newly added project will be collapsed by default."
-  :group 'project-buffer
-  :type 'boolean)
 
-(defcustom project-buffer-search-in-files-mode 'narrow-marked-files
-  "Variable defining the current search-in-files mode.
-The different search mode set to 'narrow-marked-files it will
-search in the selected marked files, removing the one failing the
-research, set to 'all-files it will launch the search on all
-files in the projects, 'current-project will only search with the
-current project Note: if no files are marked while using
-narrow-marked-files, the search will occur in all files in the
-project."
-  :group 'project-buffer
-  :type '(choice (const :tag "Narrow the marked files" 'narrow-marked-files)
-		 (const :tag "All files" 'all-files)
-		 (const :tag "Current project" 'current-project)))
+;;
+;;  User hook:
+;;
 
 
-(defcustom project-buffer-autoswitch-marked-view-mode t
-  "If set to t, the view-mode will automatically be switched to
-the marked-view mode after performing a search-in-files (unless
-no files got marked/unmarked)."
-  :group 'project-buffer
-  :type 'boolean)
+(defvar project-buffer-mode-hook nil
+  "Post `project-buffer-mode' initialization hook.")
+
+(defvar project-buffer-action-hook nil
+  "Hook to perform the actions (build, clean, run...)
+
+The function should follow the prototype:
+  (lambda (action project-name project-path platform configuration)
+ Where ACTION represents the action to apply to the project,
+ it may be: 'build 'clean 'run 'debug,
+ PROJECT-NAME is the name of the master project,
+ PROJECT-PATH is the file path of the project
+ PLATFORM is the name of the selected platform,
+ and CONFIGURATION correspond to the selected build configuration."
+)
+
+
+
+;;
+;;  Buffer local variables:
+;;
+
+
+(defvar project-buffer-status nil)
+(defvar project-buffer-view-mode nil)
+(defvar project-buffer-cache-project nil)
+(defvar project-buffer-cache-subdirectory nil)
+(defvar project-buffer-projects-list nil)
+(defvar project-buffer-master-project nil)
+(defvar project-buffer-platforms-list nil)
+(defvar project-buffer-current-platform nil)
+(defvar project-buffer-build-configurations-list nil)
+(defvar project-buffer-current-build-configuration nil)
+
+
+
+;;
+;; History:
+;;
+
+
+(defvar project-buffer-regexp-history nil
+  "History list of regular expressions used in project-buffer commands.")
+
+
+
+;;
+;;  Data type:
+;;
+
+
+;; Structure to store data attached to each ewoc-node.
+;; Each node represents either a file or a project or a folder indide the project"
+(defstruct (project-buffer-node
+	    (:copier nil)
+	    (:constructor project-buffer-create-node (name type filename project &optional hidden))
+	    (:conc-name project-buffer-node->))
+  name				;; string displayed to represent the file (usually the file.ext)
+  type				;; project? file? folder?
+
+  marked			;; is the file marked?
+  hidden			;; hidden files (currently: = project/folder close)
+  collapsed			;; is the folder/project collapsed or not?
+  project-collapsed		;; t if the project the file belong to is collapsed
+
+  matched			;; the file matches the regexp search
+
+  filename			;; full path to the filename
+  project			;; name of the project the file belongs to
+  parent			;; parent node (parent folder or project or nil)
+
+  platform-list			;; list of the platform available for the project (valid in project node only)
+  build-configurations-list	;; list of build configuration avalailable for the project (valid in project node only)
+)
+
 
 
 ;;
 ;;  Key Bindings:
 ;;
+
 
 ;; Define the key mapping for the spu mode:
 (defvar project-buffer-mode-map
@@ -483,6 +510,7 @@ no files got marked/unmarked)."
     (define-key project-buffer-mode-map [?s] 'project-buffer-mark-files-containing-regexp)
 
     project-buffer-mode-map))
+
 
 
 ;;
