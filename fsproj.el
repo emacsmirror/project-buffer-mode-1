@@ -344,7 +344,12 @@ If PROJECT-PLATFORMS isn't nil, it should also be a list of string representing 
 	  (when project-platforms     (project-buffer-set-project-platforms            project-name project-platforms))
 		
 	  ;; Add each individual files to the project:
-	  (mapcar* (lambda (&rest args) (project-buffer-insert (car args) 'file (car (cdr args)) project-name))
+	  (mapcar* (lambda (&rest args) 
+		     (let* ((cur-name (car (cdr args)))
+			    (relative-path (file-relative-name cur-name))
+			    (full-path     (abbreviate-file-name cur-name))
+			    (file-name     (if (> (length relative-path) (length full-path)) full-path relative-path)))
+		       (project-buffer-insert (car args) 'file  file-name project-name)))
 		   file-list
 		   fullpath-list))))))
 
@@ -408,7 +413,7 @@ e.g:
     (switch-to-buffer buffer)
     (with-current-buffer buffer
       ;; Make sure the buffer path match the project's path
-      (cd (file-name-directory root-folder))
+      (cd root-folder)
       (project-buffer-mode)
       (when action-handler
 	(add-hook 'project-buffer-action-hook action-handler nil t))
