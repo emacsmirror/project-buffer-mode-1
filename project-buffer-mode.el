@@ -176,10 +176,10 @@
 ;;    c s  -> Toggle search mode
 ;;    c v  -> Toggle view mode (flat / flat with the foldershidden / folder)
 ;;    c b  -> switch to the next build configuration
-;;    c t  -> switch the master project to be the current project
+;;    c m  -> switch the master project to be the current project
 ;;    c p  -> switch to the next platform
 ;;    c B  -> prompt to change build configuration
-;;    c T  -> prompt for the master project (project to build)
+;;    c M  -> prompt for the master project (project to build)
 ;;    c P  -> prompt to change platform
 ;;    B    -> launch build
 ;;    C    -> launch clean
@@ -450,10 +450,10 @@ project."
     (define-key project-buffer-mode-map [?c ?v] 'project-buffer-toggle-view-mode)
     (define-key project-buffer-mode-map [?c ?b] 'project-buffer-next-build-configuration)
     (define-key project-buffer-mode-map [?c ?p] 'project-buffer-next-platform)
-    (define-key project-buffer-mode-map [?c ?t] 'project-buffer-select-current-as-master-project)
+    (define-key project-buffer-mode-map [?c ?m] 'project-buffer-select-current-as-master-project)
     (define-key project-buffer-mode-map [?c ?B] 'project-buffer-choose-build-configuration)
     (define-key project-buffer-mode-map [?c ?P] 'project-buffer-choose-platform)
-    (define-key project-buffer-mode-map [?c ?T] 'project-buffer-choose-master-project)
+    (define-key project-buffer-mode-map [?c ?M] 'project-buffer-choose-master-project)
     (define-key project-buffer-mode-map [backspace] 'project-buffer-goto-dir-up)
 
     (define-key project-buffer-mode-map [?\ ] 'project-buffer-next-file)
