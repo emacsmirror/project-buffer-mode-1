@@ -425,6 +425,14 @@ project."
 		 (const :tag "Current project" 'current-project)))
 
 
+(defcustom project-buffer-autoswitch-marked-view-mode t
+  "If set to t, the view-mode will automatically be switched to
+the marked-view mode after performing a search-in-files (unless
+no files got marked/unmarked)."
+  :group 'project-buffer
+  :type 'boolean)
+
+
 ;;
 ;;  Key Bindings:
 ;;
@@ -1807,6 +1815,13 @@ If the cursor is on a file - nothing will be done."
 		 (if (or unmark
 			 (eq project-buffer-search-in-files-mode 'narrow-marked-files))
 		     "unmarked" "marked")))
+    (when project-buffer-autoswitch-marked-view-mode
+      (unless (= count 0)
+	(setq project-buffer-view-mode 'marked-view)
+	(let ((status project-buffer-status))
+	  (project-buffer-refresh-all-items status)
+	  (project-buffer-refresh-ewoc-hf status)
+	  (ewoc-goto-node status node))))
     ))
 
 
