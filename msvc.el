@@ -260,9 +260,9 @@
       (insert-file sln-file)
       (goto-char (point-min))
       (let ((result nil))
-	(while (re-search-forward "Project(\"{[-A-Z0-9]+}\")[ 	]+=[ 	]+\"\\([A-Za-z0-9_]+\\)\"[ 	]*,[ 	]+\"\\([\\A-Za-z0-9_.]+\\)\""
+	(while (re-search-forward "Project(\"{[-A-Z0-9]+}\")[ 	]+=[ 	]+\"\\([^\"]+\\)\"[ 	]*,[ 	]+\"\\([^\"]+\\)\""
 				  (point-max)  t)
-	  (add-to-list 'result (cons (match-string-no-properties 1) (replace-regexp-in-string "\\\\" "/" (match-string-no-properties 2)))))
+	  (add-to-list 'result (cons (match-string-no-properties 1) (replace-regexp-in-string "\\\\" "/" (match-string-no-properties 2))) t))
 	result))))
 
 (defun sln-file-p (filename)
