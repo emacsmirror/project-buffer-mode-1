@@ -1,4 +1,4 @@
-;;; msvc.el --- Create a project-buffer using sln file
+;;; sln-mode.el --- Create a project-buffer using sln file
 ;;
 ;; Author:      Cedric Lallain <kandjar76@hotmail.com>
 ;; Version:     1.0
@@ -33,7 +33,7 @@
 ;; extracting the project information from a SLN file.
 ;;
 ;; To install it: just add the following lines to your init file:
-;;   (autoload 'find-sln "msvc")
+;;   (autoload 'find-sln "sln-mode")
 ;;
 ;; find-sln is the command to execute to open a 'sln project'.
 ;;
@@ -82,27 +82,27 @@
 ;; Customize data:
 ;;
 
-(defgroup msvc nil
-  "Customize the msvc library.")
+(defgroup sln-mode nil
+  "Customize the sln-mode library.")
 
 
-(defcustom msvc-devenv-2005 "Devenv"
+(defcustom sln-mode-devenv-2005 "Devenv"
   "Path to Devenv 2005."
   :type 'string
-  :group 'msvc
+  :group 'sln-mode
   )
 
-(defcustom msvc-devenv-2008 "Devenv"
+(defcustom sln-mode-devenv-2008 "Devenv"
   "Path to Devenv 2008."
   :type 'string
-  :group 'msvc
+  :group 'sln-mode
   )
 
 ;;
 ;; Helper function:
 ;;
 
-(defvar msvc-solution-name nil
+(defvar sln-mode-solution-name nil
   "Local variable to store the solution name.")
 
 
@@ -279,7 +279,7 @@
 		       ((eq action 'run)   "RunExit")
 		       ((eq action 'debug) "DebugExe"))))
     (compile
-     (concat msvc-devenv-2005 " \"" msvc-solution-name "\" /" sln-cmd " \""  (concat configuration "|" platform) "\" /project \"" project-path "\""))))
+     (concat sln-mode-devenv-2005 " \"" sln-mode-solution-name "\" /" sln-cmd " \""  (concat configuration "|" platform) "\" /project \"" project-path "\""))))
 
 (defun sln-action-handler-2008(action project-name project-path platform configuration)
   "Project-Buffer action handler."
@@ -290,7 +290,7 @@
 			((eq action 'run)   (concat "/ProjectConfig " cfg-str ))
 			((eq action 'debug) (concat "/ProjectConfig " cfg-str )))))
     (compile
-     (concat msvc-devenv-2008 " \"" msvc-solution-name "\" "
+     (concat sln-mode-devenv-2008 " \"" sln-mode-solution-name "\" "
 	     prj-str sln-cmd))))
 
 
@@ -305,8 +305,8 @@
       (cd (file-name-directory sln-file))
       ;; Turn on the project-buffer-mode
       (project-buffer-mode)
-      (make-local-variable 'msvc-solution-name)
-      (setq msvc-solution-name (file-name-nondirectory sln-file))
+      (make-local-variable 'sln-mode-solution-name)
+      (setq sln-mode-solution-name (file-name-nondirectory sln-file))
       (if using2008
 	  (add-hook 'project-buffer-action-hook 'sln-action-handler-2008 nil t)
 	  (add-hook 'project-buffer-action-hook 'sln-action-handler-2005 nil t))
@@ -349,6 +349,6 @@
 
 ;;
 
-(provide 'msvc)
+(provide 'sln-mode)
 
-;;; msvc.el ends here
+;;; sln-mode.el ends here
