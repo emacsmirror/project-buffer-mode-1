@@ -1,4 +1,4 @@
-;;; fsproj.el --- File System Project Viewer
+;;; fsproject.el --- File System Project Viewer
 ;;
 ;; Author:      Cedric Lallain <kandjar76@hotmail.com>
 ;; Version:     1.0
@@ -26,7 +26,7 @@
 ;;; Commentary:
 ;; 
 
-;; This is an add-on library for project-buffer-mode.  
+;; This is an add-on library for project-buffer-mode.
 ;;
 ;; This library provides a function to create a project-buffer based
 ;; on a root directory and it's sub folders.  It detects the project
@@ -36,7 +36,7 @@
 ;; Note: this library doesn't provide any user commands!
 ;;
 ;; In order to use it, you can either create your own command, or call
-;;   fsproj-create-project from your init.el.
+;;   fsproject-create-project from your init.el.
 ;; 
 ;; I haven't found a satisfied way to create a uniform command for this
 ;; file, that's why there is none.
@@ -51,13 +51,13 @@
 ;;                         ((eq action 'clean) "clean")
 ;;                         ((eq action 'run)   "run")
 ;;                         ((eq action 'debug) "debug"))))
-;;     (compile 
-;;      (concat "make -j16 -C " (file-name-directory project-path) 
-;;                       " -f " (file-name-nondirectory project-path) 
+;;     (compile
+;;      (concat "make -j16 -C " (file-name-directory project-path)
+;;                       " -f " (file-name-nondirectory project-path)
 ;;                          " " make-cmd))))
 ;; 
-;; (autoload 'fsproj-create-project "fsproj")
-;; (defun fsproj-new(root-folder)
+;; (autoload 'fsproject-create-project "fsproject")
+;; (defun fsproject-new(root-folder)
 ;;   (interactive "sRoot folder: ")
 ;;   (let ((regexp-project-name  "[Mm]akefile")
 ;;         (regexp-file-filter   '("\\.cpp$" "\\.h$" "\\.inl$" "\\.mak$" "Makefile"))
@@ -65,7 +65,7 @@
 ;;         (pattern-modifier     nil)
 ;;         (build-configurations '("debug" "release"))
 ;;         (platforms            '("Linux")))
-;;     (fsproj-create-project root-folder
+;;     (fsproject-create-project root-folder
 ;;                            regexp-project-name
 ;;                            regexp-file-filter
 ;;                            'my-action-handler
@@ -76,8 +76,8 @@
 ;; 
 ;; And if you want to have only have a source and include folder inside each projects:
 ;; 
-;; (autoload 'fsproj-create-project "fsproj")
-;; (defun fsproj-new(root-folder)
+;; (autoload 'fsproject-create-project "fsproject")
+;; (defun fsproject-new(root-folder)
 ;;   (interactive "sRoot folder: ")
 ;;   (let ((regexp-project-name  "[Mm]akefile")
 ;;         (regexp-file-filter   '("\\.cpp$" "\\.h$" "\\.inl$" "\\.mak$" "Makefile"))
@@ -86,14 +86,14 @@
 ;;                                 ("^\\(?:.*/\\)?\\([a-zA-Z0-9_]*\\.\\(?:h\\|inl\\)\\)$" . "include/\\1")))
 ;;         (build-configurations '("debug" "release"))
 ;;         (platforms            '("Linux")))
-;;     (fsproj-create-project root-folder
-;;                            regexp-project-name
-;;                            regexp-file-filter
-;;                            'my-action-handler
-;;                            ignore-folders
-;;                            pattern-modifier
-;;                            build-configurations
-;;                            platforms)))
+;;     (fsproject-create-project root-folder
+;;                               regexp-project-name
+;;                               regexp-file-filter
+;;                               'my-action-handler
+;;                               ignore-folders
+;;                               pattern-modifier
+;;                               build-configurations
+;;                               platforms)))
 ;; 
 
 
@@ -117,7 +117,7 @@
 ;;; Code:
 
 
-(defun fsproj-collect-files(root project-regexp file-filter &optional ignore-folders)
+(defun fsproject-collect-files(root project-regexp file-filter &optional ignore-folders)
   "Parse the ROOT folder and all of it's sub-folder, and create a file list.
 FILE-FILTER is a list of regexp which are used to filter the file list.
 PROJECT-REGEXP should represent a regular expression which will help finding the project folders
@@ -156,7 +156,7 @@ Note: the project list is sorted in descending alphabetic order."
     (cons (sort proj-list '(lambda (a b) (string-lessp (car a) (car b)))) file-list)))
 
 
-(defun fsproj-extract-project-file-list(current-project file-list)
+(defun fsproject-extract-project-file-list(current-project file-list)
   "Extract the file which belongs to CURRENT-PROJECT from FILE-LIST.
 Return a list of two lists: ((current project file list..) (remaining files...)."
   (let (project-file-list
@@ -171,7 +171,7 @@ Return a list of two lists: ((current project file list..) (remaining files...).
     (cons project-file-list remaining-files)))
 
 
-(defun fsproj-parent-of-p(child parent)
+(defun fsproject-parent-of-p(child parent)
   "Check if CHILD is a child of the directory PARENT.
 CHILD and PARENT are two string representing directories."
   (let* ((clist (and child  (split-string child "/")))
@@ -186,7 +186,7 @@ CHILD and PARENT are two string representing directories."
 		   (not (null clist))))))
   
 
-(defun fsproj-resolve-conflict(conflict-list)
+(defun fsproject-resolve-conflict(conflict-list)
   "Solve the CONFLICT-LIST and return the list of final names.
 The code assume that no folders will be named with a '(n)' suffix."
   (let* ((name-check (make-hash-table :test 'equal))
@@ -208,7 +208,7 @@ The code assume that no folders will be named with a '(n)' suffix."
 			       name))
 	    name-list)))
 					  
-(defun fsproj-generate-project-names(project-list)
+(defun fsproject-generate-project-names(project-list)
   "Return a list of project names based on the project paths contained in PROJECT-LIST.
 Making sure each name is uniq. This function will also detect subproject and add the master project name as prefix.
 PROJECT-LIST should be a list of couple: (project-path . project-file-name)"
@@ -225,7 +225,7 @@ PROJECT-LIST should be a list of couple: (project-path . project-file-name)"
 	(let ((current (pop path-list))
 	      subproj)
 	  (while (and (not subproj) subprojects)
-	    (if (fsproj-parent-of-p current (cdr (car subprojects)))
+	    (if (fsproject-parent-of-p current (cdr (car subprojects)))
 		(setq subproj     (car (car subprojects))
 		      subprojects (cons (cons (concat (car (car subprojects)) "/" (file-name-nondirectory current))
 					      current)
@@ -265,7 +265,7 @@ PROJECT-LIST should be a list of couple: (project-path . project-file-name)"
 	(let* ((cur-name (pop name-list))
 	       (cur-node (gethash cur-name project-ht)))
 	  (when (listp (car cur-node))
-	    (puthash cur-name (fsproj-resolve-conflict cur-node) project-ht)))))
+	    (puthash cur-name (fsproject-resolve-conflict cur-node) project-ht)))))
 
     ;; The third will retrieve the conflict-less name
     (let ((name-list project-name-list)
@@ -278,7 +278,7 @@ PROJECT-LIST should be a list of couple: (project-path . project-file-name)"
       (reverse reversed-list))))
 
 
-(defun fsproj-extract-file-names(current-project file-list modifier)
+(defun fsproject-extract-file-names(current-project file-list modifier)
   "Return the CURRENT-PROJECT's converted FILE-LIST."
   (let ((prj-lgt (length current-project)))
     (mapcar (lambda (name)
@@ -294,7 +294,7 @@ PROJECT-LIST should be a list of couple: (project-path . project-file-name)"
 ;;
 
 
-(defun fsproj-create-project-nodes-list(root project-regexp file-filter &optional ignore-folders pattern-modifier)
+(defun fsproject-create-project-nodes-list(root project-regexp file-filter &optional ignore-folders pattern-modifier)
   "Parse the ROOT folder and sub-folders, and create a node list to add them into a project-buffer.
 FILE-FILTER is a list of regexp which are used to filter the file list.
 PROJECT-REGEXP should represent a regular expression which will help finding the project folders
@@ -304,27 +304,27 @@ to the final project file name.
 
 The return value is a list of nodes, each node will also be a list as described:
   '(proj-name proj-file-path (file-list) (file-full-path-list)"
-  (let* ((collected-list (fsproj-collect-files root project-regexp file-filter ignore-folders))
+  (let* ((collected-list (fsproject-collect-files root project-regexp file-filter ignore-folders))
 	 (file-list (cdr collected-list))
-	 (project-name-list (reverse (fsproj-generate-project-names (car collected-list))))
+	 (project-name-list (reverse (fsproject-generate-project-names (car collected-list))))
 	 (project-list (reverse (car collected-list)))
 	 project-node-list)
     (while project-list
       (let* ((current-project      (pop project-list))
 	     (current-project-name (pop project-name-list))
-	     (extracted-data       (fsproj-extract-project-file-list (car current-project) file-list))
+	     (extracted-data       (fsproject-extract-project-file-list (car current-project) file-list))
 	     node)
 	(setq file-list (cdr extracted-data))
 	(setq node (list current-project-name
 			 (cdr current-project)
-			 (fsproj-extract-file-names (car current-project) (car extracted-data) pattern-modifier)
+			 (fsproject-extract-file-names (car current-project) (car extracted-data) pattern-modifier)
 			 (car extracted-data)))
 	(setq project-node-list (cons node project-node-list))))
     project-node-list))
 
 
 
-(defun fsproj-populate-project-buffer(buffer node-list &optional project-configuration project-platforms)
+(defun fsproject-populate-project-buffer(buffer node-list &optional project-configuration project-platforms)
   "Add each file / node to the project-buffer.
 BUFFER is the buffer of the project
 NODE-LIST is a list of (proj-name proj-file-path (file-list) (file-full-path-list))
@@ -344,7 +344,7 @@ If PROJECT-PLATFORMS isn't nil, it should also be a list of string representing 
 	  (when project-platforms     (project-buffer-set-project-platforms            project-name project-platforms))
 		
 	  ;; Add each individual files to the project:
-	  (mapcar* (lambda (&rest args) 
+	  (mapcar* (lambda (&rest args)
 		     (let* ((cur-name (car (cdr args)))
 			    (relative-path (file-relative-name cur-name))
 			    (full-path     (abbreviate-file-name cur-name))
@@ -359,7 +359,7 @@ If PROJECT-PLATFORMS isn't nil, it should also be a list of string representing 
 ;;
 
 ;; Note: the build command has yet to be set and used!
-(defun fsproj-create-project (root-folder regexp-project-name regexp-file-filter &optional action-handler ignore-folders pattern-modifier build-configurations platforms)
+(defun fsproject-create-project (root-folder regexp-project-name regexp-file-filter &optional action-handler ignore-folders pattern-modifier build-configurations platforms)
   "Create a project-buffer parsing the file-system to get projects and files.
 
 ROOT-FOLDER is a string representing a folder as a starting point
@@ -371,19 +371,19 @@ different project's root folder; it may contains '/' in it and
 can also match just a part of the name.
 
 REGEXP-FILE-FILTER is a list of regular expressions used to
-filter the list of file contained in the projects. 
+filter the list of file contained in the projects.
 Note: the filter is only applied to the basenames.
 
 ACTION-HANDLER is function which is going to get call to perform
 the following action: Build, Clean, Run and Debug.
-The prototype of this function should be: 
+The prototype of this function should be:
   lambda (action project-name project-path platform configuration)
   Where ACTION represents the action to apply to the project,
   it may be: 'build 'clean 'run 'debug,
   PROJECT-NAME is the name of the master project,
   PROJECT-PATH is the file path of the project
   PLATFORM is the name of the selected platform,
-  and CONFIGURATION correspond to the selected build 
+  and CONFIGURATION correspond to the selected build
   configuration.
 
 IGNORE-FOLDERS is a list of folder name to ignore during the
@@ -400,16 +400,16 @@ platform
 
 e.g:
 
- (fsproj-create-project  \"~/work\"
-			 \"[Mm]akefile$\"
-			 '(\"\\.cpp$\" \"\\.[hc]$\" \"[Mm]akefile$\")
-			 '(\"build\")
-			 '((\"^\\(?:.*/\\)?\\([a-zA-Z0-9_]*\\.cpp\\)$\" . \"source/\\1\")
-			   (\"^\\(?:.*/\\)?\\([a-zA-Z0-9_]*\\.\\(?:h\\|inl\\)\\)$\" . \"include/\\1\"))
-			 '(\"Debug\" \"Release\")
-			 '(\"Win32\"))"
+ (fsproject-create-project  \"~/work\"
+			    \"[Mm]akefile$\"
+			    '(\"\\.cpp$\" \"\\.[hc]$\" \"[Mm]akefile$\")
+			    '(\"build\")
+			    '((\"^\\(?:.*/\\)?\\([a-zA-Z0-9_]*\\.cpp\\)$\" . \"source/\\1\")
+			      (\"^\\(?:.*/\\)?\\([a-zA-Z0-9_]*\\.\\(?:h\\|inl\\)\\)$\" . \"include/\\1\"))
+			    '(\"Debug\" \"Release\")
+			    '(\"Win32\"))"
   (let ((buffer    (generate-new-buffer (concat "fs:" (file-name-nondirectory root-folder))))
-	(node-list (fsproj-create-project-nodes-list root-folder regexp-project-name regexp-file-filter ignore-folders pattern-modifier)))
+	(node-list (fsproject-create-project-nodes-list root-folder regexp-project-name regexp-file-filter ignore-folders pattern-modifier)))
     (switch-to-buffer buffer)
     (with-current-buffer buffer
       ;; Make sure the buffer path match the project's path
@@ -417,11 +417,11 @@ e.g:
       (project-buffer-mode)
       (when action-handler
 	(add-hook 'project-buffer-action-hook action-handler nil t))
-      (fsproj-populate-project-buffer buffer node-list build-configurations platforms))))
+      (fsproject-populate-project-buffer buffer node-list build-configurations platforms))))
 
 
 ;;
 
-(provide 'fsproj)
+(provide 'fsproject)
 
-;;; fsproj.el ends here
+;;; fsproject.el ends here
