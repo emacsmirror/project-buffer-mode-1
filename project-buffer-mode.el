@@ -26,30 +26,30 @@
 ;;; Summary:
 ;; 
 
-;; project-buffer-mode is a generic mode to handle projects.  Its goal
-;; is to provide an easy and intuitive way to interact with the
-;; multiple projects.
+;; project-buffer-mode is a generic mode to handle projects.  It
+;; provides an easy and intuitive way to interact with the multiple
+;; projects with in one buffer.
 ;;
 ;; 
 ;; Two extensions already exist for this mode:
-;;  - fsproj which creates a project based on the file system
-;;  - msvc   which parses a sln files and create a project representing it
-;;
+;; - FsProj  - which creates a project based on the file system
+;; - MSVC    - which parses a sln files and create a project representing it
+;; 
 ;;
 ;; Key features:
-;;  - find file based on regular expression
-;;  - four different view mode
-;;  - advance 'search in files' system
-;;  - notion of master project to launch build/clean/run and debug.
-;;  - intuitive key bindings (at least I hope)
+;; - find file based on regular expression
+;; - four different view mode
+;; - advance 'search in files' system
+;; - notion of master project to launch build/clean/run and debug.
+;; - intuitive key bindings (at least I hope)
 
 
 
 ;;; Commentary:
 ;; 
 
-;; The project-buffe-mode's goal is to handle multiple projects in a
-;; buffer.  
+;; project-buffer-mode provides a generic way to handle multiple
+;; projects in a buffer.
 ;; 
 ;; A Project is defined by:
 ;;  - its name
@@ -68,25 +68,26 @@
 ;; 
 ;; Opening the current is a simple as pressing <enter> or
 ;; 'o' to open it in another window.
-;; Press 'f' if you wan to open all marked files.
+;; Press 'f' if you want to open all marked files.
 ;;
 ;;
 ;; FOUR DIFFERENT VIEW-MODE:
 ;;
-;; This mode support 4 different view modes (you can switch between
-;; the different view using 'c v'):
+;; Four different view-modes are currently supported:
 ;; - folder-view (<default>)
 ;; - flat-view
 ;; - folder-hidden-view
 ;; - marked-view
 ;;
+;; It's possible to switch between them using 'c v'.
+;;
 ;; The first three modes show the project with their associated files:
 ;; - folder-view shows a tree-view of files.
-;; - flat-view shows the list of the files prefix by their folder
-;; - folder-hiddent-view shows the list of just the file names, next
+;; - flat-view shows the list of the files prefixed by their folder
+;; - folder-hidden-view shows the list of just the file names, next
 ;; to it, it displays the real path for each of them.
 ;;
-;; The final view mode named marked-view will only the list of marked
+;; The final view mode named marked-view shows only the list of marked
 ;; files, prefixed by their project and folders.
 ;;
 ;;
@@ -96,43 +97,47 @@
 ;; mark all files whose names are matching a regular expression ('/'
 ;; then 'm'). 
 ;; Note: using the mark/unmark command in front of a folder of a
-;; project results in marking each files which belong to this folder
+;; project results in marking every files which belong to this folder
 ;; or this project.
 ;; 
 ;;
 ;; ADVANCE SEARCH IN FILES SYSTEM:
 ;; 
-;; The search in files functionality comes in three different behavior:
+;; The search in files functionality comes with three different behaviors:
 ;; - Narrow the marked files (<default>)
 ;; - All files
 ;; - Current project
 ;; 
 ;; Before talking about the "Narrow the marked files" behavior which
-;; is the default one; let's quickly go throught the two others: 
+;; is the default one; let's quickly go throught the others two: 
 ;;
 ;; - If the search behavior is set to "All files", the search-in-files
 ;; command ('s') will do a search-regexp in files for each unmarked
-;; files (all projects) and mark each one which contain the regexp.
+;; files (all projects) and mark the ones which contain the regexp.
 ;;
 ;; - If the search behavior is set to "Current Project" the
-;; search-in-file will do search-regexp in files for each files
-;; contained in the current project.  The current project being
-;; defined by the position of the cursor.  Again, each marching files
+;; search-in-files will do search-regexp in files for each unmarked
+;; file contained in the current project.  The current project being
+;; defined by the position of the cursor.  Again, each matching files
 ;; will be marked.
 ;;
-;; Note: it is possible to have the search-regexp in file unmark files
-;; instead by using the prefix argument (C-u).
+;; Note: it is possible to have the search-regexp in file unmarking
+;; the files instead by using the prefix argument (C-u).
 ;;
 ;; Finally in case the search behavior is set to "Narrow the marked
 ;; files": if no files are actually marked, it will behave the same
 ;; way as the "All files" behavior.  In case some files are marked, it
-;; will only perform a "search-regexp in files" on the marked files,
+;; will only perform the "search-regexp in files" in the marked files,
 ;; unmarking the ones which don't contain the regular expression.
 ;; 
 ;; This provide an easy way to narrow/refine some research.
 ;;
 ;; The search behavior can be either customized or locally change
 ;; (pressing 'c s')
+;;
+;; Note: in case a search-in-files mark or unmark some files; the view
+;; mode will automatically be switched to marked-view. This behavior
+;; can be disabled.
 ;;
 ;;
 ;; MASTER PROJECT / BUILD CONFIGURATION / PLATFORM:
@@ -142,7 +147,7 @@
 ;; letter ('c T' 'c B' and 'c P') will prompt the user for the new
 ;; value.
 ;;
-;; This value allow to take quick action for the master project:
+;; This value allows to take quick actions for the master project:
 ;; build/clean/run/debug (keys: 'B' 'C' 'R' 'D')
 ;;
 ;;
@@ -199,28 +204,12 @@
 ;;; Raw mode:
 ;; 
 
-;; As it was mentioned earlier, project-buffer-mode is just a abstract
+;; As it was mentioned earlier, project-buffer-mode is just an abstract
 ;; project manager.  Even if some extensions already exist, you may
 ;; want to be able to handle you own project system.
 ;;
-;; The sample code below show how to do it:
-;;   + the script has to initialize a buffer calling (project-buffer-mode)
-;;   + then add each file using the function: (project-buffer-insert...
+;; Here is a sample code which shows how to create a new project:
 ;;
-;; Here's a the list of user function available to handle your own project:
-;; - project-buffer-mode                     which initialize the project-buffer mode
-;; - project-buffer-insert                   to insert a file or project to the view
-;; - project-buffer-delete-file              to remove a file
-;; - project-buffer-delete-project           to remove a project and all it's file
-;; - project-buffer-set-project-platforms    to set the platform configuration for a particular project
-;; - project-buffer-set-build-configurations to set the build configurations for a particular project
-;;
-
-
-
-;;; Sample code:
-;;
-
 ;; (defun test-projbuff()
 ;;   (interactive)
 ;;   (let ((buffer (generate-new-buffer "test-project-buffer")))                       ; Creation of a buffer for the project
@@ -238,6 +227,16 @@
 ;;       (project-buffer-insert "src/roo.c" 'file  "~/temp/test2/roo.c" "test2")       ;  the file name research will be based on the project-path and not on the physical file name
 ;;       (project-buffer-insert "script.awk" 'file "~/temp/test2/script.awk" "test2")  ;
 ;; )))
+;;
+;;
+;; List of user functions available to handle your own project:
+;; - `project-buffer-mode'                     which initialize the project-buffer mode
+;; - `project-buffer-insert'                   to insert a file or project to the view
+;; - `project-buffer-delete-file'              to remove a file
+;; - `project-buffer-delete-project'           to remove a project and all it's file
+;; - `project-buffer-set-project-platforms'    to set the platform configuration for a particular project
+;; - `project-buffer-set-build-configurations' to set the build configurations for a particular project
+;;
 
 
 
