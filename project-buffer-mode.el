@@ -32,8 +32,8 @@
 ;;
 ;; 
 ;; Two extensions already exist for this mode:
-;; - FsProj  - which creates a project based on the file system
-;; - MSVC    - which parses a sln files and create a project representing it
+;; - fsproject  - which creates a project based on the file system
+;; - sln-mode   - which parses a sln files and create a project representing it
 ;; 
 ;;
 ;; Key features:
