@@ -658,11 +658,13 @@ FILE-BUFFER is the buffer of the file.")
 			       'help-echo file-help)))
 	  ((eq project-buffer-view-mode 'folder-view)
 	   (let ((dir-list (split-string node-name "/"))
-		 (str (concat " `" 
-			      (propertize (if (project-buffer-node->collapsed node-data) "+" "-")
-					  'mouse-face 'highlight
-					  'help-echo folder-help)
-			      " "))
+		 (str (if (eq (project-buffer-node->type node-data) 'file)
+			  " `- "
+			  (concat " `" 
+				  (propertize (if (project-buffer-node->collapsed node-data) "+" "-")
+					      'mouse-face 'highlight
+					      'help-echo folder-help)
+				  " ")))
 		 (cur 1))
 	     (while (< cur (length dir-list))
 	       (setq str (concat " |  " str)
