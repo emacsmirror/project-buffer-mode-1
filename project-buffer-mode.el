@@ -257,7 +257,6 @@
 
 ;;  - show project dependencies
 ;;     e.g: [+] ProjName1           <deps: ProjName3, ProjName2>
-;;  - adding button to collapse/expand folders/projects
 ;;  - add collapsed all / expand all commands
 ;;  - grayed out exclude from build files??
 ;;  - different color for files referenced in the proj but don't exist?
@@ -542,6 +541,7 @@ FILE-BUFFER is the buffer of the file.")
     (define-key project-buffer-mode-map [?\ ] 'project-buffer-next-file)
     (define-key project-buffer-mode-map [(shift ?\ )] 'project-buffer-prev-file)
     (define-key project-buffer-mode-map [return] 'project-buffer-node-find-file)
+    (define-key project-buffer-mode-map [mouse-1] 'project-buffer-mouse-find-file)
     (define-key project-buffer-mode-map [?o] 'project-buffer-node-find-file-other-window)
     (define-key project-buffer-mode-map [(control left)] 'project-buffer-goto-dir-up-or-collapsed)
 
@@ -635,31 +635,58 @@ FILE-BUFFER is the buffer of the file.")
 
 (defun project-buffer-convert-name-for-display(node-data)
   "Convert the node name into the displayed string depending on the project-buffer-view-mode."
-  (let* ((node-name  (project-buffer-node->name node-data))
-	 (file-color (if (project-buffer-node->matched node-data) 'project-buffer-matching-file-face 'project-buffer-file-face))
-	 (node-color (if (eq (project-buffer-node->type node-data) 'file) file-color 'project-buffer-folder-face)))
+  (let* ((node-name   (project-buffer-node->name node-data))
+	 (file-color  (if (project-buffer-node->matched node-data) 'project-buffer-matching-file-face 'project-buffer-file-face))
+	 (node-color  (if (eq (project-buffer-node->type node-data) 'file) file-color 'project-buffer-folder-face))
+	 (file-help   (concat "mouse-1: find file other window: " (project-buffer-node->filename node-data)))
+	 (folder-help (concat "mouse-1: " 
+			      (if (project-buffer-node->collapsed node-data) "expand" "collapse") 
+			      " folder " node-name ".")))
     (cond ((eq project-buffer-view-mode 'flat-view)
 	   (concat (propertize " `- " 'face 'project-buffer-indent-face)
 		   (and (file-name-directory node-name)
 			(propertize (file-name-directory node-name) 'face 'project-buffer-folder-face))
-		   (propertize (file-name-nondirectory node-name) 'face file-color)))
+		   (propertize (file-name-nondirectory node-name) 
+			       'face file-color
+			       'mouse-face 'highlight
+			       'help-echo file-help)))
 	  ((eq project-buffer-view-mode 'folder-hidden-view)
 	   (concat (propertize " `- " 'face 'project-buffer-indent-face)
-		   (propertize (file-name-nondirectory node-name) 'face file-color)))
+		   (propertize (file-name-nondirectory node-name) 
+			       'face file-color
+			       'mouse-face 'highlight
+			       'help-echo file-help)))
 	  ((eq project-buffer-view-mode 'folder-view)
 	   (let ((dir-list (split-string node-name "/"))
-		 (str (if (project-buffer-node->collapsed node-data) " `+ " " `- "))
+		 (str (concat " `" 
+			      (propertize (if (project-buffer-node->collapsed node-data) "+" "-")
+					  'mouse-face 'highlight
+					  'help-echo folder-help)
+			      " "))
 		 (cur 1))
 	     (while (< cur (length dir-list))
 	       (setq str (concat " |  " str)
 		     cur (1+ cur)))
 	     (concat (propertize str 'face 'project-buffer-indent-face)
-		     (propertize (file-name-nondirectory node-name) 'face node-color) )))
+		     (if (eq (project-buffer-node->type node-data) 'file)
+			 (propertize (file-name-nondirectory node-name) 
+				     'face node-color
+				     'mouse-face 'highlight
+				     'help-echo file-help)
+			 (propertize (file-name-nondirectory node-name) 
+				     'face node-color
+				     'mouse-face 'highlight
+				     'help-echo folder-help))
+			 )))
 	  ((eq project-buffer-view-mode 'marked-view)
 	   (concat (propertize " - " 'face 'project-buffer-indent-face)
 		   (and (file-name-directory node-name)
 			(propertize (file-name-directory node-name) 'face 'project-buffer-folder-face))
-		   (propertize (file-name-nondirectory node-name) 'face file-color)))
+		   (propertize (file-name-nondirectory node-name) 
+			       'face file-color
+			       'mouse-face 'highlight
+			       'help-echo file-help
+			       )))
 	  (t (format "Unknown view mode: %S" project-buffer-view-mode) ))))
 
 
@@ -672,7 +699,11 @@ FILE-BUFFER is the buffer of the file.")
 	(node-hidden   (project-buffer-node->hidden node))
 	(node-matching (project-buffer-node->matched node))
 	(node-prjcol   (project-buffer-node->project-collapsed node))
-	(node-project  (project-buffer-node->project node)))
+	(node-project  (project-buffer-node->project node))
+	(project-help  (concat "mouse-1: " 
+			       (if (project-buffer-node->collapsed node) "expand" "collapse")
+			       " project "
+			       (project-buffer-node->name node))))
     (if (eq project-buffer-view-mode 'marked-view)
 	(when (and (eq node-type 'file)
 		   (or node-marked node-matching))
@@ -698,13 +729,23 @@ FILE-BUFFER is the buffer of the file.")
 			  (if node-marked (propertize "*" 'face 'project-buffer-mark-face)" ")
 			  " "
 			  (cond ((not (eq node-type 'project)) "   ")
-				(node-collapsed                (propertize "[+]" 'face 'project-buffer-project-button-face) )
-				(t                             (propertize "[-]" 'face 'project-buffer-project-button-face) ))
+				(node-collapsed                (propertize "[+]" 
+									   'face 'project-buffer-project-button-face
+									   'mouse-face 'highlight
+									   'help-echo project-help))
+				(t                             (propertize "[-]" 
+									   'face 'project-buffer-project-button-face
+									   'mouse-face 'highlight
+									   'help-echo project-help)))
 			  " "
-			  (or (and (eq node-type 'project)  (propertize node-name 'face (or (and project-buffer-master-project
-												 (string= node-name (car project-buffer-master-project))
-												 'project-buffer-master-project-face)
-											    'project-buffer-project-face)))
+			  (or (and (eq node-type 'project)
+				   (propertize node-name 
+					       'face (or (and project-buffer-master-project
+							      (string= node-name (car project-buffer-master-project))
+							      'project-buffer-master-project-face)
+							 'project-buffer-project-face)
+					       'mouse-face 'highlight
+					       'help-echo project-help))
 			      (project-buffer-convert-name-for-display node))))
 	  (when (and (eq project-buffer-view-mode 'folder-hidden-view)
 		     (project-buffer-node->filename node)
@@ -1921,6 +1962,17 @@ If the cursor is on a project, go to next project."
 	(project-buffer-toggle-expand-collapse))))
 
 
+(defun project-buffer-mouse-find-file(event)
+  "Find the file you click on."
+  (interactive "e")
+  (save-excursion
+    (set-buffer (window-buffer (posn-window (event-end event))))
+    (save-excursion
+      (goto-char (posn-point (event-end event)))
+      (if (get-text-property (point) 'mouse-face)
+	  (project-buffer-find-file-other-window)))))
+
+  
 (defun project-buffer-node-find-file-other-window ()
   "Find the file the cursor is on in another window."
   (interactive)
