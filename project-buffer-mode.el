@@ -243,6 +243,10 @@
 ;; - `project-buffer-set-build-configurations' to set the build configurations for a particular project
 ;; - `project-buffer-raw-save'                 to save a project into a file
 ;; - `project-buffer-raw-load'                 to load a project from a file
+;; - `project-buffer-set-project-user-data'    to set user data to a project node
+;; - `project-buffer-get-project-user-data'    to get user data from a project node
+;; - `project-buffer-set-file-user-data'       to set user data to a file node
+;; - `project-buffer-get-file-user-data'       to get user data from a file node
 
 
 
@@ -258,6 +262,7 @@
 ;;  - provide a touch marked files command
 ;;  - provide a compile/build marked files command
 ;;  - add a command to easily find the corresponding header/source for the current file (or specified file)
+;;  - add 'g' to refresh the display
 
 
 
@@ -491,6 +496,8 @@ FILE-BUFFER is the buffer of the file.")
 
   platform-list			;; list of the platform available for the project (valid in project node only)
   build-configurations-list	;; list of build configuration avalailable for the project (valid in project node only)
+
+  user-data                     ;; user data could be set (mainly useful to store something per project)
 )
 
 
@@ -1015,7 +1022,7 @@ Empty folder node will also be cleared up."
       (cond
        ;; cache-project < current-project -> we can start the search from here (at least).
        ((string-lessp (car project-buffer-cache-project) proj-data)
-	(setq node (cdr project-buffer-cache-project))
+	(setq node (cdr project-buffer-cache-project)))
 
        ;; cache-project == current-project -> check the folders...
        ((string-equal (car project-buffer-cache-project) proj-data)
@@ -1028,7 +1035,7 @@ Empty folder node will also be cleared up."
 	    (setq node (cdr project-buffer-cache-subdirectory))
 	    (setq node (cdr project-buffer-cache-project))))
        ;; other wise: cache miss...
-       )))
+       ))
 
     ;; Search where is the node to delete:
     (while (and node (not found))
@@ -1301,19 +1308,22 @@ project-buffer context."
 			   (eq (car block-line) 'end)
 			   (eq (nth 1 block-line) 'node-list))))
       (if (and (listp block-line)
-	       (= (length block-line) 6))
+	       (= (length block-line) 7))
 	  (let ((name                      (nth 0 block-line))
 		(type                      (nth 1 block-line))
 		(filename                  (nth 2 block-line))
 		(project                   (nth 3 block-line))
 		(platform-list             (nth 4 block-line))
-		(build-configurations-list (nth 5 block-line)))
-	    (project-buffer-insert-node status
-					(project-buffer-create-node name type filename project))
-	    (when platform-list
-	      (project-buffer-set-project-platforms-data status project platform-list))
-	    (when build-configurations-list
-	      (project-buffer-set-project-build-configurations-data status project build-configurations-list)))
+		(build-configurations-list (nth 5 block-line))
+		(user-data                 (nth 6 block-line)))
+	    (let ((data (project-buffer-create-node name type filename project)))
+	      (project-buffer-insert-node status data)
+	      (when platform-list
+		(project-buffer-set-project-platforms-data status project platform-list))
+	      (when build-configurations-list
+		(project-buffer-set-project-build-configurations-data status project build-configurations-list))
+	      (when user-data
+		(setf (project-buffer-node->user-data data) user-data)))  )
 	  (error "Unknown node-list line: %s" block-line))
       (setq block-line (read data-buffer)))))
 
@@ -1396,6 +1406,60 @@ variable."
       (project-buffer-refresh-all-items status)
       (project-buffer-refresh-ewoc-hf status)
       (ewoc-goto-node status node))))
+
+
+(defun project-buffer-search-file-node(status name project)
+  "Search a node named NAME which belongs to PROJECT."
+  (let ((node           (ewoc-nth status 0))
+	(folder-data    (project-buffer-extract-folder name 'file))
+	(proj-data      project)
+	(found          nil)
+	(folder-found   nil)
+	(node-data      nil))
+
+    ;; Cache check: <no cache update>
+    (when project-buffer-cache-project
+      (cond
+       ;; cache-project < current-project -> we can start the search from here (at least).
+       ((string-lessp (car project-buffer-cache-project) proj-data)
+	(setq node (cdr project-buffer-cache-project)))
+
+       ;; cache-project == current-project -> check the folders...
+       ((string-equal (car project-buffer-cache-project) proj-data)
+	;; cache-subdir < current-subdir -> we can start from here.
+	;; cache-subdir = current-subdir -> good starting point
+	(if (and project-buffer-cache-subdirectory
+		 folder-data
+		 (or (string-equal (car project-buffer-cache-subdirectory) folder-data)
+		     (project-buffer-directory-lessp (car project-buffer-cache-subdirectory) folder-data 'folder)))
+	    (setq node (cdr project-buffer-cache-subdirectory))
+	    (setq node (cdr project-buffer-cache-project))))
+       ;; other wise: cache miss...
+       ))
+
+    ;; Search the node:
+    (while (and node (not found))
+      (setq node-data (ewoc-data node))
+
+      (cond
+       ;; data.project < node.project -> not found...
+       ((string-lessp proj-data (project-buffer-node->project node-data))
+	(setq node nil))
+
+       ;; node.project == data.project -> check folder/file name
+       ((string-equal proj-data (project-buffer-node->project node-data))
+	(let* ((folder-db (project-buffer-extract-folder (project-buffer-node->name node-data) (project-buffer-node->type node-data)))
+	       (type-db   (project-buffer-node->type node-data)))
+	  ;; Make sure it's not the project line:
+	  (unless (eq type-db 'project)
+	    (setq found (and (string-equal (project-buffer-node->name node-data) name) node))))))
+
+      ;; next node:
+      (setq node (and node (ewoc-next status node))))
+
+    ;; Final result:
+    found
+    ))
 
 
 ;;
@@ -1535,7 +1599,8 @@ reloaded through `project-buffer-raw-load' function."
 			 (project-buffer-node->filename data)
 			 (project-buffer-node->project data)
 			 (project-buffer-node->platform-list data)
-			 (project-buffer-node->build-configurations-list data))
+			 (project-buffer-node->build-configurations-list data)
+			 (project-buffer-node->user-data data))
 		   (current-buffer))))
 	(setq node (ewoc-next status node)))
       (print (list 'end 'node-list) (current-buffer))
@@ -1568,6 +1633,38 @@ nodes either."
 	  )))
     (run-hooks 'project-buffer-post-load-hook)
     ))
+
+
+(defun project-buffer-set-file-user-data(name project user-data)
+  "Attach user data to a node named NAME in the project PROJECT."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (project-buffer-search-file-node project-buffer-status name project)))
+    (when node
+      (setf (project-buffer-node->user-data (ewoc-data node)) user-data))))
+
+
+(defun project-buffer-set-project-user-data(project user-data)
+  "Attach user data to the project node named PROJECT."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (project-buffer-search-project-node project-buffer-status project)))
+    (when node
+      (setf (project-buffer-node->user-data (ewoc-data node)) user-data))))
+
+
+(defun project-buffer-get-file-user-data(name project)
+  "Retrieve user data to a node named NAME in the project PROJECT."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (project-buffer-search-file-node project-buffer-status name project)))
+    (when node
+      (project-buffer-node->user-data (ewoc-data node)))))
+
+
+(defun project-buffer-get-project-user-data(project)
+  "Retrieve user data to the project node named PROJECT."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (project-buffer-search-project-node project-buffer-status project)))
+    (when node
+      (project-buffer-node->user-data (ewoc-data node)))))
 
 
 ;;
