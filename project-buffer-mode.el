@@ -179,7 +179,7 @@
 ;; C-<LFT> -> expand if collapsed move to the first folder; move inside if expanded
 ;; C-<RGT> -> move up if folded collapsed; collapse if in front of folder ; move to the folded if in front of a file
 ;;    c s  -> Toggle search mode
-;;    c v  -> Toggle view mode (flat / flat with the foldershidden / folder)
+;;    c v  -> Toggle view mode (flat / flat with the folder hidden / folder / marked files view)
 ;;    c b  -> switch to the next build configuration
 ;;    c m  -> switch the master project to be the current project
 ;;    c p  -> switch to the next platform
@@ -190,6 +190,11 @@
 ;;    C    -> launch clean
 ;;    D    -> launch run/with debugger
 ;;    R    -> launch run/without debugger
+;;    1    -> Switch to folder-view mode
+;;    2    -> Switch to flat-view mode
+;;    3    -> Switch to folder-hidden-view mode
+;;    4    -> Switch to marked-view mode
+;;
 ;;
 ;; Future improvement:
 ;;    T    -> touch marked files (need a variable to make sure touch is always available)
