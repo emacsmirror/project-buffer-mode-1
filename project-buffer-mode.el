@@ -1166,6 +1166,14 @@ Note: if no files are marked, the search will occur in all existing files of the
   (print (list 'end 'hook hook-symbol) (current-buffer)))
 
 
+(defun project-buffer-raw-print-locals(local-list)
+  "Print a local block in the current-buffer."
+  (print (list 'begin 'locals) (current-buffer))
+  (while local-list
+    (print (pop local-list) (current-buffer)))
+  (print (list 'end 'locals) (current-buffer)))
+
+
 (defun project-buffer-read-header(status data-buffer &optional set-buffer-name set-current-directory)
   "Read the header of the saved file from the DATA-BUFFER."
   (let ((header-data (read data-buffer)))
@@ -1233,7 +1241,7 @@ project-buffer context."
     (while (and block-line
 		(not (and  (listp block-line)
 			   (eq (car block-line) 'end)
-			   (eq (nth 1 block-line) block-type))))
+			   (eq (nth 1 block-line) 'node-list))))
       (if (and (listp block-line)
 	       (= (length block-line) 6))
 	  (let ((name                      (nth 0 block-line))
@@ -1252,6 +1260,29 @@ project-buffer context."
       (setq block-line (read data-buffer)))))
 
 
+(defun project-buffer-read-block-locals(status data-buffer block-header)
+  "Read a project-buffer-locals block; set the local variable of
+the buffer with their specified values.  Skip non local
+variable."
+  ;; block-header should be: '(begin locals)
+  (unless (and (listp block-header)
+	       (eq (car block-header) 'begin)
+	       (eq (nth 1 block-header) 'locals))
+    (error "Invalid block-header"))
+  (let ((block-line (read data-buffer)))
+    (while (and block-line
+		(not (and  (listp block-line)
+			   (eq (car block-line) 'end)
+			   (eq (nth 1 block-line) 'locals))))
+      (if (and (listp block-line)
+	       (symbolp (car block-line)))
+	  (when (local-variable-p (car block-line))
+	    (set (car block-line) (cdr block-line)))
+	  (error "Unknown local line: %s" block-line))
+      (setq block-line (read data-buffer)))))
+
+
+
 (defun project-buffer-skip-block(status data-buffer block-header)
   "Skip project-buffer block."
   (unless (and (listp block-header)
@@ -1265,22 +1296,25 @@ project-buffer context."
 			   (eq (nth 1 block-line) block-type)))) 
       (setq block-line (read data-buffer)))))
 
-		      
+
 (defun project-buffer-read-block(status data-buffer)
   "Read and parse the next block from the DATA-BUFFER."
-  (let ((block-header (read data-buffer)))
-    (when block-header
-      (when (and (listp block-header)
-		 (eq (car block-header) 'begin))
+  (let ((block-header (read data-buffer))
+	(goon t))
+    (if (and (listp block-header)
+	     (eq (car block-header) 'begin))
 	(cond ((eq (nth 1 block-header) 'hook)
 	       (project-buffer-read-block-hook status data-buffer block-header))
 	      ((eq (nth 1 block-header) 'node-list)
 	       (project-buffer-read-block-node-list status data-buffer block-header))
+	      ((eq (nth 1 block-header) 'locals)
+	       (project-buffer-read-block-locals status data-buffer block-header))
 	      (t 
 	       (project-buffer-skip-block status data-buffer block-header)))
-	)
-      t ;; carry on
-      )))
+	(setq goon (not (and (symbolp block-header) (eq block-header 'eof))))
+      )
+    goon) ;; carry on
+  )
 
 
 ;;
@@ -1382,13 +1416,16 @@ reloaded through `project-buffer-raw-load' function."
 	 (node               (ewoc-nth status 0))
 	 (pbm-mode-hook      (and (local-variable-p 'project-buffer-mode-hook) project-buffer-mode-hook))
 	 (pbm-action-hook    (and (local-variable-p 'project-buffer-action-hook) project-buffer-action-hook))
-	 (pbm-post-load-hook (and (local-variable-p 'project-buffer-post-load-hook) project-buffer-post-load-hook)))
+	 (pbm-post-load-hook (and (local-variable-p 'project-buffer-post-load-hook) project-buffer-post-load-hook))
+	 (buf-name           (buffer-name))
+	 (buf-dir            default-directory)
+	 (project-buffer     (current-buffer)))
     (with-temp-buffer
       ;; First, let's write a quick header:
       (print (list 'project-buffer-mode 
 		   project-buffer-mode-version
-		   (buffer-name)
-		   default-directory) (current-buffer))
+		   buf-name
+		   buf-dir) (current-buffer))
       ;; Save the hooks:
       (when pbm-mode-hook
 	(project-buffer-raw-print-hooks 'project-buffer-mode-hook   pbm-mode-hook))
@@ -1396,6 +1433,12 @@ reloaded through `project-buffer-raw-load' function."
 	(project-buffer-raw-print-hooks 'project-buffer-action-hook pbm-action-hook))
       (when pbm-post-load-hook
 	(project-buffer-raw-print-hooks 'project-buffer-post-load-hook pbm-post-load-hook))
+      ;; Save the locals:
+      (project-buffer-raw-print-locals 
+       (list (cons 'project-buffer-view-mode			 (buffer-local-value 'project-buffer-view-mode                   project-buffer))
+	     ;(cons 'project-buffer-master-project		 (buffer-local-value 'project-buffer-master-project		 project-buffer))
+	     (cons 'project-buffer-current-platform		 (buffer-local-value 'project-buffer-current-platform		 project-buffer))
+	     (cons 'project-buffer-current-build-configuration   (buffer-local-value 'project-buffer-current-build-configuration project-buffer))))
       ;; Save each nodes:
       (print (list 'begin 'node-list) (current-buffer))
       (while node
@@ -1410,6 +1453,8 @@ reloaded through `project-buffer-raw-load' function."
 		   (current-buffer))))
 	(setq node (ewoc-next status node)))
       (print (list 'end 'node-list) (current-buffer))
+      ;; End of file:
+      (print 'eof (current-buffer))
       ;; Finally: write the file.
       (write-file filename))))
 
