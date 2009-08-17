@@ -536,8 +536,8 @@ FILE-BUFFER is the buffer of the file.")
 
     (define-key project-buffer-mode-map [?\ ] 'project-buffer-next-file)
     (define-key project-buffer-mode-map [(shift ?\ )] 'project-buffer-prev-file)
-    (define-key project-buffer-mode-map [return] 'project-buffer-find-file)
-    (define-key project-buffer-mode-map [?o] 'project-buffer-find-file-other-window)
+    (define-key project-buffer-mode-map [return] 'project-buffer-node-find-file)
+    (define-key project-buffer-mode-map [?o] 'project-buffer-node-find-file-other-window)
     (define-key project-buffer-mode-map [(control left)] 'project-buffer-goto-dir-up-or-collapsed)
 
     (define-key project-buffer-mode-map [(control right)] 'project-buffer-next-file-or-expand)
@@ -1900,7 +1900,7 @@ If the cursor is on a project, go to next project."
       (ewoc-goto-node status search))))
 
 
-(defun project-buffer-find-file ()
+(defun project-buffer-node-find-file ()
   "Find the file the cursor is on."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer"))
@@ -1914,7 +1914,7 @@ If the cursor is on a project, go to next project."
 	(project-buffer-toggle-expand-collapse))))
 
 
-(defun project-buffer-find-file-other-window ()
+(defun project-buffer-node-find-file-other-window ()
   "Find the file the cursor is on in another window."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer"))
