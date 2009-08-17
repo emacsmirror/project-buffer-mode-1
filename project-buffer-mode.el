@@ -259,8 +259,8 @@
 ;;; History:
 ;; 
 
-;; v1.0: First public release.
-
+;; v1.00: First public release.
+;; v1.10: Added load/save of projects and mouse support.
 
 (require 'cl)
 (require 'ewoc)
@@ -280,6 +280,13 @@
   "A special mode to manage projects."
 )
 
+
+;;
+;; Constants:
+;;
+
+(defconst project-buffer-mode-version "1.10"
+  "Version numbers of this version of project-buffer-mode")
 
 
 ;;
@@ -400,6 +407,10 @@ The function should follow the prototype:
   :type 'hook
   :group 'project-buffer)
 
+(defcustom project-buffer-post-load-hook nil
+  "Hook to run after performing `project-buffer-raw-load'.
+
+Register functions here to keep the customization after reloading the project.")
 
 
 ;;
@@ -1138,6 +1149,139 @@ Note: if no files are marked, the search will occur in all existing files of the
 	( - 0 (project-buffer-search-and-mark-files status regexp nil marked-flag)))))
 
 
+(defun project-buffer-raw-print-hooks(hook-symbol hook-list)
+  "Print a hooks block in the current buffer."
+  (print (list 'begin 'hook hook-symbol) (current-buffer))
+  (while hook-list
+    (let ((hook-item (pop hook-list)))
+      (print (cond ((booleanp hook-item)
+		    (list 'value hook-item))
+		   ((symbolp hook-item)
+		    (list 'symbol hook-item  (symbol-file hook-item)))
+		   ((functionp hook-item)
+		    (list 'value hook-item))
+		   (t (error "Unknown type found in the hook list.")))
+	     (current-buffer))))
+  (print (list 'end 'hook hook-symbol) (current-buffer)))
+
+
+(defun project-buffer-read-header(status data-buffer &optional set-buffer-name set-current-directory)
+  "Read the header of the saved file from the DATA-BUFFER."
+  (let ((header-data (read data-buffer)))
+    (unless (and header-data
+		 (listp header-data)
+		 (eq (car header-data) 'project-buffer-mode))
+      (error "Not in project-buffer save file"))
+    ;; The header list is: '(project-buffer-mode version buffer-name directory)
+    (when set-buffer-name
+      (rename-buffer (nth 2 header-data) t))
+    (when set-current-directory
+      (cd (nth 3 header-data)))
+    ;; Finally, let's return the version:
+    (nth 1 header-data)))
+
+
+(defun project-buffer-read-block-hook(status data-buffer block-header)
+  "Read a project-buffer-hook block; set the local hook and 
+attempt to load the definition file if a hook function isnt't bound."
+  ;; block-header should be: '(begin hook hook-symbol)
+  (unless (and (listp block-header)
+	       (eq (car block-header) 'begin)
+	       (eq (nth 1 block-header) 'hook)
+	       (= (length block-header) 3))
+    (error "Invalid block-header"))
+  (let ((hook-symbol (nth 2 block-header)))
+    (unless (symbolp hook-symbol)
+      (error "Invalid block-header"))
+    (if (and (boundp hook-symbol)
+	     (listp (eval hook-symbol)))
+	;; If the hook variable exists:
+	(let ((block-line (read data-buffer)))
+	  (while (and block-line
+		      (not (and  (listp block-line)
+				 (eq (car block-line) 'end)
+				 (eq (nth 1 block-line) 'hook)
+				 (eq (nth 2 block-line) hook-symbol))))
+	    (if (listp block-line)
+		(cond ((eq (car block-line) 'symbol)
+		       (let ((func (nth 1 block-line))
+			     (file (nth 2 block-line)))
+			 (add-hook hook-symbol func nil t)
+			 (when (and (not (fboundp func))
+				    (file-exist-p file)
+				    (file-readable-p file))
+			   (load-file file))))
+		      ((eq (car block-line) 'value)
+		       (add-hook hook-symbol (nth 1 block-line) nil t))
+		      (t (error "Unknown hook type: %s!" (car block-line))))
+		(error "Unknown hook line: %s" block-line))
+	    (setq block-line (read data-buffer))))
+	;; If the hook variable doesn't exist, we just skip the block:
+	(project-buffer-skip-block status data-buffer block-header))))
+
+
+(defun project-buffer-read-block-node-list(status data-buffer block-header)
+  "Read a project-buffer-node-list block; add each node to the
+project-buffer context."
+  ;; block-header should be: '(begin node-list)
+  (unless (and (listp block-header)
+	       (eq (car block-header) 'begin)
+	       (eq (nth 1 block-header) 'node-list))
+    (error "Invalid block-header"))
+  (let ((block-line (read data-buffer)))
+    (while (and block-line
+		(not (and  (listp block-line)
+			   (eq (car block-line) 'end)
+			   (eq (nth 1 block-line) block-type))))
+      (if (and (listp block-line)
+	       (= (length block-line) 6))
+	  (let ((name                      (nth 0 block-line))
+		(type                      (nth 1 block-line))
+		(filename                  (nth 2 block-line))
+		(project                   (nth 3 block-line))
+		(platform-list             (nth 4 block-line))
+		(build-configurations-list (nth 5 block-line)))
+	    (project-buffer-insert-node status
+					(project-buffer-create-node name type filename project))
+	    (when platform-list
+	      (project-buffer-set-project-platforms-data status project platform-list))
+	    (when build-configurations-list
+	      (project-buffer-set-project-build-configurations-data status project build-configurations-list)))
+	  (error "Unknown node-list line: %s" block-line))
+      (setq block-line (read data-buffer)))))
+
+
+(defun project-buffer-skip-block(status data-buffer block-header)
+  "Skip project-buffer block."
+  (unless (and (listp block-header)
+	       (eq (car block-header) 'begin))
+    (error "Invalid block-header"))
+  (let ((block-line (read data-buffer))
+	(block-type (nth 1 block-header)))
+    (while (and block-line
+		(not (and  (listp block-line)
+			   (eq (car block-line) 'end)
+			   (eq (nth 1 block-line) block-type)))) 
+      (setq block-line (read data-buffer)))))
+
+		      
+(defun project-buffer-read-block(status data-buffer)
+  "Read and parse the next block from the DATA-BUFFER."
+  (let ((block-header (read data-buffer)))
+    (when block-header
+      (when (and (listp block-header)
+		 (eq (car block-header) 'begin))
+	(cond ((eq (nth 1 block-header) 'hook)
+	       (project-buffer-read-block-hook status data-buffer block-header))
+	      ((eq (nth 1 block-header) 'node-list)
+	       (project-buffer-read-block-node-list status data-buffer block-header))
+	      (t 
+	       (project-buffer-skip-block status data-buffer block-header)))
+	)
+      t ;; carry on
+      )))
+
+
 ;;
 ;;  External functions:
 ;;
@@ -1227,6 +1371,68 @@ Each files/folder under the project will also be deleted."
   (project-buffer-set-project-build-configurations-data project-buffer-status
 							project
 							build-configuration-list))
+
+
+(defun project-buffer-raw-save(filename)
+  "Save the project data in FILENAME; the project can later be
+reloaded through `project-buffer-raw-load' function."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let* ((status             project-buffer-status)
+	 (node               (ewoc-nth status 0))
+	 (pbm-mode-hook      (and (local-variable-p 'project-buffer-mode-hook) project-buffer-mode-hook))
+	 (pbm-action-hook    (and (local-variable-p 'project-buffer-action-hook) project-buffer-action-hook))
+	 (pbm-post-load-hook (and (local-variable-p 'project-buffer-post-load-hook) project-buffer-post-load-hook)))
+    (with-temp-buffer
+      ;; First, let's write a quick header:
+      (print (list 'project-buffer-mode 
+		   project-buffer-mode-version
+		   (buffer-name)
+		   default-directory) (current-buffer))
+      ;; Save the hooks:
+      (when pbm-mode-hook
+	(project-buffer-raw-print-hooks 'project-buffer-mode-hook   pbm-mode-hook))
+      (when pbm-action-hook
+	(project-buffer-raw-print-hooks 'project-buffer-action-hook pbm-action-hook))
+      (when pbm-post-load-hook
+	(project-buffer-raw-print-hooks 'project-buffer-post-load-hook pbm-post-load-hook))
+      ;; Save each nodes:
+      (print (list 'begin 'node-list) (current-buffer))
+      (while node
+	(let ((data (ewoc-data node)))
+	  (unless (eq (project-buffer-node->type data) 'folder)
+	    (print (list (project-buffer-node->name data)
+			 (project-buffer-node->type data)
+			 (project-buffer-node->filename data)
+			 (project-buffer-node->project data)
+			 (project-buffer-node->platform-list data)
+			 (project-buffer-node->build-configurations-list data))
+		   (current-buffer))))
+	(setq node (ewoc-next status node)))
+      (print (list 'end 'node-list) (current-buffer))
+      ;; Finally: write the file.
+      (write-file filename))))
+
+
+(defun project-buffer-raw-load(filename)
+  "Load a project saved by `project-buffer-raw-data'.This function does not restore the mode and assume the
+project-buffer-mode to be set.  It doesn't clear the existing
+nodes either."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((project-buffer (current-buffer))
+	(status project-buffer-status))
+    (with-temp-buffer
+      (insert-file filename)
+      (goto-char (point-min))
+      (let ((data-buffer (current-buffer))
+	    data-version
+	    block-header)
+	(with-current-buffer project-buffer
+	  (setq data-version (project-buffer-read-header status data-buffer nil t))
+	  ;; The rest of the file is defined by blocks:
+	  (while (project-buffer-read-block status data-buffer))
+	  )))
+    (run-hooks 'project-buffer-post-load-hook)
+    ))
 
 
 ;;
