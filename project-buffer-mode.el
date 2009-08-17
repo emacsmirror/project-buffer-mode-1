@@ -459,6 +459,7 @@ FILE-BUFFER is the buffer of the file.")
 (defvar project-buffer-current-build-configuration nil)
 (defvar project-buffer-file-name nil)
 (defvar project-buffer-locals-to-save nil)
+(defvar project-buffer-hooks-to-save nil)
 
 
 
@@ -1274,6 +1275,7 @@ attempt to load the definition file if a hook function isnt't bound."
 	     (listp (eval hook-symbol)))
 	;; If the hook variable exists:
 	(let ((block-line (read data-buffer)))
+	  (add-to-list 'project-buffer-hooks-to-save hook-symbol)
 	  (while (and block-line
 		      (not (and  (listp block-line)
 				 (eq (car block-line) 'end)
@@ -1497,6 +1499,7 @@ Commands:
       (make-local-variable 'project-buffer-projects-list)
       (make-local-variable 'project-buffer-file-name)
       (make-local-variable 'project-buffer-locals-to-save)
+      (make-local-variable 'project-buffer-hooks-to-save)
 
       (setq project-buffer-status status)
       (setq project-buffer-view-mode 'folder-view)
@@ -1510,6 +1513,7 @@ Commands:
       (setq project-buffer-projects-list nil)
       (setq project-buffer-file-name nil)
       (setq project-buffer-locals-to-save '(project-buffer-view-mode project-buffer-current-platform project-buffer-current-build-configuration))
+      (setq project-buffer-hooks-to-save '(project-buffer-mode-hook project-buffer-action-hook project-buffer-post-load-hook project-buffer-post-find-file-hook))
 
       (project-buffer-refresh-ewoc-hf status)
 
@@ -1574,10 +1578,11 @@ reloaded through `project-buffer-raw-load' function."
 	 (buf-name                (buffer-name))
 	 (buf-dir                 default-directory)
 	 (project-buffer          (current-buffer))
+	 (hooks-list              (mapcar (lambda (item) (cons item (and (local-variable-p item) (eval item))))
+					  project-buffer-hooks-to-save))
 	 (locals-list             (remove nil
 				   (mapcar (lambda (item) (and (local-variable-p item) (cons item (eval item))))
-					   project-buffer-locals-to-save)))
-	 )
+					   project-buffer-locals-to-save))))
     (with-temp-buffer
       ;; First, let's write a quick header:
       (print (list 'project-buffer-mode 
@@ -1585,14 +1590,8 @@ reloaded through `project-buffer-raw-load' function."
 		   buf-name
 		   buf-dir) (current-buffer))
       ;; Save the hooks:
-      (when pbm-mode-hook
-	(project-buffer-raw-print-hooks 'project-buffer-mode-hook   pbm-mode-hook))
-      (when pbm-action-hook
-	(project-buffer-raw-print-hooks 'project-buffer-action-hook pbm-action-hook))
-      (when pbm-post-load-hook
-	(project-buffer-raw-print-hooks 'project-buffer-post-load-hook pbm-post-load-hook))
-      (when pbm-post-find-file-hook
-	(project-buffer-raw-print-hooks 'project-buffer-post-find-file-hook pbm-post-find-file-hook))
+      (mapcar (lambda (item) (when (cdr item) (project-buffer-raw-print-hooks (car item) (cdr item))))
+	      hooks-list)
       ;; Save the locals:
       (project-buffer-raw-print-locals locals-list) 
       ;; Save each nodes:
