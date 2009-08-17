@@ -1414,7 +1414,7 @@ reloaded through `project-buffer-raw-load' function."
       (write-file filename))))
 
 
-(defun project-buffer-raw-load(filename)
+(defun project-buffer-raw-load(filename &optional set-buffer-name)
   "Load a project saved by `project-buffer-raw-data'.This function does not restore the mode and assume the
 project-buffer-mode to be set.  It doesn't clear the existing
 nodes either."
@@ -1428,7 +1428,7 @@ nodes either."
 	    data-version
 	    block-header)
 	(with-current-buffer project-buffer
-	  (setq data-version (project-buffer-read-header status data-buffer nil t))
+	  (setq data-version (project-buffer-read-header status data-buffer set-buffer-name t))
 	  ;; The rest of the file is defined by blocks:
 	  (while (project-buffer-read-block status data-buffer))
 	  )))
