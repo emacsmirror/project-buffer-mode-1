@@ -276,6 +276,7 @@
 ;;        - Enable click on filename to open them.
 ;;        - Added global command to load/save/write/revert a project buffer.
 ;;        - Added new hook: `project-buffer-post-find-file-hook'.
+;;        - Added possibilty to attach user data to each nodes. 
 
 (require 'cl)
 (require 'ewoc)
