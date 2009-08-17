@@ -1150,6 +1150,20 @@ Note: if no files are marked, the search will occur in all existing files of the
 	( - 0 (project-buffer-search-and-mark-files status regexp nil marked-flag)))))
 
 
+(defun project-buffer-set-master-project(status project-name)
+  "Set PROJECT-NAME to be the new master project."
+  (let ((old-node (cdr project-buffer-master-project))
+	(cur-node (project-buffer-search-project-node status project-name)))
+    (when cur-node
+      ;; Let's replace the old node by the new one
+      (setq project-buffer-master-project (cons (project-buffer-node->name (ewoc-data cur-node)) cur-node))
+      ;; Force the refresh:
+      (ewoc-invalidate status old-node)
+      (ewoc-invalidate status cur-node)
+      (ewoc-goto-node status cur-node))))
+
+
+
 (defun project-buffer-raw-print-hooks(hook-symbol hook-list)
   "Print a hooks block in the current buffer."
   (print (list 'begin 'hook hook-symbol) (current-buffer))
@@ -1297,20 +1311,32 @@ variable."
       (setq block-line (read data-buffer)))))
 
 
+(defun project-buffer-read-line-master-project(status block-header)
+  "Read the project-buffer-master-project line."
+  (unless (and (listp block-header)
+	       (eq (car block-header) 'one-line)
+	       (eq (nth 1 block-header) 'master-project))
+    (error "Invalid block-header"))
+  (project-buffer-set-master-project status (nth 2 block-header)))
+
+
 (defun project-buffer-read-block(status data-buffer)
   "Read and parse the next block from the DATA-BUFFER."
   (let ((block-header (read data-buffer))
 	(goon t))
-    (if (and (listp block-header)
-	     (eq (car block-header) 'begin))
-	(cond ((eq (nth 1 block-header) 'hook)
-	       (project-buffer-read-block-hook status data-buffer block-header))
-	      ((eq (nth 1 block-header) 'node-list)
-	       (project-buffer-read-block-node-list status data-buffer block-header))
-	      ((eq (nth 1 block-header) 'locals)
-	       (project-buffer-read-block-locals status data-buffer block-header))
-	      (t 
-	       (project-buffer-skip-block status data-buffer block-header)))
+    (if (listp block-header)
+	(cond ((eq (car block-header) 'begin)
+	       (cond ((eq (nth 1 block-header) 'hook)
+		      (project-buffer-read-block-hook status data-buffer block-header))
+		     ((eq (nth 1 block-header) 'node-list)
+		      (project-buffer-read-block-node-list status data-buffer block-header))
+		     ((eq (nth 1 block-header) 'locals)
+		      (project-buffer-read-block-locals status data-buffer block-header))
+		     (t 
+		      (project-buffer-skip-block status data-buffer block-header))))
+	      ((eq (car block-header) 'one-line)
+	       (cond ((eq (nth 1 block-header) 'master-project)
+		      (project-buffer-read-line-master-project status block-header)))))
 	(setq goon (not (and (symbolp block-header) (eq block-header 'eof))))
       )
     goon) ;; carry on
@@ -1453,6 +1479,9 @@ reloaded through `project-buffer-raw-load' function."
 		   (current-buffer))))
 	(setq node (ewoc-next status node)))
       (print (list 'end 'node-list) (current-buffer))
+      ;; Save the master project:
+      (print (list 'one-line 'master-project (car (buffer-local-value 'project-buffer-master-project project-buffer))) 
+	     (current-buffer))
       ;; End of file:
       (print 'eof (current-buffer))
       ;; Finally: write the file.
@@ -2015,15 +2044,7 @@ If the cursor is on a file - nothing will be done."
 	(proj-name (completing-read "Enter the master project: " project-buffer-projects-list nil t)))
     (when (and proj-name
 	      (> (length proj-name) 0))
-      (let ((old-node (cdr project-buffer-master-project))
-	    (cur-node (project-buffer-search-project-node status proj-name)))
-	;; Let's replace the old node by the new one
-	(message "Results: %s %s" proj-name (project-buffer-node->name (ewoc-data cur-node)))
-	(setq project-buffer-master-project (cons (project-buffer-node->name (ewoc-data cur-node)) cur-node))
-	;; Force the refresh:
-	(ewoc-invalidate status old-node)
-	(ewoc-invalidate status cur-node)
-	(ewoc-goto-node status cur-node)))))
+      (project-buffer-set-master-project status proj-name))))
 
 
 (defun project-buffer-select-current-as-master-project ()
