@@ -1303,7 +1303,7 @@ Note: if no files are marked, the search will occur in all existing files of the
     (nth 1 header-data)))
 
 
-(defun project-buffer-read-block-hook(status data-buffer block-header)
+(defun project-buffer-read-block-hook(status data-buffer block-header run-mode-hooks)
   "Read a project-buffer-hook block; set the local hook and 
 attempt to load the definition file if a hook function isnt't bound."
   ;; block-header should be: '(begin hook hook-symbol)
@@ -1338,7 +1338,12 @@ attempt to load the definition file if a hook function isnt't bound."
 		       (add-hook hook-symbol (nth 1 block-line) nil t))
 		      (t (error "Unknown hook type: %s!" (car block-line))))
 		(error "Unknown hook line: %s" block-line))
-	    (setq block-line (read data-buffer))))
+	    (setq block-line (read data-buffer)))
+	  ;; Check if it's the mode-hook:
+	  (when (and run-mode-hooks
+		     (eq hook-symbol 'project-buffer-mode-hook))
+	    (run-hooks 'project-buffer-mode-hook))
+	  )
 	;; If the hook variable doesn't exist, we just skip the block:
 	(project-buffer-skip-block status data-buffer block-header))))
 
@@ -1425,14 +1430,14 @@ variable."
   (project-buffer-set-master-project status (nth 2 block-header)))
 
 
-(defun project-buffer-read-block(status data-buffer)
+(defun project-buffer-read-block(status data-buffer run-mode-hooks)
   "Read and parse the next block from the DATA-BUFFER."
   (let ((block-header (read data-buffer))
 	(goon t))
     (if (listp block-header)
 	(cond ((eq (car block-header) 'begin)
 	       (cond ((eq (nth 1 block-header) 'hook)
-		      (project-buffer-read-block-hook status data-buffer block-header))
+		      (project-buffer-read-block-hook status data-buffer block-header run-mode-hooks))
 		     ((eq (nth 1 block-header) 'node-list)
 		      (project-buffer-read-block-node-list status data-buffer block-header))
 		     ((eq (nth 1 block-header) 'locals)
@@ -1518,7 +1523,7 @@ variable."
 ;;
 
 
-(defun project-buffer-mode ()
+(defun project-buffer-mode (&optional skip-mode-hooks)
   "Major mode to view project.
 
 Commands:
@@ -1562,7 +1567,9 @@ Commands:
 
       (project-buffer-refresh-ewoc-hf status)
 
-      (run-hooks 'project-buffer-mode-hook))))
+      (unless skip-mode-hooks
+	(run-hooks 'project-buffer-mode-hook))
+      )))
 
 
 (defun project-buffer-insert (name type filename project)
@@ -1663,7 +1670,7 @@ reloaded through `project-buffer-raw-load' function."
       (write-file filename))))
 
 
-(defun project-buffer-raw-load(filename &optional set-buffer-name)
+(defun project-buffer-raw-load(filename &optional set-buffer-name run-mode-hooks)
   "Load a project saved by `project-buffer-raw-data'.This function does not restore the mode and assume the
 project-buffer-mode to be set.  It doesn't clear the existing
 nodes either."
@@ -1679,7 +1686,7 @@ nodes either."
 	(with-current-buffer project-buffer
 	  (setq data-version (project-buffer-read-header status data-buffer set-buffer-name t))
 	  ;; The rest of the file is defined by blocks:
-	  (while (project-buffer-read-block status data-buffer))
+	  (while (project-buffer-read-block status data-buffer run-mode-hooks))
 	  )))
     (run-hooks 'project-buffer-post-load-hook)
     ))
@@ -2439,8 +2446,8 @@ If the cursor is on a file - nothing will be done."
   (interactive "fFind project: ")
   (let ((new-buffer (generate-new-buffer "*project-temp*")))
     (with-current-buffer new-buffer
-      (project-buffer-mode)
-      (project-buffer-raw-load filename t)
+      (project-buffer-mode t)
+      (project-buffer-raw-load filename t t)
       (setq project-buffer-file-name filename))
     (switch-to-buffer new-buffer)))
 
