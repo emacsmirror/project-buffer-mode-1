@@ -261,7 +261,10 @@
 ;; 
 
 ;; v1.00: First public release.
-;; v1.10: Added load/save of projects and mouse support.
+;; v1.10: Added mouse support and save/load 
+;;        - Enable click on folder/project to expand/collapse them
+;;        - Enable click on filename to open them
+;;        - Added global command to load/save/write/revert a project buffer.
 
 (require 'cl)
 (require 'ewoc)
@@ -535,6 +538,24 @@ Register functions here to keep the customization after reloading the project.")
 ;;
 ;;  Internal Utility Functions:
 ;;
+
+
+(defun project-buffer-erase-all(status)
+  "Erase all nodes from the buffer."
+  (let ((node (ewoc-nth status 0)))
+    (while node
+      (project-buffer-delete-project-node status (project-buffer-node->name (ewoc-data node)) node)
+      (setq node (ewoc-nth status 0)))
+    (setq project-buffer-cache-project nil)
+    (setq project-buffer-cache-subdirectory nil)
+    (setq project-buffer-projects-list nil)
+    (setq project-buffer-master-project nil)
+    (setq project-buffer-platforms-list nil)
+    (setq project-buffer-current-platform nil)
+    (setq project-buffer-build-configurations-list nil)
+    (setq project-buffer-current-build-configuration nil)
+    (project-buffer-refresh-ewoc-hf status)
+    ))
 
 
 (defun project-buffer-mark-matching-file(status regexp)
@@ -2240,7 +2261,7 @@ If the cursor is on a file - nothing will be done."
     (switch-to-buffer new-buffer)))
 
 
-(defun project-buffer-save-file()
+(defun project-buffer-save-file ()
   "Save the content of the project-buffer-mode buffer into `project-buffer-file-name'.
 If `project-buffer-file-name' is nil; the command will request a file name."
   (interactive)
@@ -2248,6 +2269,16 @@ If `project-buffer-file-name' is nil; the command will request a file name."
   (if project-buffer-file-name
       (project-buffer-raw-save project-buffer-file-name)
       (call-interactively 'project-buffer-write-file)))
+
+
+(defun project-buffer-revert ()
+  "Revert the prvoject-buffer-mode buffer to match the content
+from `project-buffer-file-name'."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (unless project-buffer-file-name (error "No file-name attached to this project-buffer"))
+  (project-buffer-erase-all project-buffer-status)
+  (project-buffer-raw-load project-buffer-file-name))
 
 
 
