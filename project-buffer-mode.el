@@ -42,7 +42,7 @@
 ;; - advance 'search in files' system
 ;; - notion of master project to launch build/clean/run and debug.
 ;; - intuitive key bindings (at least I hope)
-
+;; - full save/load of a project including hooks and local configuration. 
 
 
 ;;; Commentary:
@@ -236,7 +236,8 @@
 ;; - `project-buffer-delete-project'           to remove a project and all it's file
 ;; - `project-buffer-set-project-platforms'    to set the platform configuration for a particular project
 ;; - `project-buffer-set-build-configurations' to set the build configurations for a particular project
-;;
+;; - `project-buffer-raw-save'                 to save a project into a file
+;; - `project-buffer-raw-load'                 to load a project from a file
 
 
 
