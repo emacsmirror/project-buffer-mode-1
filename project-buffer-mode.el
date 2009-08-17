@@ -247,7 +247,8 @@
 ;; - `project-buffer-get-project-user-data'    to get user data from a project node
 ;; - `project-buffer-set-file-user-data'       to set user data to a file node
 ;; - `project-buffer-get-file-user-data'       to get user data from a file node
-
+;;
+;; If you need to have some local variables to be saved; register them in `project-buffer-locals-to-save'.
 
 
 ;;; Todo:
@@ -457,6 +458,7 @@ FILE-BUFFER is the buffer of the file.")
 (defvar project-buffer-build-configurations-list nil)
 (defvar project-buffer-current-build-configuration nil)
 (defvar project-buffer-file-name nil)
+(defvar project-buffer-locals-to-save nil)
 
 
 
@@ -1346,7 +1348,8 @@ variable."
       (if (and (listp block-line)
 	       (symbolp (car block-line)))
 	  (when (local-variable-p (car block-line))
-	    (set (car block-line) (cdr block-line)))
+	    (set (car block-line) (cdr block-line))
+	    (add-to-list 'project-buffer-locals-to-save (car block-line)))
 	  (error "Unknown local line: %s" block-line))
       (setq block-line (read data-buffer)))))
 
@@ -1493,6 +1496,7 @@ Commands:
       (make-local-variable 'project-buffer-master-project)
       (make-local-variable 'project-buffer-projects-list)
       (make-local-variable 'project-buffer-file-name)
+      (make-local-variable 'project-buffer-locals-to-save)
 
       (setq project-buffer-status status)
       (setq project-buffer-view-mode 'folder-view)
@@ -1505,6 +1509,7 @@ Commands:
       (setq project-buffer-master-project nil)
       (setq project-buffer-projects-list nil)
       (setq project-buffer-file-name nil)
+      (setq project-buffer-locals-to-save '(project-buffer-view-mode project-buffer-current-platform project-buffer-current-build-configuration))
 
       (project-buffer-refresh-ewoc-hf status)
 
@@ -1568,7 +1573,11 @@ reloaded through `project-buffer-raw-load' function."
 	 (pbm-post-find-file-hook (and (local-variable-p 'project-buffer-post-find-file-hook) project-buffer-post-find-file-hook))
 	 (buf-name                (buffer-name))
 	 (buf-dir                 default-directory)
-	 (project-buffer          (current-buffer)))
+	 (project-buffer          (current-buffer))
+	 (locals-list             (remove nil
+				   (mapcar (lambda (item) (and (local-variable-p item) (cons item (eval item))))
+					   project-buffer-locals-to-save)))
+	 )
     (with-temp-buffer
       ;; First, let's write a quick header:
       (print (list 'project-buffer-mode 
@@ -1585,11 +1594,7 @@ reloaded through `project-buffer-raw-load' function."
       (when pbm-post-find-file-hook
 	(project-buffer-raw-print-hooks 'project-buffer-post-find-file-hook pbm-post-find-file-hook))
       ;; Save the locals:
-      (project-buffer-raw-print-locals 
-       (list (cons 'project-buffer-view-mode			 (buffer-local-value 'project-buffer-view-mode                   project-buffer))
-	     ;(cons 'project-buffer-master-project		 (buffer-local-value 'project-buffer-master-project		 project-buffer))
-	     (cons 'project-buffer-current-platform		 (buffer-local-value 'project-buffer-current-platform		 project-buffer))
-	     (cons 'project-buffer-current-build-configuration   (buffer-local-value 'project-buffer-current-build-configuration project-buffer))))
+      (project-buffer-raw-print-locals locals-list) 
       ;; Save each nodes:
       (print (list 'begin 'node-list) (current-buffer))
       (while node
