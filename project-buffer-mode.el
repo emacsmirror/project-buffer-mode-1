@@ -249,6 +249,7 @@
 ;; - `project-buffer-get-file-user-data'       to get user data from a file node
 ;;
 ;; If you need to have some local variables to be saved; register them in `project-buffer-locals-to-save'.
+;; The same way, if there is need to save extra hooks: register them in `project-buffer-hooks-to-save'.
 
 
 ;;; Todo:
