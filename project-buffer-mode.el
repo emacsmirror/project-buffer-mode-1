@@ -523,8 +523,12 @@ Register functions here to keep the customization after reloading the project.")
     (define-key project-buffer-mode-map [?D] 'project-buffer-perform-debug-action)
     (define-key project-buffer-mode-map [?s] 'project-buffer-mark-files-containing-regexp)
 
-    project-buffer-mode-map))
+    (define-key project-buffer-mode-map [?1] 'project-buffer-set-folder-view-mode)
+    (define-key project-buffer-mode-map [?2] 'project-buffer-set-flat-view-mode)
+    (define-key project-buffer-mode-map [?3] 'project-buffer-set-folder-hidden-view-mode)
+    (define-key project-buffer-mode-map [?4] 'project-buffer-set-marked-view-mode)
 
+    project-buffer-mode-map))
 
 
 ;;
@@ -1343,6 +1347,17 @@ variable."
   )
 
 
+(defun project-buffer-set-view-mode(status view-mode)
+  "Set the view mode to VIEW-MODE."
+  (unless (eq project-buffer-view-mode view-mode)
+    (let ((node (ewoc-locate project-buffer-status)))
+      (setq project-buffer-view-mode view-mode)
+      (message "View mode set to: %s" project-buffer-view-mode)
+      (project-buffer-refresh-all-items status)
+      (project-buffer-refresh-ewoc-hf status)
+      (ewoc-goto-node status node))))
+
+
 ;;
 ;;  External functions:
 ;;
@@ -1943,6 +1958,32 @@ If the cursor is on a file - nothing will be done."
 		    (setq skip-under (project-buffer-node->name node-data))))
 	      (setq node (ewoc-next status node)))
 	    (setq node nil))))))
+    
+
+(defun project-buffer-set-folder-view-mode()
+  "Set the view mode to folder-view."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (project-buffer-set-view-mode project-buffer-status 'folder-view))
+
+(defun project-buffer-set-flat-view-mode()
+  "Set the view mode to flat-view."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (project-buffer-set-view-mode project-buffer-status 'flat-view))
+
+(defun project-buffer-set-folder-hidden-view-mode()
+  "Set the view mode to folder-hidden-view."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (project-buffer-set-view-mode project-buffer-status 'folder-hidden-view))
+
+
+(defun project-buffer-set-marked-view-mode()
+  "Set the view mode to marked-view."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (project-buffer-set-view-mode project-buffer-status 'marked-view))
 
 
 (defun project-buffer-toggle-view-mode ()
