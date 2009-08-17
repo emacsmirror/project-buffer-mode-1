@@ -429,6 +429,7 @@ Register functions here to keep the customization after reloading the project.")
 (defvar project-buffer-current-platform nil)
 (defvar project-buffer-build-configurations-list nil)
 (defvar project-buffer-current-build-configuration nil)
+(defvar project-buffer-file-name nil)
 
 
 
@@ -1387,6 +1388,7 @@ Commands:
       (make-local-variable 'project-buffer-current-build-configuration)
       (make-local-variable 'project-buffer-master-project)
       (make-local-variable 'project-buffer-projects-list)
+      (make-local-variable 'project-buffer-file-name)
 
       (setq project-buffer-status status)
       (setq project-buffer-view-mode 'folder-view)
@@ -1398,6 +1400,7 @@ Commands:
       (setq project-buffer-current-build-configuration nil)
       (setq project-buffer-master-project nil)
       (setq project-buffer-projects-list nil)
+      (setq project-buffer-file-name nil)
 
       (project-buffer-refresh-ewoc-hf status)
 
@@ -2211,7 +2214,41 @@ If the cursor is on a file - nothing will be done."
 	 (node-data (ewoc-data node)))
     (when (eq (project-buffer-node->type node-data) 'file)
       (view-file (project-buffer-node->filename node-data)))))
-      
+  
+    
+;;
+;;  Global command:
+;;
+
+
+(defun project-buffer-write-file (filename)
+  "Save the content of project-buffer-mode buffer to FILENAME,"
+  (interactive "FSave project to file: ")
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (project-buffer-raw-save filename)
+  (setq project-buffer-file-name filename))
+
+
+(defun project-buffer-find-file (filename)
+  "Create a project-buffer-mode buffer based on the content of FILENAME."
+  (interactive "fFind project: ")
+  (let ((new-buffer (generate-new-buffer "*project-temp*")))
+    (with-current-buffer new-buffer
+      (project-buffer-mode)
+      (project-buffer-raw-load filename t)
+      (setq project-buffer-file-name filename))
+    (switch-to-buffer new-buffer)))
+
+
+(defun project-buffer-save-file()
+  "Save the content of the project-buffer-mode buffer into `project-buffer-file-name'.
+If `project-buffer-file-name' is nil; the command will request a file name."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (if project-buffer-file-name
+      (project-buffer-raw-save project-buffer-file-name)
+      (call-interactively 'project-buffer-write-file)))
+
 
 
 ;;
