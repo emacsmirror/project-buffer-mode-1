@@ -261,10 +261,11 @@
 ;; 
 
 ;; v1.00: First public release.
-;; v1.10: Added mouse support and save/load 
-;;        - Enable click on folder/project to expand/collapse them
-;;        - Enable click on filename to open them
+;; v1.10: Added mouse support and save/load.
+;;        - Enable click on folder/project to expand/collapse them.
+;;        - Enable click on filename to open them.
 ;;        - Added global command to load/save/write/revert a project buffer.
+;;        - Added new hook: `project-buffer-post-find-file-hook'.
 
 (require 'cl)
 (require 'ewoc)
@@ -397,6 +398,7 @@ no files got marked/unmarked)."
   :type 'hook
   :group 'project-buffer)
 
+
 (defcustom project-buffer-action-hook nil
   "Hook to perform the actions (build, clean, run...)
 
@@ -411,10 +413,21 @@ The function should follow the prototype:
   :type 'hook
   :group 'project-buffer)
 
+
 (defcustom project-buffer-post-load-hook nil
   "Hook to run after performing `project-buffer-raw-load'.
 
 Register functions here to keep the customization after reloading the project.")
+
+
+(defcustom project-buffer-post-find-file-hook nil
+  "Hook to run after performing `project-buffer-find-file' or
+`project-buffer-find-file-other-window'.
+
+The function should follow the prototype:
+  (lambda (project-buffer file-buffer)) 
+Where PROJECT-BUFFER is the buffer of the project, and
+FILE-BUFFER is the buffer of the file.")
 
 
 ;;
@@ -1477,14 +1490,15 @@ Each files/folder under the project will also be deleted."
   "Save the project data in FILENAME; the project can later be
 reloaded through `project-buffer-raw-load' function."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (let* ((status             project-buffer-status)
-	 (node               (ewoc-nth status 0))
-	 (pbm-mode-hook      (and (local-variable-p 'project-buffer-mode-hook) project-buffer-mode-hook))
-	 (pbm-action-hook    (and (local-variable-p 'project-buffer-action-hook) project-buffer-action-hook))
-	 (pbm-post-load-hook (and (local-variable-p 'project-buffer-post-load-hook) project-buffer-post-load-hook))
-	 (buf-name           (buffer-name))
-	 (buf-dir            default-directory)
-	 (project-buffer     (current-buffer)))
+  (let* ((status                  project-buffer-status)
+	 (node                    (ewoc-nth status 0))
+	 (pbm-mode-hook           (and (local-variable-p 'project-buffer-mode-hook) project-buffer-mode-hook))
+	 (pbm-action-hook         (and (local-variable-p 'project-buffer-action-hook) project-buffer-action-hook))
+	 (pbm-post-load-hook      (and (local-variable-p 'project-buffer-post-load-hook) project-buffer-post-load-hook))
+	 (pbm-post-find-file-hook (and (local-variable-p 'project-buffer-post-find-file-hook) project-buffer-post-find-file-hook))
+	 (buf-name                (buffer-name))
+	 (buf-dir                 default-directory)
+	 (project-buffer          (current-buffer)))
     (with-temp-buffer
       ;; First, let's write a quick header:
       (print (list 'project-buffer-mode 
@@ -1498,6 +1512,8 @@ reloaded through `project-buffer-raw-load' function."
 	(project-buffer-raw-print-hooks 'project-buffer-action-hook pbm-action-hook))
       (when pbm-post-load-hook
 	(project-buffer-raw-print-hooks 'project-buffer-post-load-hook pbm-post-load-hook))
+      (when pbm-post-find-file-hook
+	(project-buffer-raw-print-hooks 'project-buffer-post-find-file-hook pbm-post-find-file-hook))
       ;; Save the locals:
       (project-buffer-raw-print-locals 
        (list (cons 'project-buffer-view-mode			 (buffer-local-value 'project-buffer-view-mode                   project-buffer))
@@ -1783,26 +1799,30 @@ If the cursor is on a project, go to next project."
 
 
 (defun project-buffer-find-file ()
-  "Open the file that the cursor is on."
+  "Find the file the cursor is on."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((node (ewoc-locate project-buffer-status))
-	 (node-data (ewoc-data node)))
+	 (node-data (ewoc-data node))
+	 (project-buffer (current-buffer)))
     (project-buffer-clear-matched-mark project-buffer-status)
     (if (eq (project-buffer-node->type node-data) 'file)
-	(find-file (project-buffer-node->filename node-data))
+	(let ((file-buffer (find-file (project-buffer-node->filename node-data))))
+	  (run-hook-with-args 'project-buffer-post-find-file-hook project-buffer file-buffer))
 	(project-buffer-toggle-expand-collapse))))
 
 
 (defun project-buffer-find-file-other-window ()
-  "Open the file that the cursor is on in another window."
+  "Find the file the cursor is on in another window."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((node (ewoc-locate project-buffer-status))
-	 (node-data (ewoc-data node)))
+	 (node-data (ewoc-data node))
+	 (project-buffer (current-buffer)))
     (project-buffer-clear-matched-mark project-buffer-status)
     (if (eq (project-buffer-node->type node-data) 'file)
-	(find-file-other-window (project-buffer-node->filename node-data))
+	(let ((file-buffer (find-file-other-window (project-buffer-node->filename node-data))))
+	  (run-hook-with-args 'project-buffer-post-find-file-hook project-buffer file-buffer))
 	(project-buffer-toggle-expand-collapse))))
 
 
