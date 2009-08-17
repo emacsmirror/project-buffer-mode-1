@@ -1972,7 +1972,7 @@ If the cursor is on a project, go to next project."
     (save-excursion
       (goto-char (posn-point (event-end event)))
       (if (get-text-property (point) 'mouse-face)
-	  (project-buffer-find-file-other-window)))))
+	  (project-buffer-node-find-file-other-window)))))
 
   
 (defun project-buffer-node-find-file-other-window ()
@@ -2433,6 +2433,7 @@ If the cursor is on a file - nothing will be done."
   (setq project-buffer-file-name filename))
 
 
+;;;###autoload
 (defun project-buffer-find-file (filename)
   "Create a project-buffer-mode buffer based on the content of FILENAME."
   (interactive "fFind project: ")
