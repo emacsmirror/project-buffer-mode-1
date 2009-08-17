@@ -1349,9 +1349,10 @@ variable."
 			   (eq (nth 1 block-line) 'locals))))
       (if (and (listp block-line)
 	       (symbolp (car block-line)))
-	  (when (local-variable-p (car block-line))
-	    (set (car block-line) (cdr block-line))
-	    (add-to-list 'project-buffer-locals-to-save (car block-line)))
+	  (progn (unless (local-variable-p (car block-line))
+		   (make-local-variable (car block-line)))
+		 (set (car block-line) (cdr block-line))
+		 (add-to-list 'project-buffer-locals-to-save (car block-line)))
 	  (error "Unknown local line: %s" block-line))
       (setq block-line (read data-buffer)))))
 
