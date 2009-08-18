@@ -1,7 +1,7 @@
 ;;; project-buffer-mode.el --- Generic mode to browse project file
 ;;
 ;; Author:      Cedric Lallain <kandjar76@hotmail.com>
-;; Version:     1.0
+;; Version:     1.10
 ;; Keywords:    project mode buffer viewer generic
 ;; Description: Generic mode to handle projects.
 ;; Tested with: GNU Emacs 22.x and GNU Emacs 23.x
@@ -42,7 +42,7 @@
 ;; - advance 'search in files' system
 ;; - notion of master project to launch build/clean/run and debug.
 ;; - intuitive key bindings (at least I hope)
-;; - full save/load of a project including hooks and local configuration. 
+;; - full save/load of a project including hooks and local configuration.
 
 
 ;;; Commentary:
@@ -95,7 +95,7 @@
 ;; 
 ;; Files can be marked/unmarked individually, but you can also easily
 ;; mark all files whose names are matching a regular expression ('/'
-;; then 'm'). 
+;; then 'm').
 ;; Note: using the mark/unmark command in front of a folder of a
 ;; project results in marking every files which belong to this folder
 ;; or this project.
@@ -109,7 +109,7 @@
 ;; - Current project
 ;; 
 ;; Before talking about the "Narrow the marked files" behavior which
-;; is the default one; let's quickly go throught the others two: 
+;; is the default one; let's quickly go throught the others two:
 ;;
 ;; - If the search behavior is set to "All files", the search-in-files
 ;; command ('s') will do a search-regexp in files for each unmarked
@@ -136,7 +136,7 @@
 ;; (pressing 'c s')
 ;;
 ;; Note: in case a search-in-files mark or unmark some files; the view
-;; mode will automatically be switched to marked-view. This behavior
+;; mode will automatically be switched to marked-view.  This behavior
 ;; can be disabled.
 ;;
 ;;
@@ -277,7 +277,7 @@
 ;;        - Enable click on filename to open them.
 ;;        - Added global command to load/save/write/revert a project buffer.
 ;;        - Added new hook: `project-buffer-post-find-file-hook'.
-;;        - Added possibilty to attach user data to each nodes. 
+;;        - Added possibilty to attach user data to each nodes.
 
 (require 'cl)
 (require 'ewoc)
@@ -303,7 +303,7 @@
 ;;
 
 (defconst project-buffer-mode-version "1.10"
-  "Version numbers of this version of project-buffer-mode")
+  "Version numbers of this version of project-buffer-mode.")
 
 
 ;;
@@ -437,7 +437,7 @@ Register functions here to keep the customization after reloading the project.")
 `project-buffer-find-file-other-window'.
 
 The function should follow the prototype:
-  (lambda (project-buffer file-buffer)) 
+  (lambda (project-buffer file-buffer))
 Where PROJECT-BUFFER is the buffer of the project, and
 FILE-BUFFER is the buffer of the file.")
 
@@ -639,20 +639,20 @@ FILE-BUFFER is the buffer of the file.")
 	 (file-color  (if (project-buffer-node->matched node-data) 'project-buffer-matching-file-face 'project-buffer-file-face))
 	 (node-color  (if (eq (project-buffer-node->type node-data) 'file) file-color 'project-buffer-folder-face))
 	 (file-help   (concat "mouse-1: find file other window: " (project-buffer-node->filename node-data)))
-	 (folder-help (concat "mouse-1: " 
-			      (if (project-buffer-node->collapsed node-data) "expand" "collapse") 
+	 (folder-help (concat "mouse-1: "
+			      (if (project-buffer-node->collapsed node-data) "expand" "collapse")
 			      " folder " node-name ".")))
     (cond ((eq project-buffer-view-mode 'flat-view)
 	   (concat (propertize " `- " 'face 'project-buffer-indent-face)
 		   (and (file-name-directory node-name)
 			(propertize (file-name-directory node-name) 'face 'project-buffer-folder-face))
-		   (propertize (file-name-nondirectory node-name) 
+		   (propertize (file-name-nondirectory node-name)
 			       'face file-color
 			       'mouse-face 'highlight
 			       'help-echo file-help)))
 	  ((eq project-buffer-view-mode 'folder-hidden-view)
 	   (concat (propertize " `- " 'face 'project-buffer-indent-face)
-		   (propertize (file-name-nondirectory node-name) 
+		   (propertize (file-name-nondirectory node-name)
 			       'face file-color
 			       'mouse-face 'highlight
 			       'help-echo file-help)))
@@ -660,7 +660,7 @@ FILE-BUFFER is the buffer of the file.")
 	   (let ((dir-list (split-string node-name "/"))
 		 (str (if (eq (project-buffer-node->type node-data) 'file)
 			  " `- "
-			  (concat " `" 
+			  (concat " `"
 				  (propertize (if (project-buffer-node->collapsed node-data) "+" "-")
 					      'mouse-face 'highlight
 					      'help-echo folder-help)
@@ -671,11 +671,11 @@ FILE-BUFFER is the buffer of the file.")
 		     cur (1+ cur)))
 	     (concat (propertize str 'face 'project-buffer-indent-face)
 		     (if (eq (project-buffer-node->type node-data) 'file)
-			 (propertize (file-name-nondirectory node-name) 
+			 (propertize (file-name-nondirectory node-name)
 				     'face node-color
 				     'mouse-face 'highlight
 				     'help-echo file-help)
-			 (propertize (file-name-nondirectory node-name) 
+			 (propertize (file-name-nondirectory node-name)
 				     'face node-color
 				     'mouse-face 'highlight
 				     'help-echo folder-help))
@@ -684,7 +684,7 @@ FILE-BUFFER is the buffer of the file.")
 	   (concat (propertize " - " 'face 'project-buffer-indent-face)
 		   (and (file-name-directory node-name)
 			(propertize (file-name-directory node-name) 'face 'project-buffer-folder-face))
-		   (propertize (file-name-nondirectory node-name) 
+		   (propertize (file-name-nondirectory node-name)
 			       'face file-color
 			       'mouse-face 'highlight
 			       'help-echo file-help
@@ -702,7 +702,7 @@ FILE-BUFFER is the buffer of the file.")
 	(node-matching (project-buffer-node->matched node))
 	(node-prjcol   (project-buffer-node->project-collapsed node))
 	(node-project  (project-buffer-node->project node))
-	(project-help  (concat "mouse-1: " 
+	(project-help  (concat "mouse-1: "
 			       (if (project-buffer-node->collapsed node) "expand" "collapse")
 			       " project "
 			       (project-buffer-node->name node))))
@@ -731,17 +731,17 @@ FILE-BUFFER is the buffer of the file.")
 			  (if node-marked (propertize "*" 'face 'project-buffer-mark-face)" ")
 			  " "
 			  (cond ((not (eq node-type 'project)) "   ")
-				(node-collapsed                (propertize "[+]" 
+				(node-collapsed                (propertize "[+]"
 									   'face 'project-buffer-project-button-face
 									   'mouse-face 'highlight
 									   'help-echo project-help))
-				(t                             (propertize "[-]" 
+				(t                             (propertize "[-]"
 									   'face 'project-buffer-project-button-face
 									   'mouse-face 'highlight
 									   'help-echo project-help)))
 			  " "
 			  (or (and (eq node-type 'project)
-				   (propertize node-name 
+				   (propertize node-name
 					       'face (or (and project-buffer-master-project
 							      (string= node-name (car project-buffer-master-project))
 							      'project-buffer-master-project-face)
@@ -1274,7 +1274,7 @@ Note: if no files are marked, the search will occur in all existing files of the
 		    (list 'symbol hook-item  (symbol-file hook-item)))
 		   ((functionp hook-item)
 		    (list 'value hook-item))
-		   (t (error "Unknown type found in the hook list.")))
+		   (t (error "Unknown type found in the hook list")))
 	     (current-buffer))))
   (print (list 'end 'hook hook-symbol) (current-buffer)))
 
@@ -1304,7 +1304,7 @@ Note: if no files are marked, the search will occur in all existing files of the
 
 
 (defun project-buffer-read-block-hook(status data-buffer block-header run-mode-hooks)
-  "Read a project-buffer-hook block; set the local hook and 
+  "Read a project-buffer-hook block; set the local hook and
 attempt to load the definition file if a hook function isnt't bound."
   ;; block-header should be: '(begin hook hook-symbol)
   (unless (and (listp block-header)
@@ -1417,7 +1417,7 @@ variable."
     (while (and block-line
 		(not (and  (listp block-line)
 			   (eq (car block-line) 'end)
-			   (eq (nth 1 block-line) block-type)))) 
+			   (eq (nth 1 block-line) block-type))))
       (setq block-line (read data-buffer)))))
 
 
@@ -1442,7 +1442,7 @@ variable."
 		      (project-buffer-read-block-node-list status data-buffer block-header))
 		     ((eq (nth 1 block-header) 'locals)
 		      (project-buffer-read-block-locals status data-buffer block-header))
-		     (t 
+		     (t
 		      (project-buffer-skip-block status data-buffer block-header))))
 	      ((eq (car block-header) 'one-line)
 	       (cond ((eq (nth 1 block-header) 'master-project)
@@ -1637,7 +1637,7 @@ reloaded through `project-buffer-raw-load' function."
 					   project-buffer-locals-to-save))))
     (with-temp-buffer
       ;; First, let's write a quick header:
-      (print (list 'project-buffer-mode 
+      (print (list 'project-buffer-mode
 		   project-buffer-mode-version
 		   buf-name
 		   buf-dir) (current-buffer))
@@ -1645,7 +1645,7 @@ reloaded through `project-buffer-raw-load' function."
       (mapcar (lambda (item) (when (cdr item) (project-buffer-raw-print-hooks (car item) (cdr item))))
 	      hooks-list)
       ;; Save the locals:
-      (project-buffer-raw-print-locals locals-list) 
+      (project-buffer-raw-print-locals locals-list)
       ;; Save each nodes:
       (print (list 'begin 'node-list) (current-buffer))
       (while node
@@ -1662,7 +1662,7 @@ reloaded through `project-buffer-raw-load' function."
 	(setq node (ewoc-next status node)))
       (print (list 'end 'node-list) (current-buffer))
       ;; Save the master project:
-      (print (list 'one-line 'master-project (car (buffer-local-value 'project-buffer-master-project project-buffer))) 
+      (print (list 'one-line 'master-project (car (buffer-local-value 'project-buffer-master-project project-buffer)))
 	     (current-buffer))
       ;; End of file:
       (print 'eof (current-buffer))
@@ -2003,7 +2003,7 @@ If the cursor is on a project, go to next project."
   (let* ((node (ewoc-locate project-buffer-status))
 	 (node-data (ewoc-data node))
 	 (status project-buffer-status))
-    (cond 
+    (cond
      ;; Mark the current file:
      ((eq (project-buffer-node->type node-data) 'file)
       (setf (project-buffer-node->marked node-data) t)
@@ -2027,7 +2027,7 @@ If the cursor is on a project, go to next project."
 	(save-excursion
 	  (setq node      (ewoc-next status node)
 		node-data (and node (ewoc-data node)))
-	  (while (and node 
+	  (while (and node
 		      (not (eq (project-buffer-node->type node-data) 'project))
 		      (project-buffer-parent-of-p (project-buffer-node->name node-data) folder))
 	    (when (eq (project-buffer-node->type node-data) 'file)
@@ -2045,7 +2045,7 @@ If the cursor is on a project, go to next project."
   (let* ((node (ewoc-locate project-buffer-status))
 	 (node-data (ewoc-data node))
 	 (status project-buffer-status))
-    (cond 
+    (cond
      ;; Mark the current file:
      ((eq (project-buffer-node->type node-data) 'file)
       (setf (project-buffer-node->marked node-data) nil)
@@ -2070,7 +2070,7 @@ If the cursor is on a project, go to next project."
 	(save-excursion
 	  (setq node      (ewoc-next status node)
 		node-data (and node (ewoc-data node)))
-	  (while (and node 
+	  (while (and node
 		      (not (eq (project-buffer-node->type node-data) 'project))
 		      (project-buffer-parent-of-p (project-buffer-node->name node-data) folder))
 	    (when (eq (project-buffer-node->type node-data) 'file)
@@ -2433,7 +2433,7 @@ If the cursor is on a file - nothing will be done."
 
 
 (defun project-buffer-write-file (filename)
-  "Save the content of project-buffer-mode buffer to FILENAME,"
+  "Save the content of project-buffer-mode buffer to FILENAME."
   (interactive "FSave project to file: ")
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (project-buffer-raw-save filename)
@@ -2453,8 +2453,9 @@ If the cursor is on a file - nothing will be done."
 
 
 (defun project-buffer-save-file ()
-  "Save the content of the project-buffer-mode buffer into `project-buffer-file-name'.
-If `project-buffer-file-name' is nil; the command will request a file name."
+  "Save the content of the project-buffer-mode buffer into
+`project-buffer-file-name'.  If `project-buffer-file-name' is
+nil; the command will request a file name."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (if project-buffer-file-name
