@@ -1,7 +1,7 @@
 ;;; project-buffer-mode.el --- Generic mode to browse project file
 ;;
 ;; Author:      Cedric Lallain <kandjar76@hotmail.com>
-;; Version:     1.10
+;; Version:     1.11
 ;; Keywords:    project mode buffer viewer generic
 ;; Description: Generic mode to handle projects.
 ;; Tested with: GNU Emacs 22.x and GNU Emacs 23.x
@@ -278,6 +278,7 @@
 ;;        - Added global command to load/save/write/revert a project buffer.
 ;;        - Added new hook: `project-buffer-post-find-file-hook'.
 ;;        - Added possibilty to attach user data to each nodes.
+;; v1.11: Some Bugs fixed
 
 (require 'cl)
 (require 'ewoc)
@@ -818,7 +819,8 @@ This may change depending on the view mode."
       (let ((parent (project-buffer-node->parent (ewoc-data node))))
 	(when parent
 	  (while (not (eq (project-buffer-node->type (ewoc-data parent)) 'project))
-	    (setq parent (project-buffer-node->parent (ewoc-data parent))))))))
+	    (setq parent (project-buffer-node->parent (ewoc-data parent))))
+	  parent))))
 
 
 (defun project-buffer-search-project-node(status project-name)
@@ -985,6 +987,7 @@ This may change depending on the view mode."
 		 (unless project-buffer-master-project
 		   (setq project-buffer-master-project (cons name-data nil)))) ; to prevent blinking
 	  (progn (setf (project-buffer-node->hidden data) t)
+		 (setf (project-buffer-node->project-collapsed data) (project-buffer-node->project-collapsed (ewoc-data (project-buffer-node->parent data))))
 		 (unless proj-root-node
 		   (error "Project '%s' not found" proj-data))))
 
