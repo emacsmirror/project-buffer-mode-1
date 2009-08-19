@@ -1155,7 +1155,7 @@ Empty folder node will also be cleared up."
 
 (defun project-buffer-delete-folder-node(status fold-name project)
   "Delete the folder FOLD-NAME from PROJECT and all it's files."
-  (let* ((folder-node (project-buffer-search-file-node status fold-name project))
+  (let* ((folder-node (project-buffer-search-node status fold-name project))
 	 (folder (and folder-node (project-buffer-node->name (ewoc-data folder-node)))))
     (when folder
       (let ((parent-node (project-buffer-node->parent (ewoc-data folder-node)))
@@ -1525,7 +1525,7 @@ variable."
       (ewoc-goto-node status node))))
 
 
-(defun project-buffer-search-file-node(status name project)
+(defun project-buffer-search-node(status name project)
   "Search a node named NAME which belongs to PROJECT."
   (let ((node           (ewoc-nth status 0))
 	(folder-data    (project-buffer-extract-folder name 'file))
@@ -1762,7 +1762,7 @@ nodes either."
 (defun project-buffer-set-file-user-data (name project user-data)
   "Attach user data to a node named NAME in the project PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (let ((node (project-buffer-search-file-node project-buffer-status name project)))
+  (let ((node (project-buffer-search-node project-buffer-status name project)))
     (when node
       (setf (project-buffer-node->user-data (ewoc-data node)) user-data))))
 
@@ -1778,7 +1778,7 @@ nodes either."
 (defun project-buffer-get-file-user-data (name project)
   "Retrieve user data to a node named NAME in the project PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (let ((node (project-buffer-search-file-node project-buffer-status name project)))
+  (let ((node (project-buffer-search-node project-buffer-status name project)))
     (when node
       (project-buffer-node->user-data (ewoc-data node)))))
 
@@ -1816,7 +1816,7 @@ If non-nil the return value is a list containing:
 (defun project-buffer-exists-p (name project)
   "Return true if a node NAME exists in PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (let ((node (project-buffer-search-file-node project-buffer-status name project)))
+  (let ((node (project-buffer-search-node project-buffer-status name project)))
     (and node t)))
 
 
@@ -1830,7 +1830,7 @@ If non-nil the return value is a list containing:
 (defun project-buffer-get-file-path (name project)
   "Retrieve the path of the file NAME in PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (let ((node (project-buffer-search-file-node project-buffer-status name project)))
+  (let ((node (project-buffer-search-node project-buffer-status name project)))
     (when node
       (project-buffer-node->filename (ewoc-data node)))))
 
