@@ -298,12 +298,21 @@ FILE-FILTER will be added to the project."
 			 default-directory)))
 	(while (or (not project-root-folder)
 		   (= (length project-root-folder) 0))
-	  (setq project-root-folder (read-directory-name "Project Root Folder: " def-dir def-dir t)))))
+	  (setq project-root-folder (read-directory-name "File Search - Root Folder: " def-dir def-dir t)))
+	(unless (string-equal (substring project-root-folder -1) "/")
+	  (setq project-root-folder (concat project-root-folder "/")))
+	))
     ;; Read the project name:
     (unless project-name
-      (setq project-name (read-from-minibuffer "Project Name: "
-					       (file-name-nondirectory (substring project-root-folder 0 -1))
-					       nil nil 'fsprojectp-project-name-history)))
+      (while (not project-name)
+	(setq project-name (read-from-minibuffer "Project Name: "
+						 (file-name-nondirectory (substring project-root-folder 0 -1))
+						 nil nil 'fsprojectp-project-name-history))
+	(when (project-buffer-project-exists-p project-name)
+	  (message "Project %s already exists!" project-name)
+	  (sit-for 2)
+	  (setq project-name nil))
+	))
     ;; Read the file-filter:
     (unless file-filter
       (setq file-filter (fsprojectp-choose-file-filter)))
@@ -338,12 +347,84 @@ FILE-FILTER will be added to the project."
 		     (proj-name     (substring name (length (expand-file-name project-root-folder)) (length name))))
 		(project-buffer-insert proj-name 'file  file-name project-name)))
 	    file-list)
+    ;; Add the project's main file to the project:
+    (when project-main-file
+      (project-buffer-insert (file-name-nondirectory project-main-file) 'file  project-main-file project-name))
   ))
+
+(defun fsprojectp-add-files-to-current-project(&optional root-folder file-filter)
+  "Add extra files to the current project."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((current-project (project-buffer-get-current-project-name)))
+    (unless current-project (error "No current project found."))
+    (when (interactive-p)
+      ;; Read the root-folder:
+      (unless root-folder
+	(while (or (not root-folder)
+		   (= (length root-folder) 0))
+	    (setq root-folder (read-directory-name "File Search - Root Folder: " nil nil t)))
+	(unless (string-equal (substring root-folder -1) "/")
+	  (setq root-folder (concat root-folder "/"))))
+      ;; Read the file-filter:
+      (unless file-filter
+	(setq file-filter (fsprojectp-choose-file-filter)))
+      )
+
+    (let (file-list user-data)
+      ;; Collect the project's file
+      (setq file-list (fsprojectp-collect-files root-folder (nth 1 file-filter) fsprojectp-ignore-folder))
+      
+      ;; Add each individual files to the project:
+      (mapcar (lambda (name)
+		(let* ((relative-path (file-relative-name name))
+		       (full-path     (abbreviate-file-name name))
+		       (file-name     (if (> (length relative-path) (length full-path)) full-path relative-path))
+		       (proj-name     (substring name (length (expand-file-name root-folder)) (length name))))
+		  (let ((exist     (project-buffer-exists-p proj-name current-project))
+			(file-path (project-buffer-get-file-path proj-name current-project))
+			(count 2))
+		    (when exist
+		      (if (and file-path (string-equal file-name file-path))
+			  (setq proj-name nil) ; if the file is already present, skip it (note: the search is very basic; it is possible to trick the system and add a file twice...)
+			  (setq proj-name (concat proj-name " (1)"))))
+		    (while (and exist proj-name)
+		      (setq exist (project-buffer-exists-p proj-name current-project))
+      		      (setq file-path (project-buffer-get-file-path proj-name current-project))
+		      (when exist
+			(if (and file-path (string-equal file-name file-path))
+			    (setq proj-name nil) ; if the file is already present, skip it
+			    (setq proj-name (concat (substring proj-name 0 -2) (format "%i)" count))
+				  count (1+ count)))))
+		      (when proj-name ;; skip it?
+			(project-buffer-insert proj-name 'file  file-name current-project)))))
+	      file-list)
+      )))
+
+(defun fsprojectp-delete-current-node()
+  "Delete the current node from the current project."
+  (interactive)
+  (let ((name (project-buffer-get-current-node-name))
+	(type (project-buffer-get-current-node-type))
+	(proj (project-buffer-get-current-project-name)))
+    (when (and proj (yes-or-no-p (concat (format "Delete %s%s " name (if (eq type 'file) "" " and its content")))))
+      (message "Deleting '%s' ..." name)
+      (cond ((eq type 'file)
+	     (project-buffer-delete-file name proj))
+	    ((eq type 'folder)
+	     (project-buffer-delete-folder name proj))
+	    ((eq type 'project)
+	     (project-buffer-delete-project name))
+	    (t (error "Unknown data type"))))))
+
 
 
 (defun fsprojectp-setup-local-key()
   "Define a local key-bindings."
   (local-set-key [(control ?c) ?n] 'fsprojectp-add-project)
+  (local-set-key [(control ?c) ?+] 'fsprojectp-add-files-to-current-project)
+  (local-set-key [(control ?c) ?d] 'fsprojectp-delete-current-node)
+
   (local-set-key [(control ?c) (control ?r)] 'project-buffer-revert)
   (local-set-key [(control ?x) (control ?s)] 'project-buffer-save-file)
   (local-set-key [(control ?x) (control ?w)] 'project-buffer-write-file))
