@@ -278,7 +278,11 @@
 ;;        - Added global command to load/save/write/revert a project buffer.
 ;;        - Added new hook: `project-buffer-post-find-file-hook'.
 ;;        - Added possibilty to attach user data to each nodes.
-;; v1.11: Some Bugs fixed
+;; v1.11: Bugs fixed
+;;        - project-buffer-find-node-up was return nil in view-mode other than folder-view
+;;        - file-exist-p has been renamed to file-exists-p
+;;        - minor visibility bug when a files get added to the project if the view-mode is different from folder-view
+;;
 
 (require 'cl)
 (require 'ewoc)
@@ -1274,7 +1278,7 @@ Note: if no files are marked, the search will occur in all existing files of the
       (print (cond ((booleanp hook-item)
 		    (list 'value hook-item))
 		   ((symbolp hook-item)
-		    (list 'symbol hook-item  (symbol-file hook-item)))
+		    (list 'symbol hook-item  (abbreviate-file-name (symbol-file hook-item))))
 		   ((functionp hook-item)
 		    (list 'value hook-item))
 		   (t (error "Unknown type found in the hook list")))
@@ -1334,7 +1338,7 @@ attempt to load the definition file if a hook function isnt't bound."
 			     (file (nth 2 block-line)))
 			 (add-hook hook-symbol func nil t)
 			 (when (and (not (fboundp func))
-				    (file-exist-p file)
+				    (file-exists-p file)
 				    (file-readable-p file))
 			   (load-file file))))
 		      ((eq (car block-line) 'value)
