@@ -238,7 +238,8 @@
 ;; - `project-buffer-mode'                     which initialize the project-buffer mode
 ;; - `project-buffer-insert'                   to insert a file or project to the view
 ;; - `project-buffer-delete-file'              to remove a file
-;; - `project-buffer-delete-project'           to remove a project and all it's file
+;; - `project-buffer-delete-folder'            to remove a folder and all its files
+;; - `project-buffer-delete-project'           to remove a project and all its files
 ;; - `project-buffer-set-project-platforms'    to set the platform configuration for a particular project
 ;; - `project-buffer-set-build-configurations' to set the build configurations for a particular project
 ;; - `project-buffer-raw-save'                 to save a project into a file
@@ -249,6 +250,10 @@
 ;; - `project-buffer-get-file-user-data'       to get user data from a file node
 ;; - `project-buffer-get-current-project-name' to get the nane of the current project the cursor is on
 ;; - `project-buffer-get-current-file-data'    to get data about the current file the cursor is on; nil if it's on a folder or a project
+;; - `project-buffer-exists-p'                 to check if a node exist (file or folder) inside a project
+;; - `project-buffer-get-file-path'            to get the path of a file of the project
+;; - `project-buffer-get-current-node-type'    to get the type of the current node (including folder)
+;; - `project-buffer-get-current-node-name'    to get the name  of the current node (including folder)
 ;;
 ;; If you need to have some local variables to be saved; register them in `project-buffer-locals-to-save'.
 ;; The same way, if there is need to save extra hooks: register them in `project-buffer-hooks-to-save'.
@@ -284,9 +289,14 @@
 ;;        - project-buffer-find-node-up was return nil in view-mode other than folder-view
 ;;        - file-exist-p has been renamed to file-exists-p
 ;;        - minor visibility bug when a files get added to the project if the view-mode is different from folder-view
-;;        New user functions:
-;;        - `project-buffer-get-current-project-name' and `project-buffer-get-current-file-data'
-;;
+;; v.1.12: Added the following user functions:
+;;        - `project-buffer-get-current-project-name' to get the project name the cursor is on
+;;        - `project-buffer-get-current-file-data' to get data about the file the cursor is on
+;;        - `project-buffer-get-file-path' to get the file path
+;;        - `project-buffer-get-current-node-type' to get the type of the current node (including folder)
+;;        - `project-buffer-get-current-node-name' to get the name  of the current node (including folder)
+;;        - `project-buffer-delete-folder' to remove a folder and all its files
+;;        - `project-buffer-exists-p' to check if a node exist (file or folder) inside a project
 
 (require 'cl)
 (require 'ewoc)
@@ -1140,6 +1150,44 @@ Empty folder node will also be cleared up."
 	))
     ))
 
+
+(defun project-buffer-delete-folder-node(status fold-name project)
+  "Delete the folder FOLD-NAME from PROJECT and all it's files."
+  (let* ((folder-node (project-buffer-search-file-node status fold-name project))
+	 (folder (and folder-node (project-buffer-node->name (ewoc-data folder-node)))))
+    (when folder
+      (let ((parent-node (project-buffer-node->parent (ewoc-data folder-node)))
+	    (inhibit-read-only t))
+	(save-excursion
+	  ;; Delete the folder content:
+	  (let* ((node      (ewoc-next status folder-node))
+		 (node-data (and node (ewoc-data node)))
+		 next-node)
+	    (while (and node
+			(not (eq (project-buffer-node->type node-data) 'project))
+			(project-buffer-parent-of-p (project-buffer-node->name node-data) folder))
+	      (setq next-node (ewoc-next status node))
+	      (ewoc-delete status node)
+	      (setq node next-node
+		    node-data (and node (ewoc-data node))))))
+	;; Now let's delete the node:
+	(ewoc-delete status folder-node)
+	;; Check the parents:
+	(while parent-node
+	  (let ((next-node   (ewoc-next status parent-node))
+		(parent-data (ewoc-data parent-node)))
+	    (if (and next-node
+		     (eq (project-buffer-node->parent (ewoc-data next-node)) parent-node))
+		(setq parent-node nil)
+		(let ((new-parent-node (and (not (eq (project-buffer-node->type parent-data) 'project))
+					    (project-buffer-node->parent parent-data))))
+		  (if (not new-parent-node)
+		      (project-buffer-delete-project-node status project parent-node)
+		      (ewoc-delete status parent-node))
+		  (setq parent-node new-parent-node))
+		)))))))
+
+
 (defun project-buffer-delete-project-node(status proj-name proj-node)
   "Delete the project node PROJ-NODE.
 Each files/folder under the project will also be deleted."
@@ -1604,6 +1652,12 @@ Empty folder node will also be cleared up."
   (project-buffer-delete-file-node project-buffer-status name project))
 
 
+(defun project-buffer-delete-folder (name project)
+  "Delete the node named NAME which belongs to PROJECT."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (project-buffer-delete-folder-node project-buffer-status name project))
+
+
 (defun project-buffer-delete-project (project)
   "Delete the project PROJECT.
 Each files/folder under the project will also be deleted."
@@ -1613,14 +1667,14 @@ Each files/folder under the project will also be deleted."
 				      (project-buffer-search-project-node project-buffer-status project)))
 
 
-(defun project-buffer-set-project-platforms(project platform-list)
+(defun project-buffer-set-project-platforms (project platform-list)
   "Attached the list of platform contained in PLATFORM-LIST to the project named PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (project-buffer-set-project-platforms-data project-buffer-status
 					     project
 					     platform-list))
 
-(defun project-buffer-set-project-build-configurations(project build-configuration-list)
+(defun project-buffer-set-project-build-configurations (project build-configuration-list)
   "Attached the list build configurations in BUILD-CONFIGURATION-LIST to the project named PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (project-buffer-set-project-build-configurations-data project-buffer-status
@@ -1628,7 +1682,7 @@ Each files/folder under the project will also be deleted."
 							build-configuration-list))
 
 
-(defun project-buffer-raw-save(filename)
+(defun project-buffer-raw-save (filename)
   "Save the project data in FILENAME; the project can later be
 reloaded through `project-buffer-raw-load' function."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
@@ -1681,7 +1735,7 @@ reloaded through `project-buffer-raw-load' function."
       (write-file filename))))
 
 
-(defun project-buffer-raw-load(filename &optional set-buffer-name run-mode-hooks)
+(defun project-buffer-raw-load (filename &optional set-buffer-name run-mode-hooks)
   "Load a project saved by `project-buffer-raw-data'.This function does not restore the mode and assume the
 project-buffer-mode to be set.  It doesn't clear the existing
 nodes either."
@@ -1703,7 +1757,7 @@ nodes either."
     ))
 
 
-(defun project-buffer-set-file-user-data(name project user-data)
+(defun project-buffer-set-file-user-data (name project user-data)
   "Attach user data to a node named NAME in the project PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((node (project-buffer-search-file-node project-buffer-status name project)))
@@ -1711,7 +1765,7 @@ nodes either."
       (setf (project-buffer-node->user-data (ewoc-data node)) user-data))))
 
 
-(defun project-buffer-set-project-user-data(project user-data)
+(defun project-buffer-set-project-user-data (project user-data)
   "Attach user data to the project node named PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((node (project-buffer-search-project-node project-buffer-status project)))
@@ -1719,7 +1773,7 @@ nodes either."
       (setf (project-buffer-node->user-data (ewoc-data node)) user-data))))
 
 
-(defun project-buffer-get-file-user-data(name project)
+(defun project-buffer-get-file-user-data (name project)
   "Retrieve user data to a node named NAME in the project PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((node (project-buffer-search-file-node project-buffer-status name project)))
@@ -1727,7 +1781,7 @@ nodes either."
       (project-buffer-node->user-data (ewoc-data node)))))
 
 
-(defun project-buffer-get-project-user-data(project)
+(defun project-buffer-get-project-user-data (project)
   "Retrieve user data to the project node named PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((node (project-buffer-search-project-node project-buffer-status project)))
@@ -1735,25 +1789,58 @@ nodes either."
       (project-buffer-node->user-data (ewoc-data node)))))
 
 
-(defun project-buffer-get-current-project-name()
+(defun project-buffer-get-current-project-name ()
   "Retrieve the name of the project the cursor is on."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((node (ewoc-locate project-buffer-status)))
-    (project-buffer-node->project (ewoc-data node))))
+    (when node
+      (project-buffer-node->project (ewoc-data node)))))
 
 
-(defun project-buffer-get-current-file-data()
+(defun project-buffer-get-current-file-data ()
   "Retrieve data about the current file the cursor is on.
 Return nil if the cursor is not on a file.
 If non-nil the return value is a list containing: 
   '(project-file-name full-path project-name)"
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((node (ewoc-locate project-buffer-status))
-	 (data (ewoc-data node)))
-    (when (eq (project-buffer-node->type data) 'file)
+	 (data (and node (ewoc-data node))))
+    (when (and data (eq (project-buffer-node->type data) 'file))
       (list (project-buffer-node->name data)
 	    (project-buffer-node->filename data)
 	    (project-buffer-node->project data)))))
+
+
+(defun project-buffer-exists-p (name project)
+  "Return true if a node NAME exists in PROJECT."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (project-buffer-search-file-node project-buffer-status name project)))
+    (and node t)))
+
+
+(defun project-buffer-get-file-path (name project)
+  "Retrieve the path of the file NAME in PROJECT."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (project-buffer-search-file-node project-buffer-status name project)))
+    (when node
+      (project-buffer-node->filename (ewoc-data node)))))
+
+
+(defun project-buffer-get-current-node-type ()
+  "Retrieve the type of the current node."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (ewoc-locate project-buffer-status)))
+    (when node
+      (project-buffer-node->type (ewoc-data node)))))
+
+
+(defun project-buffer-get-current-node-name ()
+  "Retrieve the type of the current node."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (ewoc-locate project-buffer-status)))
+    (when node
+      (project-buffer-node->name (ewoc-data node)))))
+  
 
 
 ;;
