@@ -250,7 +250,8 @@
 ;; - `project-buffer-get-file-user-data'       to get user data from a file node
 ;; - `project-buffer-get-current-project-name' to get the nane of the current project the cursor is on
 ;; - `project-buffer-get-current-file-data'    to get data about the current file the cursor is on; nil if it's on a folder or a project
-;; - `project-buffer-exists-p'                 to check if a node exist (file or folder) inside a project
+;; - `project-buffer-exists-p'                 to check if a node exists (file or folder) inside a project
+;; - `project-buffer-project-exists-p'         to check if a project exists
 ;; - `project-buffer-get-file-path'            to get the path of a file of the project
 ;; - `project-buffer-get-current-node-type'    to get the type of the current node (including folder)
 ;; - `project-buffer-get-current-node-name'    to get the name  of the current node (including folder)
@@ -296,7 +297,8 @@
 ;;        - `project-buffer-get-current-node-type' to get the type of the current node (including folder)
 ;;        - `project-buffer-get-current-node-name' to get the name  of the current node (including folder)
 ;;        - `project-buffer-delete-folder' to remove a folder and all its files
-;;        - `project-buffer-exists-p' to check if a node exist (file or folder) inside a project
+;;        - `project-buffer-exists-p' to check if a node exists (file or folder) inside a project
+;;        - `project-buffer-project-exists-p' to check if a project exists
 
 (require 'cl)
 (require 'ewoc)
@@ -1815,6 +1817,13 @@ If non-nil the return value is a list containing:
   "Return true if a node NAME exists in PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((node (project-buffer-search-file-node project-buffer-status name project)))
+    (and node t)))
+
+
+(defun project-buffer-project-exists-p (project)
+  "Return true if the project PROJECT exists."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (project-buffer-search-project-node project-buffer-status project)))
     (and node t)))
 
 
