@@ -24,15 +24,15 @@
 ;;
 
 ;;; Commentary:
-;; 
+;;
 
 ;; This is an extension to fsproject, an add-on library for
 ;; project-buffer-mode.
 ;;
-;; 
+;;
 ;; - Added key: C-c +   to add new project
 ;;              C-c -   to delete a project
-;;              C-c R   to rename the current project 
+;;              C-c R   to rename the current project
 ;;              C-c C-r to revert the project
 ;;              C-x C-w to write the project
 ;;              C-x C-s to save the project
@@ -57,9 +57,9 @@
 )
 
 (defcustom fsprojectp-project-type
-  '((makefile ("\\.mak$" "Makefile$")     
+  '((makefile ("\\.mak$" "Makefile$")
 	      ("make CONFIG={build}" "make clean CONFIG={build}" "" ""))
-    (cmake    ("CMakeLists.txt")                         
+    (cmake    ("CMakeLists.txt")
 	      ("make CONFIG={build}" "make clean CONFIG={build}" "" ""))
     (jam      ("Jamfile\\(?:s\\)?$" "Jamrules$" "Jambase$" "Jamroot$")
 	      ("jam -a {project}" "jam clean -a {project}" "" ""))
@@ -84,9 +84,10 @@ Each project type is a list of the following format:
   command to 'build' 'clean' 'run' and 'debug'.
   the following wild cards can be use in each action string:
    {config}   the current selected build version
-   {platform} the current selected platform 
+   {platform} the current selected platform
    {project}  name of the project
-   {path}     path of the project"
+   {projfile} path of the project's main file
+   {root}     root folder of the project"
 )
 
 (defcustom fsprojectp-ignore-folder
@@ -99,9 +100,11 @@ Each project type is a list of the following format:
 
 (defvar fsprojectp-last-project-type-choosen "makefile")
 (defvar fsprojectp-last-filter-type-choosen "c++")
-(defvar fprojectp-last-file-filter-query-mode-choosen "regexp")
-(defvar fprojectp-last-file-filter-regexp-choosen nil)
-(defvar fprojectp-last-file-extension-list-choosen nil)
+(defvar fsprojectp-last-file-filter-query-mode-choosen "regexp")
+(defvar fsprojectp-last-file-filter-regexp-choosen nil)
+(defvar fsprojectp-last-file-extension-list-choosen nil)
+(defvar fsprojectp-platform-list nil)
+(defvar fsprojectp-build-configuration-list nil)
 
 
 ;;
@@ -116,7 +119,7 @@ Each project type is a list of the following format:
     (setq fsprojectp-last-project-type-choosen project-type-string)
     (assoc project-type fsprojectp-project-type)))
 
-(defun fprojectp-shorten-string(str max-lgt)
+(defun fsprojectp-shorten-string(str max-lgt)
   "If the length of STR is greater than MAX-LGT; shorten the string adding '...' at the end."
   (if (> (length str) max-lgt)
       (concat (substring str 0 (- max-lgt 3)) "...")
@@ -133,31 +136,105 @@ Each project type is a list of the following format:
 	(assoc filter-type fsprojectp-filters)
 	;; In case of custom file filter:
 	;; Let's first ask how to specify the filter:
-	(let* ((query-mode-string (completing-read (format "Enter the file system query mode (regexp, file-extension) [default %s]: " fprojectp-last-file-filter-query-mode-choosen)
-						   '("regexp" "file-extension") nil t nil nil fprojectp-last-file-filter-query-mode-choosen))
+	(let* ((query-mode-string (completing-read (format "Enter the file system query mode (regexp, file-extension) [default %s]: " fsprojectp-last-file-filter-query-mode-choosen)
+						   '("regexp" "file-extension") nil t nil nil fsprojectp-last-file-filter-query-mode-choosen))
 	       (query-mode (intern query-mode-string)))
-	  (setq fprojectp-last-file-filter-query-mode-choosen query-mode-string)
+	  (setq fsprojectp-last-file-filter-query-mode-choosen query-mode-string)
 	  (cond ((eq query-mode 'regexp)
-		 ;; A regexp: 
-		 (let* ((def-string (if fprojectp-last-file-filter-regexp-choosen
-					(concat " [default " (fprojectp-shorten-string fprojectp-last-file-filter-regexp-choosen 9) "]")
+		 ;; A regexp:
+		 (let* ((def-string (if fsprojectp-last-file-filter-regexp-choosen
+					(concat " [default " (fsprojectp-shorten-string fsprojectp-last-file-filter-regexp-choosen 9) "]")
 					""))
 			(file-filter-regexp (read-from-minibuffer (format "Enter the file filter regexp%s: " def-string))))
 		   (if (= (length file-filter-regexp) 0)
-		       (setq file-filter-regexp fprojectp-last-file-filter-regexp-choosen)
-		       (setq fprojectp-last-file-filter-regexp-choosen file-filter-regexp))
+		       (setq file-filter-regexp fsprojectp-last-file-filter-regexp-choosen)
+		       (setq fsprojectp-last-file-filter-regexp-choosen file-filter-regexp))
 		   (list 'custom (list file-filter-regexp))))
 		((eq query-mode 'file-extension)
 		 ;; A list of file extension:
-		 (let* ((def-string (if fprojectp-last-file-extension-list-choosen
-					(concat " [default " (fprojectp-shorten-string fprojectp-last-file-extension-list-choosen 9) "]")
+		 (let* ((def-string (if fsprojectp-last-file-extension-list-choosen
+					(concat " [default " (fsprojectp-shorten-string fsprojectp-last-file-extension-list-choosen 9) "]")
 					""))
 			(file-extension-list (read-from-minibuffer (format "Enter the list of extension separated by spaces%s: " def-string))))
 		   (if (= (length file-extension-list) 0)
-		       (setq file-extension-list fprojectp-last-file-extension-list-choosen)
-		       (setq fprojectp-last-file-extension-list-choosen file-extension-list))
+		       (setq file-extension-list fsprojectp-last-file-extension-list-choosen)
+		       (setq fsprojectp-last-file-extension-list-choosen file-extension-list))
 		   (list 'custom (list (concat "\\." (regexp-opt (split-string file-extension-list)) "$")))))
 		(t (error "Unknown Query Mode")))))))
+
+
+(defun fsprojectp-collect-files(root-folder file-filter-list &optional ignore-folders)
+  "Parse ROOT-FOLDER and its sub-folder and create a list of full path filename matching one of the regexp of FILE-FILTER-LIST.
+The folder defined inside in IGNORE-FOLDERS will be skipped."
+  (let ((dir-list (directory-files-and-attributes root-folder t))
+	(ign-reg  (regexp-opt ignore-folders))
+	file-list)
+    (while dir-list
+      (let* ((cur-node (pop dir-list))
+	     (fullpath (car cur-node))
+	     (is-dir   (eq (car (cdr cur-node)) t))
+	     (is-file  (not (car (cdr cur-node))))
+	     (basename (file-name-nondirectory fullpath)))
+	(cond
+	 ;; if the current node is a directory different from "." or "..", all it's file gets added to the list
+	 ((and is-dir
+	       (not (string-equal basename "."))
+	       (not (string-equal basename ".."))
+	       (or (not ignore-folders)
+		   (not (string-match ign-reg basename))))
+	       (setq dir-list (append dir-list (directory-files-and-attributes fullpath t))))
+	 ;; if the current node is a file
+	 (is-file
+	  ;; check against the file filter, if it succeed: add the file to the file-list
+	  (when (some '(lambda (item) (string-match item basename)) file-filter-list)
+	    (setq file-list (cons fullpath file-list)))
+	  ))))
+    file-list))
+
+
+(defun fsprojectp-generate-user-data(action-string-list
+				     project-name
+				     project-main-file
+				     project-root-folder)
+  "Generate the project's user data based from ACTION-STRING-LIST.
+ACTION-STRING-LIST is a list of string; each of them corresponding to the project actions.
+This function returns a assoc-list of assoc-list such as:
+  (cdr (assoc buildconfig (cdr (assoc platform data)))) should returns a list of user actions.
+
+In each action string list may contain the following wildcard
+which will be replaced by their respective value:
+   {config}   the current selected build version
+   {platform} the current selected platform
+   {project}  name of the project
+   {projfile} path of the project's main file
+   {root}     root folder of the project"
+
+  (let ((platform-list fsprojectp-platform-list)
+	user-data)
+    (while platform-list
+      (let ((current-platform (pop platform-list))
+	    (build-config-list fsprojectp-build-configuration-list)
+	    bc-list)
+	(setq user-data (cons (cons current-platform
+				    (progn (while build-config-list
+					     (let ((current-build-config (pop build-config-list)))
+					       (setq bc-list (cons (cons current-build-config
+									 (mapcar (lambda (action-string)
+										   (let* ((repl1 (replace-regexp-in-string "{config}"   current-build-config  action-string))
+											  (repl2 (replace-regexp-in-string "{platform}" current-platform      repl1))
+											  (repl3 (replace-regexp-in-string "{project}"  project-name          repl2))
+											  (repl4 (replace-regexp-in-string "{projfile}" project-main-file     repl3))
+											  (repl5 (replace-regexp-in-string "{root}"     project-root-folder   repl4)))
+										     repl5))
+										 action-string-list))
+								   bc-list))
+					       ))
+					   bc-list)
+				      )
+			      user-data))))
+    user-data))
+
+;(cdr (assoc "win32" (cdr (assoc "debug" '(("release" ("win32" . a) ("ppc" . b)) ("debug" ("win32" . c) ("ppc" . d))) ))))
 
 
 ;;
@@ -165,11 +242,12 @@ Each project type is a list of the following format:
 ;;
 
 
-(defun fsprojectp-add-project(&optional project-type project-main-file project-root-folder file-filter)
+(defun fsprojectp-add-project(&optional project-type project-main-file project-root-folder project-name file-filter)
   "Select a FOLDER, a MAIN-FILE and a FILE-FILTER, then add all
 files under the current folder and sub-folder matching the
 FILE-FILTER will be added to the project."
   (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
   (when (interactive-p)
     ;; Read the project-type
     (unless project-type
@@ -188,7 +266,6 @@ FILE-FILTER will be added to the project."
 		     (not (funcall project-predicate project-main-file)))
 	    (let ((def-dir (and project-main-file (file-directory-p project-main-file) project-main-file)))
 	      (setq project-main-file (read-file-name "Project Main File: " def-dir nil t nil project-predicate))
-	      (message "pmf: %s" project-main-file)
 	      )))))
     ;; Read the project-root-folder:
     (unless project-root-folder
@@ -198,19 +275,50 @@ FILE-FILTER will be added to the project."
 	(while (or (not project-root-folder)
 		   (= (length project-root-folder) 0))
 	  (setq project-root-folder (read-directory-name "Project Root Folder: " def-dir def-dir t)))))
+    ;; Read the project name:
+    (unless project-name
+      (setq project-name (read-from-minibuffer "Project Name: "
+					       (file-name-nondirectory (substring project-root-folder 0 -1)))))
     ;; Read the file-filter:
     (unless file-filter
       (setq file-filter (fsprojectp-choose-file-filter)))
     )
-  ;;
-  ;;
-  ;;
-  )
+
+  (let (file-list user-data)
+    ;;
+    ;; Collect the project's file
+    ;;
+    (setq file-list (fsprojectp-collect-files project-root-folder (nth 1 file-filter) fsprojectp-ignore-folder))
+
+    ;;
+    ;; Populate the project-buffer-mode:
+    ;;
+
+    ;; Generate the project node's user-data:
+    (setq user-data (fsprojectp-generate-user-data (nth 2 project-type)
+						   project-name
+						   project-main-file
+						   project-root-folder))					   
+    ;; Add the project node
+    (project-buffer-insert project-name 'project project-main-file project-name)
+    (project-buffer-set-project-build-configurations project-name fsprojectp-build-configuration-list)
+    (project-buffer-set-project-platforms            project-name fsprojectp-platform-list)
+    (project-buffer-set-project-user-data            project-name user-data)
+
+    ;; Add each individual files to the project:
+    (mapcar (lambda (name)
+	      (let* ((relative-path (file-relative-name name))
+		     (full-path     (abbreviate-file-name name))
+		     (file-name     (if (> (length relative-path) (length full-path)) full-path relative-path))
+		     (proj-name     (substring name (length (expand-file-name project-root-folder)) (length name))))
+		(project-buffer-insert proj-name 'file  file-name project-name)))
+	    file-list)
+  ))
 
 
 (defun fsprojectp-setup-local-key()
   "Define a local key-bindings."
-  ((local-set-key [(control ?+)] 'fsprojectp-add-project)))
+  (local-set-key [(control ?+)] 'fsprojectp-add-project))
 
 
 ;;
@@ -223,6 +331,27 @@ FILE-FILTER will be added to the project."
   (let ((buffer (generate-new-buffer (concat "fsx:" name))))
     (switch-to-buffer buffer)
     (with-current-buffer buffer
+      (cd root-folder)
       (project-buffer-mode)
+      ;; local variables:
+      (make-local-variable 'fsprojectp-last-project-type-choosen)
+      (make-local-variable 'fsprojectp-last-filter-type-choosen)
+      (make-local-variable 'fsprojectp-last-file-filter-query-mode-choosen)
+      (make-local-variable 'fsprojectp-last-file-filter-regexp-choosen)
+      (make-local-variable 'fsprojectp-last-file-extension-list-choosen)
+      (make-local-variable 'fsprojectp-platform-list)
+      (make-local-variable 'fsprojectp-build-configuration-list)
+      ;; register the local variable to be saved:
+      (add-to-list 'project-buffer-locals-to-save 'fsprojectp-last-project-type-choosen)
+      (add-to-list 'project-buffer-locals-to-save 'fsprojectp-last-filter-type-choosen)
+      (add-to-list 'project-buffer-locals-to-save 'fsprojectp-last-file-filter-query-mode-choosen)
+      (add-to-list 'project-buffer-locals-to-save 'fsprojectp-last-file-filter-regexp-choosen)
+      (add-to-list 'project-buffer-locals-to-save 'fsprojectp-last-file-extension-list-choosen)
+      (add-to-list 'project-buffer-locals-to-save 'fsprojectp-platform-list)
+      (add-to-list 'project-buffer-locals-to-save 'fsprojectp-build-configuration-list)
+      ;; ask for the platform list:
+      (setq fsprojectp-platform-list            (split-string (read-from-minibuffer "Enter the list of platforms separated by spaces: ")))
+      (setq fsprojectp-build-configuration-list (split-string (read-from-minibuffer "Enter the list of build configuration separated by spaces: ")))
+      ;;
       (fsprojectp-setup-local-key)
       )))
