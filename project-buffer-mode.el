@@ -247,6 +247,8 @@
 ;; - `project-buffer-get-project-user-data'    to get user data from a project node
 ;; - `project-buffer-set-file-user-data'       to set user data to a file node
 ;; - `project-buffer-get-file-user-data'       to get user data from a file node
+;; - `project-buffer-get-current-project-name' to get the nane of the current project the cursor is on
+;; - `project-buffer-get-current-file-data'    to get data about the current file the cursor is on; nil if it's on a folder or a project
 ;;
 ;; If you need to have some local variables to be saved; register them in `project-buffer-locals-to-save'.
 ;; The same way, if there is need to save extra hooks: register them in `project-buffer-hooks-to-save'.
@@ -282,6 +284,8 @@
 ;;        - project-buffer-find-node-up was return nil in view-mode other than folder-view
 ;;        - file-exist-p has been renamed to file-exists-p
 ;;        - minor visibility bug when a files get added to the project if the view-mode is different from folder-view
+;;        New user functions:
+;;        - `project-buffer-get-current-project-name' and `project-buffer-get-current-file-data'
 ;;
 
 (require 'cl)
@@ -1729,6 +1733,27 @@ nodes either."
   (let ((node (project-buffer-search-project-node project-buffer-status project)))
     (when node
       (project-buffer-node->user-data (ewoc-data node)))))
+
+
+(defun project-buffer-get-current-project-name()
+  "Retrieve the name of the project the cursor is on."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (ewoc-locate project-buffer-status)))
+    (project-buffer-node->project (ewoc-data node))))
+
+
+(defun project-buffer-get-current-file-data()
+  "Retrieve data about the current file the cursor is on.
+Return nil if the cursor is not on a file.
+If non-nil the return value is a list containing: 
+  '(project-file-name full-path project-name)"
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let* ((node (ewoc-locate project-buffer-status))
+	 (data (ewoc-data node)))
+    (when (eq (project-buffer-node->type data) 'file)
+      (list (project-buffer-node->name data)
+	    (project-buffer-node->filename data)
+	    (project-buffer-node->project data)))))
 
 
 ;;
