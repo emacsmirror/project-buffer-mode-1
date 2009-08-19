@@ -29,13 +29,19 @@
 ;; This is an extension to fsproject, an add-on library for
 ;; project-buffer-mode.
 ;;
+;; Key mapped:
+;; C-c n   to add new project
+;; C-c C-r to revert the project
+;; C-x C-w to write the project
+;; C-x C-s to save the project
+
 ;;
-;; - Added key: C-c +   to add new project
+;; suggestion:
 ;;              C-c -   to delete a project
 ;;              C-c R   to rename the current project
-;;              C-c C-r to revert the project
-;;              C-x C-w to write the project
-;;              C-x C-s to save the project
+
+(require 'project-buffer-mode)
+
 
 (defcustom fsprojectp-filters
   '((c++       ("\\.[cChH][pPxX+][pPxX+]$" "\\.[cChH]$" "\\.[iI][nN][lL]$" "\\.[cC][cC]$"))
@@ -94,6 +100,22 @@ Each project type is a list of the following format:
   '(".git" ".svn" "bzr" ".hg" "CVS" ".CVS" "build" "lib" "Debug" "Release")
   "List of folder to ignore during the recursive search.")
 
+
+;;
+;; History:
+;;
+
+
+(defvar fsprojectp-project-type-history nil)
+(defvar fsprojectp-file-filter-history nil)
+(defvar fsprojectp-file-filter-query-history nil)
+(defvar fsprojectp-file-filter-regexp-history nil)
+(defvar fsprojectp-file-filter-extension-list-history nil)
+(defvar fsprojectp-project-name-history nil)
+(defvar fsprojectp-platforms-history nil)
+(defvar fsprojectp-build-configurations-history nil)
+
+
 ;;
 ;;  Local variables:
 ;;
@@ -114,7 +136,7 @@ Each project type is a list of the following format:
 (defun fsprojectp-choose-project-type()
   "Request and return the selected project type"
   (let* ((project-type-string (completing-read (format "Project Type [default %s]: " fsprojectp-last-project-type-choosen)
-					       fsprojectp-project-type nil t nil nil fsprojectp-last-project-type-choosen))
+					       fsprojectp-project-type nil t nil 'fsprojectp-project-type-history fsprojectp-last-project-type-choosen))
 	 (project-type (intern project-type-string)))
     (setq fsprojectp-last-project-type-choosen project-type-string)
     (assoc project-type fsprojectp-project-type)))
@@ -128,7 +150,7 @@ Each project type is a list of the following format:
 (defun fsprojectp-choose-file-filter()
   "Read the file filter."
   (let* ((filter-type-string (completing-read (format "Filter Type [default %s]: " fsprojectp-last-filter-type-choosen)
-					       fsprojectp-filters nil t nil nil fsprojectp-last-filter-type-choosen))
+					       fsprojectp-filters nil t nil 'fsprojectp-file-filter-history fsprojectp-last-filter-type-choosen))
 	 (filter-type (intern filter-type-string)))
     (setq fsprojectp-last-filter-type-choosen filter-type-string)
     (if (not (eq filter-type 'custom))
@@ -137,7 +159,7 @@ Each project type is a list of the following format:
 	;; In case of custom file filter:
 	;; Let's first ask how to specify the filter:
 	(let* ((query-mode-string (completing-read (format "Enter the file system query mode (regexp, file-extension) [default %s]: " fsprojectp-last-file-filter-query-mode-choosen)
-						   '("regexp" "file-extension") nil t nil nil fsprojectp-last-file-filter-query-mode-choosen))
+						   '("regexp" "file-extension") nil t nil 'fsprojectp-file-filter-query-history fsprojectp-last-file-filter-query-mode-choosen))
 	       (query-mode (intern query-mode-string)))
 	  (setq fsprojectp-last-file-filter-query-mode-choosen query-mode-string)
 	  (cond ((eq query-mode 'regexp)
@@ -145,7 +167,8 @@ Each project type is a list of the following format:
 		 (let* ((def-string (if fsprojectp-last-file-filter-regexp-choosen
 					(concat " [default " (fsprojectp-shorten-string fsprojectp-last-file-filter-regexp-choosen 9) "]")
 					""))
-			(file-filter-regexp (read-from-minibuffer (format "Enter the file filter regexp%s: " def-string))))
+			(file-filter-regexp (read-from-minibuffer (format "Enter the file filter regexp%s: " def-string)
+								  nil nil nil 'fsprojectp-file-filter-regexp-history)))
 		   (if (= (length file-filter-regexp) 0)
 		       (setq file-filter-regexp fsprojectp-last-file-filter-regexp-choosen)
 		       (setq fsprojectp-last-file-filter-regexp-choosen file-filter-regexp))
@@ -155,7 +178,8 @@ Each project type is a list of the following format:
 		 (let* ((def-string (if fsprojectp-last-file-extension-list-choosen
 					(concat " [default " (fsprojectp-shorten-string fsprojectp-last-file-extension-list-choosen 9) "]")
 					""))
-			(file-extension-list (read-from-minibuffer (format "Enter the list of extension separated by spaces%s: " def-string))))
+			(file-extension-list (read-from-minibuffer (format "Enter the list of extension separated by spaces%s: " def-string)
+								   nil nil nil 'fsprojectp-file-filter-extension-list-history)))
 		   (if (= (length file-extension-list) 0)
 		       (setq file-extension-list fsprojectp-last-file-extension-list-choosen)
 		       (setq fsprojectp-last-file-extension-list-choosen file-extension-list))
@@ -278,7 +302,8 @@ FILE-FILTER will be added to the project."
     ;; Read the project name:
     (unless project-name
       (setq project-name (read-from-minibuffer "Project Name: "
-					       (file-name-nondirectory (substring project-root-folder 0 -1)))))
+					       (file-name-nondirectory (substring project-root-folder 0 -1))
+					       nil nil 'fsprojectp-project-name-history)))
     ;; Read the file-filter:
     (unless file-filter
       (setq file-filter (fsprojectp-choose-file-filter)))
@@ -318,7 +343,10 @@ FILE-FILTER will be added to the project."
 
 (defun fsprojectp-setup-local-key()
   "Define a local key-bindings."
-  (local-set-key [(control ?+)] 'fsprojectp-add-project))
+  (local-set-key [(control ?c) ?n] 'fsprojectp-add-project)
+  (local-set-key [(control ?c) (control ?r)] 'project-buffer-revert)
+  (local-set-key [(control ?x) (control ?s)] 'project-buffer-save-file)
+  (local-set-key [(control ?x) (control ?w)] 'project-buffer-write-file))
 
 
 ;;
@@ -350,8 +378,8 @@ FILE-FILTER will be added to the project."
       (add-to-list 'project-buffer-locals-to-save 'fsprojectp-platform-list)
       (add-to-list 'project-buffer-locals-to-save 'fsprojectp-build-configuration-list)
       ;; ask for the platform list:
-      (setq fsprojectp-platform-list            (split-string (read-from-minibuffer "Enter the list of platforms separated by spaces: ")))
-      (setq fsprojectp-build-configuration-list (split-string (read-from-minibuffer "Enter the list of build configuration separated by spaces: ")))
+      (setq fsprojectp-platform-list            (split-string (read-from-minibuffer "Enter the list of platforms separated by spaces: " nil nil nil 'fsprojectp-platforms-history)))
+      (setq fsprojectp-build-configuration-list (split-string (read-from-minibuffer "Enter the list of build configurations separated by spaces: " nil nil nil 'fsprojectp-build-configurations-history)))
       ;;
       (fsprojectp-setup-local-key)
       )))
