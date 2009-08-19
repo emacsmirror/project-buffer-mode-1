@@ -1,7 +1,7 @@
 ;;; sln-mode.el --- Create a project-buffer using sln file
 ;;
 ;; Author:      Cedric Lallain <kandjar76@hotmail.com>
-;; Version:     1.0
+;; Version:     1.01
 ;; Keywords:    project buffer msvc sln vcproj viewer
 ;; Description: SLN File Project Viewer
 ;; Tested with: GNU Emacs 22.x and GNU Emacs 23.x
@@ -60,7 +60,8 @@
 
 ;;; History:
 ;; 
-;; v1.0: First official release.
+;; v1.00: First official release.
+;; v1.01: Register the project local variable in `project-buffer-locals-to-save'
 ;; 
 
 
@@ -306,6 +307,7 @@
       ;; Turn on the project-buffer-mode
       (project-buffer-mode)
       (make-local-variable 'sln-mode-solution-name)
+      (add-to-list 'project-buffer-locals-to-save 'sln-mode-solution-name)
       (setq sln-mode-solution-name (file-name-nondirectory sln-file))
       (if using2008
 	  (add-hook 'project-buffer-action-hook 'sln-action-handler-2008 nil t)
