@@ -205,7 +205,7 @@ Each project type is a list of the following format:
   "Parse ROOT-FOLDER and its sub-folder and create a list of full path filename matching one of the regexp of FILE-FILTER-LIST.
 The folder defined inside in IGNORE-FOLDERS will be skipped."
   (let ((dir-list (directory-files-and-attributes root-folder t))
-	(ign-reg  (regexp-opt ignore-folders))
+	(ign-reg  (concat (regexp-opt ignore-folders) "$"))
 	file-list)
     (while dir-list
       (let* ((cur-node (pop dir-list))
