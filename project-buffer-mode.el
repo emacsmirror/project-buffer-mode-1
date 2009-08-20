@@ -171,7 +171,7 @@
 ;;    s    -> (un)mark files containing regexp...
 ;;   <TAB> -> collapse/expand folder/project (work if the cursor is on a file)
 ;;   <RET> -> open file at cursor pos
-;;   <DEL> -> Delete the current node
+;;   <DEL> -> Delete the current node or the marked files
 ;;   <BCK> -> go to parent
 ;;   <SPC> -> next line
 ;; S-<SPC> -> prev line
@@ -291,8 +291,10 @@
 ;;        - project-buffer-find-node-up was return nil in view-mode other than folder-view
 ;;        - file-exist-p has been renamed to file-exists-p
 ;;        - minor visibility bug when a files get added to the project if the view-mode is different from folder-view
-;; v1.12: Add a new command:
-;;        - Delete current node bound to <DEL>
+;; v1.12: Add new commands:
+;;        - Delete current node
+;;        - Delete marked files
+;;        - Delete current node or marked file if in front of one (bound to <DEL>
 ;;        Add the following user functions:
 ;;        - `project-buffer-get-current-project-name' to get the project name the cursor is on
 ;;        - `project-buffer-get-current-file-data' to get data about the file the cursor is on
@@ -595,7 +597,7 @@ FILE-BUFFER is the buffer of the file.")
     (define-key project-buffer-mode-map [?3] 'project-buffer-set-folder-hidden-view-mode)
     (define-key project-buffer-mode-map [?4] 'project-buffer-set-marked-view-mode)
 
-    (define-key project-buffer-mode-map [delete] 'project-buffer-delete-current-node)
+    (define-key project-buffer-mode-map [delete] 'project-buffer-delete-current-node-or-marked-files)
 
     project-buffer-mode-map))
 
@@ -2519,7 +2521,7 @@ If the cursor is on a file - nothing will be done."
 
 
 (defun project-buffer-delete-current-node()
-  "Delete the current node from the current project."
+  "Delete the current node."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((status project-buffer-status)
@@ -2538,6 +2540,49 @@ If the cursor is on a file - nothing will be done."
 		((eq type 'project)
 		 (project-buffer-delete-project-node project-buffer-status name node))
 		(t (error "Unknown data type"))))))))
+
+
+(defun project-buffer-delete-marked-files()
+  "Delete the marked files from the buffer."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((status project-buffer-status)
+	node-list)
+    (let ((node (ewoc-nth status 0))
+	  node-data)
+      (while node
+	(setq node-data (ewoc-data node))
+	(when (and (eq (project-buffer-node->type node-data) 'file)
+		   (project-buffer-node->marked node-data))
+	  (setq node-list (cons node node-list)))
+	(setq node (ewoc-next status node))))
+
+    (when node-list
+      (let* ((lgt (length node-list))
+	     (confirm-str (if (> lgt 1) 
+			      (format "Delete marked files [%i files] " lgt)
+			      (format "Delete %s " (project-buffer-node->name (ewoc-data (car node-list))))))
+	     (result-str  (format "%i deletion%s done" lgt (if (> lgt 1) "s" ""))))
+	(when (funcall project-buffer-confirm-function confirm-str)
+	  (while node-list
+	    (project-buffer-delete-node status (pop node-list)))
+	  (message result-str))))))
+
+
+(defun project-buffer-delete-current-node-or-marked-files()
+  "Delete either the current node or the marked files.
+The decision is based on the current node: if the current node is
+marked, the deletion will attempt to delete all marked files;
+otherwise only the current node (and potentially it's content)
+will get deleted."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (ewoc-locate project-buffer-status)))
+    (when node
+      (if (and (eq (project-buffer-node->type (ewoc-data node)) 'file)
+	       (project-buffer-node->marked (ewoc-data node)))
+	  (project-buffer-delete-marked-files)
+	  (project-buffer-delete-current-node)))))
 
 
 ;;
