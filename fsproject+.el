@@ -64,18 +64,18 @@
 
 (defcustom fsprojectp-project-type
   '((makefile ("\\.mak$" "Makefile$")
-	      ("make CONFIG={build}" "make clean CONFIG={build}" "" ""))
+	      ("make -C {root} CONFIG={build}" "make -C {root} clean CONFIG={build}" "" ""))
     (cmake    ("CMakeLists.txt")
-	      ("make CONFIG={build}" "make clean CONFIG={build}" "" ""))
+	      ("make -C {root} CONFIG={build}" "make -C {root} clean CONFIG={build}" "" ""))
     (jam      ("Jamfile\\(?:s\\)?$" "Jamrules$" "Jambase$" "Jamroot$")
 	      ("jam -a {project}" "jam clean -a {project}" "" ""))
     (scons    ("SConstruct$" "Sconscript$")
 	      ("scons" "scons --clean" "" ""))
     (dmconfig ("build.dmc$")
-	      ("make {platform}.{project}-{config}.build"
-	       "make {platform}.{project}-{config}.clean"
-	       "make {platform}.{project}-{config}.run"
-	       "make {platform}.{project}-{config}.debug"))
+	      ("make {platform}.{project}-{build}.build"
+	       "make {platform}.{project}-{build}.clean"
+	       "make {platform}.{project}-{build}.run"
+	       "make {platform}.{project}-{build}.debug"))
     (cabal    ("\\.cabal$")
 	      ("cabal build" "cabal clean" "" ""))
     (any      (".*$")
@@ -89,7 +89,7 @@ Each project type is a list of the following format:
   action-string-list is a set of 4 strings representing the default
   command to 'build' 'clean' 'run' and 'debug'.
   the following wild cards can be use in each action string:
-   {config}   the current selected build version
+   {build}    the current selected build version
    {platform} the current selected platform
    {project}  name of the project
    {projfile} path of the project's main file
@@ -227,7 +227,7 @@ This function returns a assoc-list of assoc-list such as:
 
 In each action string list may contain the following wildcard
 which will be replaced by their respective value:
-   {config}   the current selected build version
+   {build}    the current selected build version
    {platform} the current selected platform
    {project}  name of the project
    {projfile} path of the project's main file
@@ -244,7 +244,7 @@ which will be replaced by their respective value:
 					     (let ((current-build-config (pop build-config-list)))
 					       (setq bc-list (cons (cons current-build-config
 									 (mapcar (lambda (action-string)
-										   (let* ((repl1 (replace-regexp-in-string "{config}"   current-build-config  action-string))
+										   (let* ((repl1 (replace-regexp-in-string "{build}"    current-build-config  action-string))
 											  (repl2 (replace-regexp-in-string "{platform}" current-platform      repl1))
 											  (repl3 (replace-regexp-in-string "{project}"  project-name          repl2))
 											  (repl4 (replace-regexp-in-string "{projfile}" project-main-file     repl3))
@@ -257,6 +257,14 @@ which will be replaced by their respective value:
 				      )
 			      user-data))))
     user-data))
+
+
+(defun fsprojectp-action-handler(action project-name project-path platform configuration)
+  (let* ((user-data (project-buffer-get-project-user-data project-name))
+	 (cmd-line (cdr (assoc configuration (cdr (assoc platform user-data)))))
+	 (list-pos (cdr (assoc action '((build . 0) (clean . 1) (run . 2) (debug . 3))))))
+    (message (nth list-pos cmd-line))
+    ))
 
 ;(cdr (assoc "win32" (cdr (assoc "debug" '(("release" ("win32" . a) ("ppc" . b)) ("debug" ("win32" . c) ("ppc" . d))) ))))
 
@@ -331,7 +339,7 @@ FILE-FILTER will be added to the project."
     ;; Generate the project node's user-data:
     (setq user-data (fsprojectp-generate-user-data (nth 2 project-type)
 						   project-name
-						   project-main-file
+						   project-main-file 
 						   project-root-folder))					   
     ;; Add the project node
     (project-buffer-insert project-name 'project project-main-file project-name)
@@ -449,4 +457,5 @@ FILE-FILTER will be added to the project."
       ;;
       (fsprojectp-setup-local-key)
       (add-hook 'project-buffer-post-load-hook 'fsprojectp-setup-local-key nil t)
+      (add-hook 'project-buffer-action-hook    'fsprojectp-action-handler  nil t)
       )))
