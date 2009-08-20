@@ -1163,6 +1163,11 @@ Each files/folder under the project will also be deleted."
       ;; Let's start by removing the project from the project list:
       (setq project-buffer-projects-list (remove proj-name project-buffer-projects-list))
 
+      ;; Check the cache:
+      (when (string-equal (car project-buffer-cache-project) proj-name)
+	(setq project-buffer-cache-project nil)
+	(setq project-buffer-cache-subdirectory nil))
+
       ;; Delete the nodes:
       (let ((inhibit-read-only t))
 	(while (and curr-node
