@@ -352,6 +352,7 @@ FILE-FILTER will be added to the project."
       (project-buffer-insert (file-name-nondirectory project-main-file) 'file  project-main-file project-name))
   ))
 
+
 (defun fsprojectp-add-files-to-current-project(&optional root-folder file-filter)
   "Add extra files to the current project."
   (interactive)
@@ -401,29 +402,11 @@ FILE-FILTER will be added to the project."
 	      file-list)
       )))
 
-(defun fsprojectp-delete-current-node()
-  "Delete the current node from the current project."
-  (interactive)
-  (let ((name (project-buffer-get-current-node-name))
-	(type (project-buffer-get-current-node-type))
-	(proj (project-buffer-get-current-project-name)))
-    (when (and proj (yes-or-no-p (concat (format "Delete %s%s " name (if (eq type 'file) "" " and its content")))))
-      (message "Deleting '%s' ..." name)
-      (cond ((eq type 'file)
-	     (project-buffer-delete-file name proj))
-	    ((eq type 'folder)
-	     (project-buffer-delete-folder name proj))
-	    ((eq type 'project)
-	     (project-buffer-delete-project name))
-	    (t (error "Unknown data type"))))))
-
-
 
 (defun fsprojectp-setup-local-key()
   "Define a local key-bindings."
   (local-set-key [(control ?c) ?n] 'fsprojectp-add-project)
   (local-set-key [(control ?c) ?+] 'fsprojectp-add-files-to-current-project)
-  (local-set-key [(control ?c) ?d] 'fsprojectp-delete-current-node)
 
   (local-set-key [(control ?c) (control ?r)] 'project-buffer-revert)
   (local-set-key [(control ?x) (control ?s)] 'project-buffer-save-file)
@@ -434,6 +417,8 @@ FILE-FILTER will be added to the project."
 ;;  User commands:
 ;;
 
+
+;;;###autoload
 (defun fsproject-new(name root-folder)
   "Entry function of thie project-mode."
   (interactive "sProject Buffer Name: \nDRoot Folder: ")
