@@ -463,4 +463,5 @@ FILE-FILTER will be added to the project."
       (setq fsprojectp-build-configuration-list (split-string (read-from-minibuffer "Enter the list of build configurations separated by spaces: " nil nil nil 'fsprojectp-build-configurations-history)))
       ;;
       (fsprojectp-setup-local-key)
+      (add-hook 'project-buffer-post-load-hook 'fsprojectp-setup-local-key nil t)
       )))
