@@ -361,6 +361,14 @@ no files got marked/unmarked)."
   :group 'project-buffer)
 
 
+(defcustom project-buffer-confirm-function 'yes-or-no-p
+  "Confirmation function called before clean and node deletion."
+  :type '(radio function
+                (function-item yes-or-no-p)
+                (function-item y-or-n-p))
+  :group 'project-buffer)
+
+
 
 ;;
 ;;  Font
@@ -582,6 +590,8 @@ FILE-BUFFER is the buffer of the file.")
     (define-key project-buffer-mode-map [?2] 'project-buffer-set-flat-view-mode)
     (define-key project-buffer-mode-map [?3] 'project-buffer-set-folder-hidden-view-mode)
     (define-key project-buffer-mode-map [?4] 'project-buffer-set-marked-view-mode)
+
+    (define-key project-buffer-mode-map [delete] 'project-buffer-delete-current-node)
 
     project-buffer-mode-map))
 
@@ -1082,7 +1092,8 @@ This may change depending on the view mode."
 (defun project-buffer-delete-node(status node)
   "Delete a specific node.
 Also cleanup with empty folder/project resulting of the deletion."
-  (let ((parent-node (project-buffer-node->parent (ewoc-data node)))
+  (let ((parent-node       (project-buffer-node->parent (ewoc-data node)))
+	(project           (project-buffer-node->project (ewoc-data node)))
 	(inhibit-read-only t))
     ;; Delete the found node:
     (ewoc-delete status node)
@@ -1113,11 +1124,10 @@ Empty folder node will also be cleared up."
     ))
 
 
-(defun project-buffer-delete-folder-node(status fold-name project)
-  "Delete the folder FOLD-NAME from PROJECT and all it's files.
+(defun project-buffer-delete-folder-node(status folder-node)
+  "Delete the folder FOLDER-NODE and all it's files.
 Empty parent folder node will also be cleared up."
-  (let* ((folder-node (project-buffer-search-node status fold-name project))
-	 (folder (and folder-node (project-buffer-node->name (ewoc-data folder-node)))))
+  (let* ((folder (and folder-node (project-buffer-node->name (ewoc-data folder-node)))))
     (when folder
       ;; First, let delete the content of the folder:
       (let ((inhibit-read-only t))
@@ -1604,7 +1614,8 @@ Empty folder node will also be cleared up."
 (defun project-buffer-delete-folder (name project)
   "Delete the node named NAME which belongs to PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (project-buffer-delete-folder-node project-buffer-status name project))
+  (project-buffer-delete-folder-node project-buffer-status 
+				     (project-buffer-search-node project-buffer-status name project)))
 
 
 (defun project-buffer-delete-project (project)
@@ -2500,8 +2511,30 @@ If the cursor is on a file - nothing will be done."
 	 (node-data (ewoc-data node)))
     (when (eq (project-buffer-node->type node-data) 'file)
       (view-file (project-buffer-node->filename node-data)))))
-  
-    
+
+
+(defun project-buffer-delete-current-node()
+  "Delete the current node from the current project."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((status project-buffer-status)
+	(node (ewoc-locate project-buffer-status)))
+    (when node
+      (let* ((node-data (ewoc-data node))
+	     (type      (project-buffer-node->type node-data))
+	     (name      (project-buffer-node->name node-data)))
+	(when (funcall project-buffer-confirm-function 
+		       (concat (format "Delete %s%s " name (if (eq type 'file) "" " and its content"))))
+	  (message "Deleting %s..." name)
+	  (cond ((eq type 'file)
+		 (project-buffer-delete-node status node))
+		((eq type 'folder)
+		 (project-buffer-delete-folder-node status node))
+		((eq type 'project)
+		 (project-buffer-delete-project-node project-buffer-status name node))
+		(t (error "Unknown data type"))))))))
+
+
 ;;
 ;;  Global command:
 ;;
