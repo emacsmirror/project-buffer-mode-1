@@ -1079,33 +1079,37 @@ This may change depending on the view mode."
 ))
 
 
+(defun project-buffer-delete-node(status node)
+  "Delete a specific node.
+Also cleanup with empty folder/project resulting of the deletion."
+  (let ((parent-node (project-buffer-node->parent (ewoc-data node)))
+	(inhibit-read-only t))
+    ;; Delete the found node:
+    (ewoc-delete status node)
+    
+    ;; Now it's time to check the parent node the file belong to:
+    (while parent-node
+      (let ((next-node   (ewoc-next status parent-node))
+	    (parent-data (ewoc-data parent-node)))
+	(if (and next-node
+		 (eq (project-buffer-node->parent (ewoc-data next-node)) parent-node))
+	    (setq parent-node nil)
+	    (let ((new-parent-node (and (not (eq (project-buffer-node->type parent-data) 'project))
+					(project-buffer-node->parent parent-data))))
+	      (if (not new-parent-node)
+		  (project-buffer-delete-project-node status project parent-node)
+		  (ewoc-delete status parent-node))
+	      (setq parent-node new-parent-node))
+	    )))
+    ))
+
+
 (defun project-buffer-delete-file-node(status name project)
   "Delete the node named NAME which belongs to PROJECT.
 Empty folder node will also be cleared up."
   (let* ((node (project-buffer-search-node status name project)))
-    
-    ;; Delete the node if found:
     (when node
-      (let ((parent-node (project-buffer-node->parent (ewoc-data node)))
-	    (inhibit-read-only t))
-	;; Delete the found node:
-	(ewoc-delete status node)
-	
-	;; Now it's time to check the parent node the file belong to:
-	(while parent-node
-	  (let ((next-node   (ewoc-next status parent-node))
-		(parent-data (ewoc-data parent-node)))
-	    (if (and next-node
-		     (eq (project-buffer-node->parent (ewoc-data next-node)) parent-node))
-		(setq parent-node nil)
-		(let ((new-parent-node (and (not (eq (project-buffer-node->type parent-data) 'project))
-					    (project-buffer-node->parent parent-data))))
-		  (if (not new-parent-node)
-		      (project-buffer-delete-project-node status project parent-node)
-		      (ewoc-delete status parent-node))
-		  (setq parent-node new-parent-node))
-		)))
-	))
+      (project-buffer-delete-node status node))
     ))
 
 
@@ -1115,10 +1119,9 @@ Empty parent folder node will also be cleared up."
   (let* ((folder-node (project-buffer-search-node status fold-name project))
 	 (folder (and folder-node (project-buffer-node->name (ewoc-data folder-node)))))
     (when folder
-      (let ((parent-node (project-buffer-node->parent (ewoc-data folder-node)))
-	    (inhibit-read-only t))
+      ;; First, let delete the content of the folder:
+      (let ((inhibit-read-only t))
 	(save-excursion
-	  ;; Delete the folder content:
 	  (let* ((node      (ewoc-next status folder-node))
 		 (node-data (and node (ewoc-data node)))
 		 next-node)
@@ -1128,23 +1131,10 @@ Empty parent folder node will also be cleared up."
 	      (setq next-node (ewoc-next status node))
 	      (ewoc-delete status node)
 	      (setq node next-node
-		    node-data (and node (ewoc-data node))))))
-	;; Now let's delete the node:
-	(ewoc-delete status folder-node)
-	;; Check the parents:
-	(while parent-node
-	  (let ((next-node   (ewoc-next status parent-node))
-		(parent-data (ewoc-data parent-node)))
-	    (if (and next-node
-		     (eq (project-buffer-node->parent (ewoc-data next-node)) parent-node))
-		(setq parent-node nil)
-		(let ((new-parent-node (and (not (eq (project-buffer-node->type parent-data) 'project))
-					    (project-buffer-node->parent parent-data))))
-		  (if (not new-parent-node)
-		      (project-buffer-delete-project-node status project parent-node)
-		      (ewoc-delete status parent-node))
-		  (setq parent-node new-parent-node))
-		)))))))
+		    node-data (and node (ewoc-data node)))))))
+      ;; Now let's delete the node:
+      (project-buffer-delete-node status folder-node)
+      )))
 
 
 (defun project-buffer-delete-project-node(status proj-name proj-node)
