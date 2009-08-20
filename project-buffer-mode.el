@@ -24,17 +24,17 @@
 ;;
 
 ;;; Summary:
-;; 
+;;
 
 ;; project-buffer-mode is a generic mode to handle projects.  It
 ;; provides an easy and intuitive way to interact with the multiple
 ;; projects with in one buffer.
 ;;
-;; 
+;;
 ;; Two extensions already exist for this mode:
 ;; - fsproject  - which creates a project based on the file system
 ;; - sln-mode   - which parses a sln files and create a project representing it
-;; 
+;;
 ;;
 ;; Key features:
 ;; - find file based on regular expression
@@ -46,11 +46,11 @@
 
 
 ;;; Commentary:
-;; 
+;;
 
 ;; project-buffer-mode provides a generic way to handle multiple
 ;; projects in a buffer.
-;; 
+;;
 ;; A Project is defined by:
 ;;  - its name
 ;;  - its main file (Makefile, Jam, Scons...)
@@ -60,12 +60,12 @@
 ;;
 ;;
 ;; QUICK FIND FILE USING REGEXP:
-;; 
+;;
 ;; Through a hierarchical view, the project-buffer mode provides an
 ;; very easy and intuitive way to search for a particular files (key:
 ;; '/', then 'n' or 'p' to go to the next or previous matching
 ;; result).  Note: press 'q' to cancel the research.
-;; 
+;;
 ;; Opening the current is a simple as pressing <enter> or
 ;; 'o' to open it in another window.
 ;; Press 'f' if you want to open all marked files.
@@ -92,22 +92,22 @@
 ;;
 ;;
 ;; MARKING FILE MATCHING A REGEXP:
-;; 
+;;
 ;; Files can be marked/unmarked individually, but you can also easily
 ;; mark all files whose names are matching a regular expression ('/'
 ;; then 'm').
 ;; Note: using the mark/unmark command in front of a folder of a
 ;; project results in marking every files which belong to this folder
 ;; or this project.
-;; 
+;;
 ;;
 ;; ADVANCE SEARCH IN FILES SYSTEM:
-;; 
+;;
 ;; The search in files functionality comes with three different behaviors:
 ;; - Narrow the marked files (<default>)
 ;; - All files
 ;; - Current project
-;; 
+;;
 ;; Before talking about the "Narrow the marked files" behavior which
 ;; is the default one; let's quickly go throught the others two:
 ;;
@@ -129,7 +129,7 @@
 ;; way as the "All files" behavior.  In case some files are marked, it
 ;; will only perform the "search-regexp in files" in the marked files,
 ;; unmarking the ones which don't contain the regular expression.
-;; 
+;;
 ;; This provide an easy way to narrow/refine some research.
 ;;
 ;; The search behavior can be either customized or locally change
@@ -208,7 +208,7 @@
 
 
 ;;; Raw mode:
-;; 
+;;
 
 ;; As it was mentioned earlier, project-buffer-mode is just an abstract
 ;; project manager.  Even if some extensions already exist, you may
@@ -223,11 +223,11 @@
 ;;     (with-current-buffer buffer
 ;;       (cd "~/temp")                                                                 ; It's always better to set the root directory if it's known.
 ;;       (project-buffer-mode)                                                         ; Initialize the project buffer mode
-;; 
+;;
 ;;       (project-buffer-insert "test1" 'project "test1/Makefile" "test1")             ; Create an insert a project node called 'test1' (note: it's recommended to have project and node being the same)
 ;;       (project-buffer-insert "src/gfr.cpp" 'file  "~/temp/test1/gfr.cpp" "test1")   ; Add "~/tenp/gfr.cpp" to the project 'test1' it's project path will be: "src/gfr.cpp"
 ;;       (project-buffer-insert "src/abc.cpp" 'file  "~/temp/test1/abc.cpp" "test1")   ; Add "~/tenp/abc.cpp" to the project 'test1' it's project path will be: "src/abc.cpp"
-;; 
+;;
 ;;       (project-buffer-insert "test2" 'project "test2/Makefile" "test2")             ; Creation of a second project namded "test2"
 ;;       (project-buffer-insert "header/yyy.h" 'file  "~/temp/test2/zzz.h" "test2")    ; Add some file to this project; note that the project path and the physical file name can be completely different
 ;;       (project-buffer-insert "src/roo.c" 'file  "~/temp/test2/roo.c" "test2")       ;  the file name research will be based on the project-path and not on the physical file name
@@ -278,7 +278,7 @@
 
 
 ;;; History:
-;; 
+;;
 
 ;; v1.00: First public release.
 ;; v1.10: Added mouse support and save/load.
@@ -407,7 +407,7 @@ no files got marked/unmarked)."
     (((class color) (background dark)) (:foreground "gray50")))
   "Project buffer mode face used highligh [ and ] in front of the project name."
   :group 'project-buffer)
-  
+
 (defface project-buffer-indent-face
   '((((class color) (background light)) (:foreground "gray50"))
     (((class color) (background dark)) (:foreground "gray50")))
@@ -916,7 +916,7 @@ This may change depending on the view mode."
 	)
     (when (eq type-data 'folder)
       (error "Not supported -- in particular project-buffer-directory-lessp may returns a incorrect value"))
-    
+
 
     ;; Cache check:
     (when project-buffer-cache-project
@@ -943,7 +943,7 @@ This may change depending on the view mode."
        (t
 	(setq project-buffer-cache-project nil
 	      project-buffer-cache-subdirectory nil))))
-	 
+
     ;; Search where to insert the node:
     (while (and node (not here) (not skip))
       (setq node-data (ewoc-data node))
@@ -975,7 +975,7 @@ This may change depending on the view mode."
 			       (setq folder-node node))
 			     (cond ((project-buffer-directory-lessp folder-data folder-db type-db)
 				    (setq here node))
-				   
+
 				   ((string-equal folder-data folder-db)
 				    (when (eq type-db 'folder)
 				      (setq folder-node node))
@@ -985,7 +985,7 @@ This may change depending on the view mode."
 					(unless (eq type-db 'folder)
 					  (when (string-lessp name-data name-db)
 					    (setq here node)))))
-				   
+
 				   (t (setq folder folder-db))))
 		      ;; Either:
 		      ;; - the current node has no folder, meaning:
@@ -1079,7 +1079,7 @@ This may change depending on the view mode."
 		    (setf (project-buffer-node->project-collapsed new-data) (project-buffer-node->project-collapsed data))
 		    (setq folder-node (ewoc-enter-before status node new-data)))
 		  (setf (project-buffer-node->parent (ewoc-data folder-node)) parent-node)
-		  
+
 		  (setf (project-buffer-node->parent data) folder-node)
 		  (setq ndx (1+ ndx)))))
 	  ))
@@ -1101,7 +1101,7 @@ Also cleanup with empty folder/project resulting of the deletion."
 	(inhibit-read-only t))
     ;; Delete the found node:
     (ewoc-delete status node)
-    
+
     ;; Now it's time to check the parent node the file belong to:
     (while parent-node
       (let ((next-node   (ewoc-next status parent-node))
@@ -1169,7 +1169,7 @@ Each files/folder under the project will also be deleted."
 	    (ewoc-delete status curr-node)
 	    (setq curr-node next-node)
 	    )))
-      
+
       ;; Now: the master project may need to be readjusted
       (when (string-equal proj-name (car project-buffer-master-project))
 	(if curr-node
@@ -1618,7 +1618,7 @@ Empty folder node will also be cleared up."
 (defun project-buffer-delete-folder (name project)
   "Delete the node named NAME which belongs to PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (project-buffer-delete-folder-node project-buffer-status 
+  (project-buffer-delete-folder-node project-buffer-status
 				     (project-buffer-search-node project-buffer-status name project)))
 
 
@@ -1764,7 +1764,7 @@ nodes either."
 (defun project-buffer-get-current-file-data ()
   "Retrieve data about the current file the cursor is on.
 Return nil if the cursor is not on a file.
-If non-nil the return value is a list containing: 
+If non-nil the return value is a list containing:
   '(project-file-name full-path project-name)"
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((node (ewoc-locate project-buffer-status))
@@ -1811,7 +1811,7 @@ If non-nil the return value is a list containing:
   (let ((node (ewoc-locate project-buffer-status)))
     (when node
       (project-buffer-node->name (ewoc-data node)))))
-  
+
 
 
 ;;
@@ -2037,7 +2037,7 @@ If the cursor is on a project, go to next project."
 			 (not (eq (project-buffer-node->type node-data) 'project))
 			 (eq project-buffer-view-mode 'folder-view)))
 	 (search    (and node (ewoc-next status node))))
-  
+
     (while (and search
 		(not (eq (project-buffer-node->type (ewoc-data search)) 'project))
 		(not (and fold-ok
@@ -2071,7 +2071,7 @@ If the cursor is on a project, go to next project."
       (if (get-text-property (point) 'mouse-face)
 	  (project-buffer-node-find-file-other-window)))))
 
-  
+
 (defun project-buffer-node-find-file-other-window ()
   "Find the file the cursor is on in another window."
   (interactive)
@@ -2262,7 +2262,7 @@ If the cursor is on a file - nothing will be done."
 		    (setq skip-under (project-buffer-node->name node-data))))
 	      (setq node (ewoc-next status node)))
 	    (setq node nil))))))
-    
+
 
 (defun project-buffer-set-folder-view-mode()
   "Set the view mode to folder-view."
@@ -2528,7 +2528,7 @@ If the cursor is on a file - nothing will be done."
       (let* ((node-data (ewoc-data node))
 	     (type      (project-buffer-node->type node-data))
 	     (name      (project-buffer-node->name node-data)))
-	(when (funcall project-buffer-confirm-function 
+	(when (funcall project-buffer-confirm-function
 		       (concat (format "Delete %s%s " name (if (eq type 'file) "" " and its content"))))
 	  (message "Deleting %s..." name)
 	  (cond ((eq type 'file)
