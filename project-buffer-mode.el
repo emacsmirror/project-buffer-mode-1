@@ -171,6 +171,7 @@
 ;;    s    -> (un)mark files containing regexp...
 ;;   <TAB> -> collapse/expand folder/project (work if the cursor is on a file)
 ;;   <RET> -> open file at cursor pos
+;;   <DEL> -> Delete the current node
 ;;   <BCK> -> go to parent
 ;;   <SPC> -> next line
 ;; S-<SPC> -> prev line
@@ -290,7 +291,9 @@
 ;;        - project-buffer-find-node-up was return nil in view-mode other than folder-view
 ;;        - file-exist-p has been renamed to file-exists-p
 ;;        - minor visibility bug when a files get added to the project if the view-mode is different from folder-view
-;; v.1.12: Added the following user functions:
+;; v1.12: Add a new command:
+;;        - Delete current node bound to <DEL>
+;;        Add the following user functions:
 ;;        - `project-buffer-get-current-project-name' to get the project name the cursor is on
 ;;        - `project-buffer-get-current-file-data' to get data about the file the cursor is on
 ;;        - `project-buffer-get-file-path' to get the file path
@@ -299,6 +302,7 @@
 ;;        - `project-buffer-delete-folder' to remove a folder and all its files
 ;;        - `project-buffer-exists-p' to check if a node exists (file or folder) inside a project
 ;;        - `project-buffer-project-exists-p' to check if a project exists
+;;
 
 (require 'cl)
 (require 'ewoc)
@@ -2419,7 +2423,8 @@ If the cursor is on a file - nothing will be done."
   "Run the user hook to perform the build action."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (project-buffer-perform-action-hook 'clean))
+  (when (funcall project-buffer-confirm-function "Clean the master project ")
+    (project-buffer-perform-action-hook 'clean)))
 
 
 (defun project-buffer-perform-run-action ()
