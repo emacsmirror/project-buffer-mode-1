@@ -1078,62 +1078,18 @@ This may change depending on the view mode."
 						 (cons folder-data folder-node)))
 ))
 
+
 (defun project-buffer-delete-file-node(status name project)
   "Delete the node named NAME which belongs to PROJECT.
 Empty folder node will also be cleared up."
-  (let ((node           (ewoc-nth status 0))
-	(folder-data    (project-buffer-extract-folder name 'file))
-	(proj-data      project)
-	(found          nil)
-	(folder-found   nil)
-	(node-data      nil))
-
-    ;; Cache check: <deleting a file node doesn't update the cache>
-    (when project-buffer-cache-project
-      (cond
-       ;; cache-project < current-project -> we can start the search from here (at least).
-       ((string-lessp (car project-buffer-cache-project) proj-data)
-	(setq node (cdr project-buffer-cache-project)))
-
-       ;; cache-project == current-project -> check the folders...
-       ((string-equal (car project-buffer-cache-project) proj-data)
-	;; cache-subdir < current-subdir -> we can start from here.
-	;; cache-subdir = current-subdir -> good starting point
-	(if (and project-buffer-cache-subdirectory
-		 folder-data
-		 (or (string-equal (car project-buffer-cache-subdirectory) folder-data)
-		     (project-buffer-directory-lessp (car project-buffer-cache-subdirectory) folder-data 'folder)))
-	    (setq node (cdr project-buffer-cache-subdirectory))
-	    (setq node (cdr project-buffer-cache-project))))
-       ;; other wise: cache miss...
-       ))
-
-    ;; Search where is the node to delete:
-    (while (and node (not found))
-      (setq node-data (ewoc-data node))
-
-      (cond
-       ;; data.project < node.project -> not found...
-       ((string-lessp proj-data (project-buffer-node->project node-data))
-	(setq node nil))
-
-       ;; node.project == data.project -> check folder/file name
-       ((string-equal proj-data (project-buffer-node->project node-data))
-	(let* ((folder-db (project-buffer-extract-folder (project-buffer-node->name node-data) (project-buffer-node->type node-data)))
-	       (type-db   (project-buffer-node->type node-data)))
-	  ;; Make sure it's not the project line:
-	  (unless (eq type-db 'project)
-	    (setq found (and (string-equal (project-buffer-node->name node-data) name) node))))))
-
-      ;; next node:
-      (setq node (and node (ewoc-next status node))))
-
-    ;; Time to delete it:
-    (when found
-      (let ((parent-node (project-buffer-node->parent node-data))
+  (let* ((node (project-buffer-search-node status name project)))
+    
+    ;; Delete the node if found:
+    (when node
+      (let ((parent-node (project-buffer-node->parent (ewoc-data node)))
 	    (inhibit-read-only t))
 	;; Delete the found node:
-	(ewoc-delete status found)
+	(ewoc-delete status node)
 	
 	;; Now it's time to check the parent node the file belong to:
 	(while parent-node
@@ -1154,7 +1110,8 @@ Empty folder node will also be cleared up."
 
 
 (defun project-buffer-delete-folder-node(status fold-name project)
-  "Delete the folder FOLD-NAME from PROJECT and all it's files."
+  "Delete the folder FOLD-NAME from PROJECT and all it's files.
+Empty parent folder node will also be cleared up."
   (let* ((folder-node (project-buffer-search-node status fold-name project))
 	 (folder (and folder-node (project-buffer-node->name (ewoc-data folder-node)))))
     (when folder
