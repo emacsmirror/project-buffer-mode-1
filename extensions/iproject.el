@@ -461,8 +461,8 @@ FILE-FILTER will be added to the project."
 
 
 ;;;###autoload
-(defun iproject-new(name root-folder)
-  "Entry function of thie project-mode."
+(defun iproject-new (name root-folder)
+  "Create a iproject buffer named NAME with a default-directory set to ROOT-FOLDER."
   (interactive "sProject Buffer Name: \nDRoot Folder: ")
   (let ((buffer (generate-new-buffer (concat "ipb:" name))))
     (switch-to-buffer buffer)
@@ -488,7 +488,7 @@ FILE-FILTER will be added to the project."
       ;; ask for the platform list:
       (setq iproject-platform-list            (split-string (read-from-minibuffer "Enter the list of platforms separated by spaces: "
 										  (if iproject-platforms-history (car iproject-platforms-history) (format "%s" system-type))
-										  nil nil nil 'iproject-platforms-history)))
+										  nil nil 'iproject-platforms-history)))
       (setq iproject-build-configuration-list (split-string (read-from-minibuffer "Enter the list of build configurations separated by spaces: "
 										  (if iproject-build-configurations-history (car iproject-build-configurations-history) "release debug")
 										  nil nil 'iproject-build-configurations-history)))
@@ -497,6 +497,13 @@ FILE-FILTER will be added to the project."
       (add-hook 'project-buffer-post-load-hook 'iproject-setup-local-key nil t)
       (add-hook 'project-buffer-action-hook    'iproject-action-handler  nil t)
       )))
+
+
+;;;###autoload
+(defun iproject-key-binding ()
+  "Setup some global key-bindings."
+  (define-key global-map [(control x) (?p) (?n)] 'iproject-new)
+  (define-key global-map [(control x) (?p) (?f)] 'project-buffer-find-file))
 
 
 ;;
