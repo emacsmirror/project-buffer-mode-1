@@ -1,9 +1,9 @@
-;;; iproject.el --- File System Project Viewer
+;;; iproject.el --- Interactive Project Mode
 ;;
 ;; Author:      Cedric Lallain <kandjar76@hotmail.com>
 ;; Version:     1.0
-;; Keywords:    project buffer makefile filesystem management
-;; Description: File System Project Viewer Extension
+;; Keywords:    interactive project buffer makefile filesystem management
+;; Description: Interactive Project Extension For Project-Buffer-Mode
 ;; Tested with: GNU Emacs 22.x and GNU Emacs 23.x
 ;;
 ;; This file is *NOT* part of GNU Emacs.
@@ -34,15 +34,15 @@
 ;; C-x C-w to write the project
 ;; C-x C-s to save the project
 
-;;
-;; suggestion:
-;;              C-c -   to delete a project
-;;              C-c R   to rename the current project
 
 (require 'project-buffer-mode)
 
 
-(defcustom iproject-filters
+;;
+;;  Global configuration variable:
+;;
+
+(defvar iproject-filters
   '((c++       ("\\.[cChH][pPxX+][pPxX+]$" "\\.[cChH]$" "\\.[iI][nN][lL]$" "\\.[cC][cC]$"))
     (c         ("\\.[cChH]$" "\\.[iI][nN][lL]$" "\\.[cC][cC]$"))
     (elisp     ("\\.el$"))
@@ -61,7 +61,7 @@
   "List of the different file filters."
 )
 
-(defcustom iproject-project-type
+(defvar iproject-project-type
   '((makefile ("\\.mak$" "Makefile$")
 	      ((build . "make -C {root} CONFIG={build}") 
 	       (clean . "make -C {root} clean CONFIG={build}")))
@@ -100,7 +100,7 @@ Each project type is a list of the following format:
    {root}     root folder of the project"
 )
 
-(defcustom iproject-ignore-folder
+(defvar iproject-ignore-folder
   '(".git" ".svn" "bzr" ".hg" "CVS" ".CVS" "build" "lib" "Debug" "Release")
   "List of folder to ignore during the recursive search.")
 
