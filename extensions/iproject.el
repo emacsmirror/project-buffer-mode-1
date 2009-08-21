@@ -1,4 +1,4 @@
-;;; fsproject+.el --- File System Project Viewer
+;;; iproject.el --- File System Project Viewer
 ;;
 ;; Author:      Cedric Lallain <kandjar76@hotmail.com>
 ;; Version:     1.0
@@ -26,8 +26,7 @@
 ;;; Commentary:
 ;;
 
-;; This is an extension to fsproject, an add-on library for
-;; project-buffer-mode.
+;; This is an add-on library for project-buffer-mode.
 ;;
 ;; Key mapped:
 ;; C-c n   to add new project
@@ -43,7 +42,7 @@
 (require 'project-buffer-mode)
 
 
-(defcustom fsprojectp-filters
+(defcustom iproject-filters
   '((c++       ("\\.[cChH][pPxX+][pPxX+]$" "\\.[cChH]$" "\\.[iI][nN][lL]$" "\\.[cC][cC]$"))
     (c         ("\\.[cChH]$" "\\.[iI][nN][lL]$" "\\.[cC][cC]$"))
     (elisp     ("\\.el$"))
@@ -62,7 +61,7 @@
   "List of the different file filters."
 )
 
-(defcustom fsprojectp-project-type
+(defcustom iproject-project-type
   '((makefile ("\\.mak$" "Makefile$")
 	      ((build . "make -C {root} CONFIG={build}") 
 	       (clean . "make -C {root} clean CONFIG={build}")))
@@ -101,7 +100,7 @@ Each project type is a list of the following format:
    {root}     root folder of the project"
 )
 
-(defcustom fsprojectp-ignore-folder
+(defcustom iproject-ignore-folder
   '(".git" ".svn" "bzr" ".hg" "CVS" ".CVS" "build" "lib" "Debug" "Release")
   "List of folder to ignore during the recursive search.")
 
@@ -111,89 +110,89 @@ Each project type is a list of the following format:
 ;;
 
 
-(defvar fsprojectp-project-type-history nil)
-(defvar fsprojectp-file-filter-history nil)
-(defvar fsprojectp-file-filter-query-history nil)
-(defvar fsprojectp-file-filter-regexp-history nil)
-(defvar fsprojectp-file-filter-extension-list-history nil)
-(defvar fsprojectp-project-name-history nil)
-(defvar fsprojectp-platforms-history nil)
-(defvar fsprojectp-build-configurations-history nil)
-(defvar fsprojectp-action-commands-history nil)
+(defvar iproject-project-type-history nil)
+(defvar iproject-file-filter-history nil)
+(defvar iproject-file-filter-query-history nil)
+(defvar iproject-file-filter-regexp-history nil)
+(defvar iproject-file-filter-extension-list-history nil)
+(defvar iproject-project-name-history nil)
+(defvar iproject-platforms-history nil)
+(defvar iproject-build-configurations-history nil)
+(defvar iproject-action-commands-history nil)
 
 
 ;;
 ;;  Local variables:
 ;;
 
-(defvar fsprojectp-last-project-type-choosen "makefile")
-(defvar fsprojectp-last-filter-type-choosen "c++")
-(defvar fsprojectp-last-file-filter-query-mode-choosen "regexp")
-(defvar fsprojectp-last-file-filter-regexp-choosen nil)
-(defvar fsprojectp-last-file-extension-list-choosen nil)
-(defvar fsprojectp-platform-list nil)
-(defvar fsprojectp-build-configuration-list nil)
+(defvar iproject-last-project-type-choosen "makefile")
+(defvar iproject-last-filter-type-choosen "c++")
+(defvar iproject-last-file-filter-query-mode-choosen "regexp")
+(defvar iproject-last-file-filter-regexp-choosen nil)
+(defvar iproject-last-file-extension-list-choosen nil)
+(defvar iproject-platform-list nil)
+(defvar iproject-build-configuration-list nil)
 
 
 ;;
 ;;  Functions:
 ;;
 
-(defun fsprojectp-choose-project-type()
+(defun iproject-choose-project-type()
   "Request and return the selected project type"
-  (let* ((project-type-string (completing-read (format "Project Type [default %s]: " fsprojectp-last-project-type-choosen)
-					       fsprojectp-project-type nil t nil 'fsprojectp-project-type-history fsprojectp-last-project-type-choosen))
+  (let* ((project-type-string (completing-read (format "Project Type [default %s]: " iproject-last-project-type-choosen)
+					       iproject-project-type nil t nil 'iproject-project-type-history iproject-last-project-type-choosen))
 	 (project-type (intern project-type-string)))
-    (setq fsprojectp-last-project-type-choosen project-type-string)
-    (assoc project-type fsprojectp-project-type)))
+    (setq iproject-last-project-type-choosen project-type-string)
+    (assoc project-type iproject-project-type)))
 
-(defun fsprojectp-shorten-string(str max-lgt)
+(defun iproject-shorten-string(str max-lgt)
   "If the length of STR is greater than MAX-LGT; shorten the string adding '...' at the end."
   (if (> (length str) max-lgt)
       (concat (substring str 0 (- max-lgt 3)) "...")
       str))
 
-(defun fsprojectp-choose-file-filter()
+(defun iproject-choose-file-filter()
   "Read the file filter."
-  (let* ((filter-type-string (completing-read (format "Filter Type [default %s]: " fsprojectp-last-filter-type-choosen)
-					       fsprojectp-filters nil t nil 'fsprojectp-file-filter-history fsprojectp-last-filter-type-choosen))
+  (let* ((filter-type-string (completing-read (format "Filter Type [default %s]: " iproject-last-filter-type-choosen)
+					       iproject-filters nil t nil 'iproject-file-filter-history iproject-last-filter-type-choosen))
 	 (filter-type (intern filter-type-string)))
-    (setq fsprojectp-last-filter-type-choosen filter-type-string)
+    (setq iproject-last-filter-type-choosen filter-type-string)
     (if (not (eq filter-type 'custom))
 	;; If not custom: return the selected file-filter:
-	(assoc filter-type fsprojectp-filters)
+	(assoc filter-type iproject-filters)
 	;; In case of custom file filter:
 	;; Let's first ask how to specify the filter:
-	(let* ((query-mode-string (completing-read (format "Enter the file system query mode (regexp, file-extension) [default %s]: " fsprojectp-last-file-filter-query-mode-choosen)
-						   '("regexp" "file-extension") nil t nil 'fsprojectp-file-filter-query-history fsprojectp-last-file-filter-query-mode-choosen))
+	(let* ((query-mode-string (completing-read (format "Enter the file system query mode (regexp, file-extension) [default %s]: " iproject-last-file-filter-query-mode-choosen)
+						   '("regexp" "file-extension") nil t nil 'iproject-file-filter-query-history iproject-last-file-filter-query-mode-choosen))
 	       (query-mode (intern query-mode-string)))
-	  (setq fsprojectp-last-file-filter-query-mode-choosen query-mode-string)
+	  (setq iproject-last-file-filter-query-mode-choosen query-mode-string)
 	  (cond ((eq query-mode 'regexp)
 		 ;; A regexp:
-		 (let* ((def-string (if fsprojectp-last-file-filter-regexp-choosen
-					(concat " [default " (fsprojectp-shorten-string fsprojectp-last-file-filter-regexp-choosen 9) "]")
+		 (let* ((def-string (if iproject-last-file-filter-regexp-choosen
+					(concat " [default " (iproject-shorten-string iproject-last-file-filter-regexp-choosen 9) "]")
 					""))
 			(file-filter-regexp (read-from-minibuffer (format "Enter the file filter regexp%s: " def-string)
-								  nil nil nil 'fsprojectp-file-filter-regexp-history)))
+								  nil nil nil 'iproject-file-filter-regexp-history)))
 		   (if (= (length file-filter-regexp) 0)
-		       (setq file-filter-regexp fsprojectp-last-file-filter-regexp-choosen)
-		       (setq fsprojectp-last-file-filter-regexp-choosen file-filter-regexp))
+		       (setq file-filter-regexp iproject-last-file-filter-regexp-choosen)
+		       (setq iproject-last-file-filter-regexp-choosen file-filter-regexp))
 		   (list 'custom (list file-filter-regexp))))
 		((eq query-mode 'file-extension)
 		 ;; A list of file extension:
-		 (let* ((def-string (if fsprojectp-last-file-extension-list-choosen
-					(concat " [default " (fsprojectp-shorten-string fsprojectp-last-file-extension-list-choosen 9) "]")
+		 (let* ((def-string (if iproject-last-file-extension-list-choosen
+					(concat " [default " (iproject-shorten-string iproject-last-file-extension-list-choosen 9) "]")
 					""))
 			(file-extension-list (read-from-minibuffer (format "Enter the list of extension separated by spaces%s: " def-string)
-								   nil nil nil 'fsprojectp-file-filter-extension-list-history)))
+								   nil nil nil 'iproject-file-filter-extension-list-history)))
 		   (if (= (length file-extension-list) 0)
-		       (setq file-extension-list fsprojectp-last-file-extension-list-choosen)
-		       (setq fsprojectp-last-file-extension-list-choosen file-extension-list))
+		       (setq file-extension-list iproject-last-file-extension-list-choosen)
+		       (setq iproject-last-file-extension-list-choosen file-extension-list))
 		   (list 'custom (list (concat "\\." (regexp-opt (split-string file-extension-list)) "$")))))
 		(t (error "Unknown Query Mode")))))))
 
 
-(defun fsprojectp-collect-files(root-folder file-filter-list &optional ignore-folders)
+(defun iproject-collect-files(root-folder file-filter-list &optional ignore-folders)
   "Parse ROOT-FOLDER and its sub-folder and create a list of full path filename matching one of the regexp of FILE-FILTER-LIST.
 The folder defined inside in IGNORE-FOLDERS will be skipped."
   (let ((dir-list (directory-files-and-attributes root-folder t))
@@ -222,7 +221,7 @@ The folder defined inside in IGNORE-FOLDERS will be skipped."
     file-list))
 
 
-(defun fsprojectp-generate-user-data(action-string-list
+(defun iproject-generate-user-data(action-string-list
 				     project-name
 				     project-main-file
 				     project-root-folder)
@@ -239,11 +238,11 @@ which will be replaced by their respective value:
    {projfile} path of the project's main file
    {root}     root folder of the project"
 
-  (let ((platform-list fsprojectp-platform-list)
+  (let ((platform-list iproject-platform-list)
 	user-data)
     (while platform-list
       (let ((current-platform (pop platform-list))
-	    (build-config-list fsprojectp-build-configuration-list)
+	    (build-config-list iproject-build-configuration-list)
 	    bc-list)
 	(setq user-data (cons (cons current-platform
 				    (progn (while build-config-list
@@ -266,7 +265,7 @@ which will be replaced by their respective value:
     user-data))
 
 
-(defun fsprojectp-action-handler(action project-name project-path platform configuration)
+(defun iproject-action-handler(action project-name project-path platform configuration)
   (let* ((user-data (project-buffer-get-project-user-data project-name))
 	 (query-string (concat (upcase-initials (format "%s" action)) " command: "))
 	 user-command)
@@ -281,16 +280,16 @@ which will be replaced by their respective value:
 	      (if config-data
 		  (let ((action-data (assoc action (cdr config-data))))
 		    (if action-data
-			(progn (setq user-command (read-from-minibuffer query-string (cdr action-data) nil nil 'fsprojectp-action-commands-history))
+			(progn (setq user-command (read-from-minibuffer query-string (cdr action-data) nil nil 'iproject-action-commands-history))
 			       (setcdr action-data user-command))
-			(progn (setq user-command (read-from-minibuffer query-string nil nil nil 'fsprojectp-action-commands-history))
+			(progn (setq user-command (read-from-minibuffer query-string nil nil nil 'iproject-action-commands-history))
 			       (setcdr config-data (acons action user-command (cdr config-data))))))
-		  (progn (setq user-command (read-from-minibuffer query-string nil nil nil 'fsprojectp-action-commands-history))
+		  (progn (setq user-command (read-from-minibuffer query-string nil nil nil 'iproject-action-commands-history))
 			 (setcdr platform-data (acons configuration (acons action user-command nil) (cdr platform-data))))))
-	    (progn (setq user-command (read-from-minibuffer query-string nil nil nil 'fsprojectp-action-commands-history))
+	    (progn (setq user-command (read-from-minibuffer query-string nil nil nil 'iproject-action-commands-history))
 		   (setcdr user-data (copy-alist user-data))
 		   (setcar user-data (cons platform (acons configuration (acons action user-command nil) nil))))))
-      (progn (setq user-command (read-from-minibuffer query-string nil nil nil 'fsprojectp-action-commands-history))
+      (progn (setq user-command (read-from-minibuffer query-string nil nil nil 'iproject-action-commands-history))
 	     (project-buffer-set-project-user-data project-name (acons platform (acons configuration (acons action user-command nil) nil) nil))))
     (message user-command)))
 
@@ -300,7 +299,7 @@ which will be replaced by their respective value:
 ;;
 
 
-(defun fsprojectp-add-project(&optional project-type project-main-file project-root-folder project-name file-filter)
+(defun iproject-add-project(&optional project-type project-main-file project-root-folder project-name file-filter)
   "Select a FOLDER, a MAIN-FILE and a FILE-FILTER, then add all
 files under the current folder and sub-folder matching the
 FILE-FILTER will be added to the project."
@@ -309,7 +308,7 @@ FILE-FILTER will be added to the project."
   (when (interactive-p)
     ;; Read the project-type
     (unless project-type
-      (setq project-type (fsprojectp-choose-project-type)))
+      (setq project-type (iproject-choose-project-type)))
     ;; Read the project-main-file (if the project's type is 'blank' there is no root filename)
     (unless project-main-file
       (when (nth 1 project-type)
@@ -341,7 +340,7 @@ FILE-FILTER will be added to the project."
       (while (not project-name)
 	(setq project-name (read-from-minibuffer "Project Name: "
 						 (file-name-nondirectory (substring project-root-folder 0 -1))
-						 nil nil 'fsprojectp-project-name-history))
+						 nil nil 'iproject-project-name-history))
 	(when (project-buffer-project-exists-p project-name)
 	  (message "Project %s already exists!" project-name)
 	  (sit-for 2)
@@ -349,28 +348,28 @@ FILE-FILTER will be added to the project."
 	))
     ;; Read the file-filter:
     (unless file-filter
-      (setq file-filter (fsprojectp-choose-file-filter)))
+      (setq file-filter (iproject-choose-file-filter)))
     )
 
   (let (file-list user-data)
     ;;
     ;; Collect the project's file
     ;;
-    (setq file-list (fsprojectp-collect-files project-root-folder (nth 1 file-filter) fsprojectp-ignore-folder))
+    (setq file-list (iproject-collect-files project-root-folder (nth 1 file-filter) iproject-ignore-folder))
 
     ;;
     ;; Populate the project-buffer-mode:
     ;;
 
     ;; Generate the project node's user-data:
-    (setq user-data (fsprojectp-generate-user-data (nth 2 project-type)
+    (setq user-data (iproject-generate-user-data (nth 2 project-type)
 						   project-name
 						   project-main-file 
 						   project-root-folder))					   
     ;; Add the project node
     (project-buffer-insert project-name 'project project-main-file project-name)
-    (project-buffer-set-project-build-configurations project-name fsprojectp-build-configuration-list)
-    (project-buffer-set-project-platforms            project-name fsprojectp-platform-list)
+    (project-buffer-set-project-build-configurations project-name iproject-build-configuration-list)
+    (project-buffer-set-project-platforms            project-name iproject-platform-list)
     (project-buffer-set-project-user-data            project-name user-data)
 
     ;; Add each individual files to the project:
@@ -387,7 +386,7 @@ FILE-FILTER will be added to the project."
   ))
 
 
-(defun fsprojectp-add-files-to-current-project(&optional root-folder file-filter)
+(defun iproject-add-files-to-current-project(&optional root-folder file-filter)
   "Add extra files to the current project."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer"))
@@ -403,12 +402,12 @@ FILE-FILTER will be added to the project."
 	  (setq root-folder (concat root-folder "/"))))
       ;; Read the file-filter:
       (unless file-filter
-	(setq file-filter (fsprojectp-choose-file-filter)))
+	(setq file-filter (iproject-choose-file-filter)))
       )
 
     (let (file-list user-data)
       ;; Collect the project's file
-      (setq file-list (fsprojectp-collect-files root-folder (nth 1 file-filter) fsprojectp-ignore-folder))
+      (setq file-list (iproject-collect-files root-folder (nth 1 file-filter) iproject-ignore-folder))
       
       ;; Add each individual files to the project:
       (mapcar (lambda (name)
@@ -437,10 +436,10 @@ FILE-FILTER will be added to the project."
       )))
 
 
-(defun fsprojectp-setup-local-key()
+(defun iproject-setup-local-key()
   "Define a local key-bindings."
-  (local-set-key [(control ?c) ?n] 'fsprojectp-add-project)
-  (local-set-key [(control ?c) ?+] 'fsprojectp-add-files-to-current-project)
+  (local-set-key [(control ?c) ?n] 'iproject-add-project)
+  (local-set-key [(control ?c) ?+] 'iproject-add-files-to-current-project)
 
   (local-set-key [(control ?c) (control ?r)] 'project-buffer-revert)
   (local-set-key [(control ?x) (control ?s)] 'project-buffer-save-file)
@@ -453,7 +452,7 @@ FILE-FILTER will be added to the project."
 
 
 ;;;###autoload
-(defun fsproject-new(name root-folder)
+(defun iproject-new(name root-folder)
   "Entry function of thie project-mode."
   (interactive "sProject Buffer Name: \nDRoot Folder: ")
   (let ((buffer (generate-new-buffer (concat "fsx:" name))))
@@ -462,26 +461,26 @@ FILE-FILTER will be added to the project."
       (cd root-folder)
       (project-buffer-mode)
       ;; local variables:
-      (make-local-variable 'fsprojectp-last-project-type-choosen)
-      (make-local-variable 'fsprojectp-last-filter-type-choosen)
-      (make-local-variable 'fsprojectp-last-file-filter-query-mode-choosen)
-      (make-local-variable 'fsprojectp-last-file-filter-regexp-choosen)
-      (make-local-variable 'fsprojectp-last-file-extension-list-choosen)
-      (make-local-variable 'fsprojectp-platform-list)
-      (make-local-variable 'fsprojectp-build-configuration-list)
+      (make-local-variable 'iproject-last-project-type-choosen)
+      (make-local-variable 'iproject-last-filter-type-choosen)
+      (make-local-variable 'iproject-last-file-filter-query-mode-choosen)
+      (make-local-variable 'iproject-last-file-filter-regexp-choosen)
+      (make-local-variable 'iproject-last-file-extension-list-choosen)
+      (make-local-variable 'iproject-platform-list)
+      (make-local-variable 'iproject-build-configuration-list)
       ;; register the local variable to be saved:
-      (add-to-list 'project-buffer-locals-to-save 'fsprojectp-last-project-type-choosen)
-      (add-to-list 'project-buffer-locals-to-save 'fsprojectp-last-filter-type-choosen)
-      (add-to-list 'project-buffer-locals-to-save 'fsprojectp-last-file-filter-query-mode-choosen)
-      (add-to-list 'project-buffer-locals-to-save 'fsprojectp-last-file-filter-regexp-choosen)
-      (add-to-list 'project-buffer-locals-to-save 'fsprojectp-last-file-extension-list-choosen)
-      (add-to-list 'project-buffer-locals-to-save 'fsprojectp-platform-list)
-      (add-to-list 'project-buffer-locals-to-save 'fsprojectp-build-configuration-list)
+      (add-to-list 'project-buffer-locals-to-save 'iproject-last-project-type-choosen)
+      (add-to-list 'project-buffer-locals-to-save 'iproject-last-filter-type-choosen)
+      (add-to-list 'project-buffer-locals-to-save 'iproject-last-file-filter-query-mode-choosen)
+      (add-to-list 'project-buffer-locals-to-save 'iproject-last-file-filter-regexp-choosen)
+      (add-to-list 'project-buffer-locals-to-save 'iproject-last-file-extension-list-choosen)
+      (add-to-list 'project-buffer-locals-to-save 'iproject-platform-list)
+      (add-to-list 'project-buffer-locals-to-save 'iproject-build-configuration-list)
       ;; ask for the platform list:
-      (setq fsprojectp-platform-list            (split-string (read-from-minibuffer "Enter the list of platforms separated by spaces: " nil nil nil 'fsprojectp-platforms-history)))
-      (setq fsprojectp-build-configuration-list (split-string (read-from-minibuffer "Enter the list of build configurations separated by spaces: " nil nil nil 'fsprojectp-build-configurations-history)))
+      (setq iproject-platform-list            (split-string (read-from-minibuffer "Enter the list of platforms separated by spaces: " nil nil nil 'iproject-platforms-history)))
+      (setq iproject-build-configuration-list (split-string (read-from-minibuffer "Enter the list of build configurations separated by spaces: " nil nil nil 'iproject-build-configurations-history)))
       ;;
-      (fsprojectp-setup-local-key)
-      (add-hook 'project-buffer-post-load-hook 'fsprojectp-setup-local-key nil t)
-      (add-hook 'project-buffer-action-hook    'fsprojectp-action-handler  nil t)
+      (iproject-setup-local-key)
+      (add-hook 'project-buffer-post-load-hook 'iproject-setup-local-key nil t)
+      (add-hook 'project-buffer-action-hook    'iproject-action-handler  nil t)
       )))
