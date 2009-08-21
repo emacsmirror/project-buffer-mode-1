@@ -455,7 +455,7 @@ FILE-FILTER will be added to the project."
 (defun iproject-new(name root-folder)
   "Entry function of thie project-mode."
   (interactive "sProject Buffer Name: \nDRoot Folder: ")
-  (let ((buffer (generate-new-buffer (concat "fsx:" name))))
+  (let ((buffer (generate-new-buffer (concat "ipb:" name))))
     (switch-to-buffer buffer)
     (with-current-buffer buffer
       (cd root-folder)
@@ -477,8 +477,12 @@ FILE-FILTER will be added to the project."
       (add-to-list 'project-buffer-locals-to-save 'iproject-platform-list)
       (add-to-list 'project-buffer-locals-to-save 'iproject-build-configuration-list)
       ;; ask for the platform list:
-      (setq iproject-platform-list            (split-string (read-from-minibuffer "Enter the list of platforms separated by spaces: " nil nil nil 'iproject-platforms-history)))
-      (setq iproject-build-configuration-list (split-string (read-from-minibuffer "Enter the list of build configurations separated by spaces: " nil nil nil 'iproject-build-configurations-history)))
+      (setq iproject-platform-list            (split-string (read-from-minibuffer "Enter the list of platforms separated by spaces: " 
+										  (if iproject-platforms-history (car iproject-platforms-history) (format "%s" system-type))
+										  nil nil nil 'iproject-platforms-history)))
+      (setq iproject-build-configuration-list (split-string (read-from-minibuffer "Enter the list of build configurations separated by spaces: " 
+										  (if iproject-build-configurations-history (car iproject-build-configurations-history) "release debug")
+										  nil nil 'iproject-build-configurations-history)))
       ;;
       (iproject-setup-local-key)
       (add-hook 'project-buffer-post-load-hook 'iproject-setup-local-key nil t)
