@@ -335,7 +335,7 @@
 ;;
 
 (defconst project-buffer-mode-version "1.20"
-  "Version numbers of this version of project-buffer-mode.")
+  "Version numbers of this version of `project-buffer-mode'.")
 
 
 ;;
@@ -1713,7 +1713,8 @@ reloaded through `project-buffer-raw-load' function."
 
 
 (defun project-buffer-raw-load (filename &optional set-buffer-name run-mode-hooks)
-  "Load a project saved by `project-buffer-raw-data'.This function does not restore the mode and assume the
+  "Load a project saved by `project-buffer-raw-data'.
+This function does not restore the mode and assume the
 project-buffer-mode to be set.  It doesn't clear the existing
 nodes either."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
@@ -2576,7 +2577,7 @@ If the cursor is on a file - nothing will be done."
 
     (when node-list
       (let* ((lgt (length node-list))
-	     (confirm-str (if (> lgt 1) 
+	     (confirm-str (if (> lgt 1)
 			      (format "Delete marked files [%i files] " lgt)
 			      (format "Delete %s " (project-buffer-node->name (ewoc-data (car node-list))))))
 	     (result-str  (format "%i deletion%s done" lgt (if (> lgt 1) "s" ""))))
@@ -2608,7 +2609,7 @@ will get deleted."
 
 
 (defun project-buffer-write-file (filename)
-  "Save the content of project-buffer-mode buffer to FILENAME."
+  "Save the content of `project-buffer-mode' buffer to FILENAME."
   (interactive "FSave project to file: ")
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (project-buffer-raw-save filename)
@@ -2617,7 +2618,7 @@ will get deleted."
 
 ;;;###autoload
 (defun project-buffer-find-file (filename)
-  "Create a project-buffer-mode buffer based on the content of FILENAME."
+  "Create a `project-buffer-mode' buffer based on the content of FILENAME."
   (interactive "fFind project: ")
   (let ((new-buffer (generate-new-buffer "*project-temp*")))
     (with-current-buffer new-buffer
