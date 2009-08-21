@@ -64,24 +64,29 @@
 
 (defcustom fsprojectp-project-type
   '((makefile ("\\.mak$" "Makefile$")
-	      ("make -C {root} CONFIG={build}" "make -C {root} clean CONFIG={build}" "" ""))
+	      ((build . "make -C {root} CONFIG={build}") 
+	       (clean . "make -C {root} clean CONFIG={build}")))
     (cmake    ("CMakeLists.txt")
-	      ("make -C {root} CONFIG={build}" "make -C {root} clean CONFIG={build}" "" ""))
+	      ((build . "make -C {root} CONFIG={build}")
+	       (clean . "make -C {root} clean CONFIG={build}")))
     (jam      ("Jamfile\\(?:s\\)?$" "Jamrules$" "Jambase$" "Jamroot$")
-	      ("jam -a {project}" "jam clean -a {project}" "" ""))
+	      ((build . "jam -a {project}")
+	       (clean . "jam clean -a {project}")))
     (scons    ("SConstruct$" "Sconscript$")
-	      ("scons" "scons --clean" "" ""))
+	      ((build . "scons")
+	       (clean . "scons --clean")))
     (dmconfig ("build.dmc$")
-	      ("make {platform}.{project}-{build}.build"
-	       "make {platform}.{project}-{build}.clean"
-	       "make {platform}.{project}-{build}.run"
-	       "make {platform}.{project}-{build}.debug"))
+	      ((build . "make {platform}.{project}-{build}.build")
+	       (clean . "make {platform}.{project}-{build}.clean")
+	       (run . "make {platform}.{project}-{build}.run")
+	       (debug . "make {platform}.{project}-{build}.debug")))
     (cabal    ("\\.cabal$")
-	      ("cabal build" "cabal clean" "" ""))
-    (any      (".*$")
-	      ("" "" "" ""))
-    (blank    nil
-	      ("" "" "" "")))
+	      ((build . "cabal build")
+	       (clean . "cabal clean")))
+    (any      (".*$") 
+	      ((build . "")))
+    (blank    nil     
+	      ((build . ""))))
   "List of the different project type.
 
 Each project type is a list of the following format:
@@ -114,6 +119,7 @@ Each project type is a list of the following format:
 (defvar fsprojectp-project-name-history nil)
 (defvar fsprojectp-platforms-history nil)
 (defvar fsprojectp-build-configurations-history nil)
+(defvar fsprojectp-action-commands-history nil)
 
 
 ;;
@@ -243,13 +249,14 @@ which will be replaced by their respective value:
 				    (progn (while build-config-list
 					     (let ((current-build-config (pop build-config-list)))
 					       (setq bc-list (cons (cons current-build-config
-									 (mapcar (lambda (action-string)
-										   (let* ((repl1 (replace-regexp-in-string "{build}"    current-build-config  action-string))
+									 (mapcar (lambda (action-node)
+										   (let* ((action-string (cdr action-node))
+											  (repl1 (replace-regexp-in-string "{build}"    current-build-config  action-string))
 											  (repl2 (replace-regexp-in-string "{platform}" current-platform      repl1))
 											  (repl3 (replace-regexp-in-string "{project}"  project-name          repl2))
 											  (repl4 (replace-regexp-in-string "{projfile}" project-main-file     repl3))
 											  (repl5 (replace-regexp-in-string "{root}"     project-root-folder   repl4)))
-										     repl5))
+										     (cons (car action-node) repl5)))
 										 action-string-list))
 								   bc-list))
 					       ))
@@ -261,12 +268,28 @@ which will be replaced by their respective value:
 
 (defun fsprojectp-action-handler(action project-name project-path platform configuration)
   (let* ((user-data (project-buffer-get-project-user-data project-name))
-	 (cmd-line (cdr (assoc configuration (cdr (assoc platform user-data)))))
-	 (list-pos (cdr (assoc action '((build . 0) (clean . 1) (run . 2) (debug . 3))))))
-    (message (nth list-pos cmd-line))
-    ))
-
-;(cdr (assoc "win32" (cdr (assoc "debug" '(("release" ("win32" . a) ("ppc" . b)) ("debug" ("win32" . c) ("ppc" . d))) ))))
+	 (query-string (concat (upcase-initials (format "%s" action)) " command: "))
+	 (platform-data (assoc platform user-data))
+	 user-command)
+    ;; user data's format is: '((platform1 (config1 . ((action1 . "cmd") (action2 . "cmd"))) (config2 ...)) (platform2...))
+    ;; platform-data:         '(curplat (config1 . ((act...))) (config2 ...))
+    ;; config-data:           '(config1 (act1 ...) (act2...))
+    ;; action-data:           '(action . "cmd")
+    (if platform-data
+	(let ((config-data (assoc configuration (cdr platform-data))))
+	  (if config-data
+	      (let ((action-data (assoc action (cdr config-data))))
+		(if action-data
+		    (progn (setq user-command (read-from-minibuffer query-string (cdr action-data) nil nil 'fsprojectp-action-commands-history))
+			   (setcdr action-data user-command))
+		    (progn (setq user-command (read-from-minibuffer query-string nil nil nil 'fsprojectp-action-commands-history))
+			   (setcdr config-data (acons action user-command (cdr config-data))))))
+	      (progn (setq user-command (read-from-minibuffer query-string nil nil nil 'fsprojectp-action-commands-history))
+		     (setcdr platform-data (acons configuration (acons action user-command nil) (cdr platform-data))))))
+	(progn (setq user-command (read-from-minibuffer query-string nil nil nil 'fsprojectp-action-commands-history))
+	       (setcdr user-data (copy-alist user-data))
+	       (setcar user-data (cons platform (acons configuration (acons action user-command nil) nil)))))
+    (message user-command)))
 
 
 ;;
