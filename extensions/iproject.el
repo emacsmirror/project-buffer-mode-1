@@ -27,6 +27,7 @@
 ;;
 
 ;; This is an add-on library for project-buffer-mode.
+
 ;;
 ;; Key mapped:
 ;; C-c n   to add new project
@@ -34,8 +35,16 @@
 ;; C-x C-w to write the project
 ;; C-x C-s to save the project
 
+;;; History:
+;;
+;; v1.0: First official release.
+;;
+
 
 (require 'project-buffer-mode)
+
+
+;;; Code:
 
 
 ;;
@@ -63,7 +72,7 @@
 
 (defvar iproject-project-type
   '((makefile ("\\.mak$" "Makefile$")
-	      ((build . "make -C {root} CONFIG={build}") 
+	      ((build . "make -C {root} CONFIG={build}")
 	       (clean . "make -C {root} clean CONFIG={build}")))
     (cmake    ("CMakeLists.txt")
 	      ((build . "make -C {root} CONFIG={build}")
@@ -82,9 +91,9 @@
     (cabal    ("\\.cabal$")
 	      ((build . "cabal build")
 	       (clean . "cabal clean")))
-    (any      (".*$") 
+    (any      (".*$")
 	      ((build . "")))
-    (blank    nil     
+    (blank    nil
 	      ((build . ""))))
   "List of the different project type.
 
@@ -291,7 +300,7 @@ which will be replaced by their respective value:
 		   (setcar user-data (cons platform (acons configuration (acons action user-command nil) nil))))))
       (progn (setq user-command (read-from-minibuffer query-string nil nil nil 'iproject-action-commands-history))
 	     (project-buffer-set-project-user-data project-name (acons platform (acons configuration (acons action user-command nil) nil) nil))))
-    (message user-command)))
+    (compile user-command)))
 
 
 ;;
@@ -364,8 +373,8 @@ FILE-FILTER will be added to the project."
     ;; Generate the project node's user-data:
     (setq user-data (iproject-generate-user-data (nth 2 project-type)
 						   project-name
-						   project-main-file 
-						   project-root-folder))					   
+						   project-main-file
+						   project-root-folder))
     ;; Add the project node
     (project-buffer-insert project-name 'project project-main-file project-name)
     (project-buffer-set-project-build-configurations project-name iproject-build-configuration-list)
@@ -408,7 +417,7 @@ FILE-FILTER will be added to the project."
     (let (file-list user-data)
       ;; Collect the project's file
       (setq file-list (iproject-collect-files root-folder (nth 1 file-filter) iproject-ignore-folder))
-      
+
       ;; Add each individual files to the project:
       (mapcar (lambda (name)
 		(let* ((relative-path (file-relative-name name))
@@ -477,10 +486,10 @@ FILE-FILTER will be added to the project."
       (add-to-list 'project-buffer-locals-to-save 'iproject-platform-list)
       (add-to-list 'project-buffer-locals-to-save 'iproject-build-configuration-list)
       ;; ask for the platform list:
-      (setq iproject-platform-list            (split-string (read-from-minibuffer "Enter the list of platforms separated by spaces: " 
+      (setq iproject-platform-list            (split-string (read-from-minibuffer "Enter the list of platforms separated by spaces: "
 										  (if iproject-platforms-history (car iproject-platforms-history) (format "%s" system-type))
 										  nil nil nil 'iproject-platforms-history)))
-      (setq iproject-build-configuration-list (split-string (read-from-minibuffer "Enter the list of build configurations separated by spaces: " 
+      (setq iproject-build-configuration-list (split-string (read-from-minibuffer "Enter the list of build configurations separated by spaces: "
 										  (if iproject-build-configurations-history (car iproject-build-configurations-history) "release debug")
 										  nil nil 'iproject-build-configurations-history)))
       ;;
@@ -488,3 +497,10 @@ FILE-FILTER will be added to the project."
       (add-hook 'project-buffer-post-load-hook 'iproject-setup-local-key nil t)
       (add-hook 'project-buffer-action-hook    'iproject-action-handler  nil t)
       )))
+
+
+;;
+
+(provide 'iproject)
+
+;;; iproject.el ends here
