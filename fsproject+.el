@@ -269,26 +269,29 @@ which will be replaced by their respective value:
 (defun fsprojectp-action-handler(action project-name project-path platform configuration)
   (let* ((user-data (project-buffer-get-project-user-data project-name))
 	 (query-string (concat (upcase-initials (format "%s" action)) " command: "))
-	 (platform-data (assoc platform user-data))
 	 user-command)
     ;; user data's format is: '((platform1 (config1 . ((action1 . "cmd") (action2 . "cmd"))) (config2 ...)) (platform2...))
     ;; platform-data:         '(curplat (config1 . ((act...))) (config2 ...))
     ;; config-data:           '(config1 (act1 ...) (act2...))
     ;; action-data:           '(action . "cmd")
-    (if platform-data
-	(let ((config-data (assoc configuration (cdr platform-data))))
-	  (if config-data
-	      (let ((action-data (assoc action (cdr config-data))))
-		(if action-data
-		    (progn (setq user-command (read-from-minibuffer query-string (cdr action-data) nil nil 'fsprojectp-action-commands-history))
-			   (setcdr action-data user-command))
-		    (progn (setq user-command (read-from-minibuffer query-string nil nil nil 'fsprojectp-action-commands-history))
-			   (setcdr config-data (acons action user-command (cdr config-data))))))
-	      (progn (setq user-command (read-from-minibuffer query-string nil nil nil 'fsprojectp-action-commands-history))
-		     (setcdr platform-data (acons configuration (acons action user-command nil) (cdr platform-data))))))
-	(progn (setq user-command (read-from-minibuffer query-string nil nil nil 'fsprojectp-action-commands-history))
-	       (setcdr user-data (copy-alist user-data))
-	       (setcar user-data (cons platform (acons configuration (acons action user-command nil) nil)))))
+    (if user-data
+      (let ((platform-data (assoc platform user-data)))
+	(if platform-data
+	    (let ((config-data (assoc configuration (cdr platform-data))))
+	      (if config-data
+		  (let ((action-data (assoc action (cdr config-data))))
+		    (if action-data
+			(progn (setq user-command (read-from-minibuffer query-string (cdr action-data) nil nil 'fsprojectp-action-commands-history))
+			       (setcdr action-data user-command))
+			(progn (setq user-command (read-from-minibuffer query-string nil nil nil 'fsprojectp-action-commands-history))
+			       (setcdr config-data (acons action user-command (cdr config-data))))))
+		  (progn (setq user-command (read-from-minibuffer query-string nil nil nil 'fsprojectp-action-commands-history))
+			 (setcdr platform-data (acons configuration (acons action user-command nil) (cdr platform-data))))))
+	    (progn (setq user-command (read-from-minibuffer query-string nil nil nil 'fsprojectp-action-commands-history))
+		   (setcdr user-data (copy-alist user-data))
+		   (setcar user-data (cons platform (acons configuration (acons action user-command nil) nil))))))
+      (progn (setq user-command (read-from-minibuffer query-string nil nil nil 'fsprojectp-action-commands-history))
+	     (project-buffer-set-project-user-data project-name (acons platform (acons configuration (acons action user-command nil) nil) nil))))
     (message user-command)))
 
 
