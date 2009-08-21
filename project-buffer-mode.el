@@ -43,6 +43,7 @@
 ;; - notion of master project to launch build/clean/run/debug and update.
 ;; - intuitive key bindings (at least I hope)
 ;; - full save/load of a project including hooks and local configuration.
+;; - mouse support to expand/collapse a folder or open a file
 
 
 ;;; Commentary:
