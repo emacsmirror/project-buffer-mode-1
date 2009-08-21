@@ -1,7 +1,7 @@
 ;;; project-buffer-mode.el --- Generic mode to browse project file
 ;;
 ;; Author:      Cedric Lallain <kandjar76@hotmail.com>
-;; Version:     1.11
+;; Version:     1.20
 ;; Keywords:    project mode buffer viewer generic
 ;; Description: Generic mode to handle projects.
 ;; Tested with: GNU Emacs 22.x and GNU Emacs 23.x
@@ -274,6 +274,7 @@
 ;;  - provide a compile/build marked files command
 ;;  - add a command to easily find the corresponding header/source for the current file (or specified file)
 ;;  - add 'g' to refresh the display
+;;  - disable project which doesn't have the current selected platform/build-configuration in their list ???
 
 
 
@@ -292,7 +293,9 @@
 ;;        - project-buffer-find-node-up was return nil in view-mode other than folder-view
 ;;        - file-exist-p has been renamed to file-exists-p
 ;;        - minor visibility bug when a files get added to the project if the view-mode is different from folder-view
-;; v1.12: Add new commands:
+;; v1.12: New action added
+;;        - 'update' to allow some project generation from cmake or other build system
+;; v1.20: Add new commands:
 ;;        - Delete current node
 ;;        - Delete marked files
 ;;        - Delete current node or marked file if in front of one (bound to <DEL>
@@ -305,7 +308,7 @@
 ;;        - `project-buffer-delete-folder' to remove a folder and all its files
 ;;        - `project-buffer-exists-p' to check if a node exists (file or folder) inside a project
 ;;        - `project-buffer-project-exists-p' to check if a project exists
-;;
+;;        
 
 (require 'cl)
 (require 'ewoc)
@@ -330,7 +333,7 @@
 ;; Constants:
 ;;
 
-(defconst project-buffer-mode-version "1.10"
+(defconst project-buffer-mode-version "1.20"
   "Version numbers of this version of project-buffer-mode.")
 
 
