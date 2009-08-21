@@ -40,7 +40,7 @@
 ;; - find file based on regular expression
 ;; - four different view mode
 ;; - advance 'search in files' system
-;; - notion of master project to launch build/clean/run and debug.
+;; - notion of master project to launch build/clean/run/debug and update.
 ;; - intuitive key bindings (at least I hope)
 ;; - full save/load of a project including hooks and local configuration.
 
@@ -148,7 +148,7 @@
 ;; value.
 ;;
 ;; This value allows to take quick actions for the master project:
-;; build/clean/run/debug (keys: 'B' 'C' 'R' 'D')
+;; build/clean/run/debug/update (keys: 'B' 'C' 'R' 'D' 'U')
 ;;
 ;;
 ;; KEY BINDINGS:
@@ -191,6 +191,7 @@
 ;;    C    -> launch clean
 ;;    D    -> launch run/with debugger
 ;;    R    -> launch run/without debugger
+;;    U    -> launch the update command (useful to regenerate some makefile/vcproj... from cmake for example); can also be consider a user command.
 ;;    1    -> Switch to folder-view mode
 ;;    2    -> Switch to flat-view mode
 ;;    3    -> Switch to folder-hidden-view mode
@@ -452,7 +453,7 @@ no files got marked/unmarked)."
 The function should follow the prototype:
   (lambda (action project-name project-path platform configuration)
  Where ACTION represents the action to apply to the project,
- it may be: 'build 'clean 'run 'debug,
+ it may be: 'build 'clean 'run 'debug 'update,
  PROJECT-NAME is the name of the master project,
  PROJECT-PATH is the file path of the project
  PLATFORM is the name of the selected platform,
@@ -590,6 +591,7 @@ FILE-BUFFER is the buffer of the file.")
     (define-key project-buffer-mode-map [?C] 'project-buffer-perform-clean-action)
     (define-key project-buffer-mode-map [?R] 'project-buffer-perform-run-action)
     (define-key project-buffer-mode-map [?D] 'project-buffer-perform-debug-action)
+    (define-key project-buffer-mode-map [?U] 'project-buffer-perform-update-action)
     (define-key project-buffer-mode-map [?s] 'project-buffer-mark-files-containing-regexp)
 
     (define-key project-buffer-mode-map [?1] 'project-buffer-set-folder-view-mode)
@@ -2446,6 +2448,12 @@ If the cursor is on a file - nothing will be done."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (project-buffer-perform-action-hook 'debug))
+
+(defun project-buffer-perform-update-action ()
+  "Run the user hook to perform the build action."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (project-buffer-perform-action-hook 'update))
 
 
 (defun project-buffer-mark-files-containing-regexp (regexp &optional unmark)
