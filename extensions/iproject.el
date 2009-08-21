@@ -35,6 +35,20 @@
 ;; C-x C-w to write the project
 ;; C-x C-s to save the project
 
+;; TODOs:
+;; - use the post find file hook to store a property
+;;   global new mapping: 
+;;      C-x p s     to go to the project-buffer attached to this file
+;;      C-x p B     to build the master project of the pbm attached to the file
+;;      C-x p C     to clean the master project of the pbm attached to the file
+;;      C-x p R     to run the master project of the pbm attached to the file
+;;      C-x p D     to debug the master project of the pbm attached to the file
+;;      C-x p U     to debug the master project of the pbm attached to the file
+;; - probably add: iproject-bing-opened-file-to-current-buffer
+;;   which should go through all opened files and if these files belong to the current ipb; it hsould attached them to it.
+;; - compile one file
+;; - add files should ask a root project-folder
+
 ;;; History:
 ;;
 ;; v1.0: First official release.
