@@ -31,9 +31,12 @@
 ;;
 ;; Key mapped:
 ;; C-c n   to add new project
+;; C-c +   to add file to an existing project
 ;; C-c C-r to revert the project
 ;; C-x C-w to write the project
 ;; C-x C-s to save the project
+
+
 
 ;; TODOs:
 ;; - probably add: iproject-bing-opened-file-to-current-buffer
