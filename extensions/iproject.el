@@ -27,20 +27,46 @@
 ;;
 
 ;; This is an add-on library for project-buffer-mode.
-
 ;;
-;; Key mapped:
+;; iproject stands for Interactive Project; based on the
+;; project-buffer-mode; it provides an interactive way to create
+;; projects.
+;;
+;; Simply creates a new project using `iproject-new' (C-x p n); then
+;; add new projects using `iproject-add-project' (C-c n).
+;;
+;; Once the project is created it is possible to add extra files to
+;; the current project using `iproject-add-files-to-current-project'
+;; (C-c +).
+;;
+;; HOW TO INSTALL IT:
+;; 
+;; Just add to your .emacs:
+;;   (require 'iproject)
+;;   (iproject-key-binding)
+;;
+;; KEY BINDINGS IN THE IPROJECT BUFFER:
+;;
 ;; C-c n   to add new project
 ;; C-c +   to add file to an existing project
 ;; C-c C-r to revert the project
 ;; C-x C-w to write the project
 ;; C-x C-s to save the project
-
+;;
+;; as well as all standard project-buffer-mode key-bindings.
+;;
+;; GLOBAL KEY BINDINGS:
+;;
+;; C-x p n to create a new iproject
+;; C-x p f to load a project file
+;;
 
 
 ;; TODOs:
-;; - probably add: iproject-bing-opened-file-to-current-buffer
-;;   which should go through all opened files and if these files belong to the current ipb; it hsould attached them to it.
+
+;; - probably add: iproject-bing-opened-file-to-current-buffer which
+;;   should go through all opened files and if these files belong to
+;;   the current ipb; it should attached them to it.
 ;; - compile one file
 ;; - add files should ask a root project-folder
 
