@@ -435,7 +435,7 @@ FILE-FILTER will be added to the project."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((current-project (project-buffer-get-current-project-name)))
-    (unless current-project (error "No current project found."))
+    (unless current-project (error "No current project found"))
     (when (interactive-p)
       ;; Read the root-folder:
       (unless root-folder
@@ -497,7 +497,7 @@ FILE-FILTER will be added to the project."
 
 ;;;###autoload
 (defun iproject-new (name root-folder)
-  "Create a iproject buffer named NAME with a default-directory set to ROOT-FOLDER."
+  "Create a iproject buffer named NAME with a `default-directory' set to ROOT-FOLDER."
   (interactive "sProject Buffer Name: \nDRoot Folder: ")
   (let ((buffer (generate-new-buffer (concat "ipb:" name))))
     (switch-to-buffer buffer)
