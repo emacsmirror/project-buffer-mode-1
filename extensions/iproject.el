@@ -68,7 +68,8 @@
 ;;   should go through all opened files and if these files belong to
 ;;   the current ipb; it should attached them to it.
 ;; - compile one file
-;; - add files should ask a root project-folder
+;; - move marked files into a new project folder
+
 
 ;;; History:
 ;;
@@ -163,6 +164,7 @@ Each project type is a list of the following format:
 (defvar iproject-platforms-history nil)
 (defvar iproject-build-configurations-history nil)
 (defvar iproject-action-commands-history nil)
+(defvar iproject-last-base-directory-history nil)
 
 
 ;;
@@ -176,6 +178,7 @@ Each project type is a list of the following format:
 (defvar iproject-last-file-extension-list-choosen nil)
 (defvar iproject-platform-list nil)
 (defvar iproject-build-configuration-list nil)
+(defvar iproject-last-base-directory-choosen nil)
 
 
 ;;
@@ -430,7 +433,7 @@ FILE-FILTER will be added to the project."
   ))
 
 
-(defun iproject-add-files-to-current-project(&optional root-folder file-filter)
+(defun iproject-add-files-to-current-project(&optional root-folder file-filter base-virtual-folder)
   "Add extra files to the current project."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer"))
@@ -447,18 +450,33 @@ FILE-FILTER will be added to the project."
       ;; Read the file-filter:
       (unless file-filter
 	(setq file-filter (iproject-choose-file-filter)))
+      ;; Read the base-virtual-path:
+      (unless base-virtual-folder
+	(let* ((def-string (if iproject-last-base-directory-choosen
+			       (concat " [default " (iproject-shorten-string iproject-last-base-directory-choosen 9) "]")
+			       "")))	       
+	  (setq base-virtual-folder (read-from-minibuffer (format "Enter the base directory in the project%s: " def-string)
+							  nil nil nil 'iproject-last-base-directory-history))))
       )
 
     (let (file-list user-data)
       ;; Collect the project's file
       (setq file-list (iproject-collect-files root-folder (nth 1 file-filter) iproject-ignore-folder))
 
+      ;; Make sure the base-virtual-folder doesn't start with a '/' and end with one:
+      (when (and (> (length base-virtual-folder) 0)
+		 (string-equal (substring base-virtual-folder 0 1) "/"))
+	(setq base-virtual-folder (substring base-virtual-folder 1)))
+      (unless (or (= (length base-virtual-folder) 0)
+		  (string-equal (substring base-virtual-folder -1) "/"))
+	(setq base-virtual-folder (concat base-virtual-folder "/")))
+
       ;; Add each individual files to the project:
       (mapcar (lambda (name)
 		(let* ((relative-path (file-relative-name name))
 		       (full-path     (abbreviate-file-name name))
 		       (file-name     (if (> (length relative-path) (length full-path)) full-path relative-path))
-		       (proj-name     (substring name (length (expand-file-name root-folder)) (length name))))
+		       (proj-name     (concat base-virtual-folder (substring name (length (expand-file-name root-folder)) (length name)))))
 		  (let ((exist     (project-buffer-exists-p proj-name current-project))
 			(file-path (project-buffer-get-file-path proj-name current-project))
 			(count 2))
