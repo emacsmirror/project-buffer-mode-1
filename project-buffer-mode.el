@@ -149,7 +149,7 @@
 ;; value.
 ;;
 ;; This value allows to take quick actions for the master project:
-;; build/clean/run/debug/update (keys: 'B' 'C' 'R' 'D' 'U')
+;; build/clean/run/debug/update (keys: 'B' 'C' 'R' 'D' 'G')
 ;;
 ;;
 ;; KEY BINDINGS:
@@ -192,7 +192,7 @@
 ;;    C    -> launch clean
 ;;    D    -> launch run/with debugger
 ;;    R    -> launch run/without debugger
-;;    U    -> launch the update command (useful to regenerate some makefile/vcproj... from cmake for example); can also be consider a user command.
+;;    G    -> launch the update command (useful to regenerate some makefile/vcproj... from cmake for example); can also be consider a user command.
 ;;    1    -> Switch to folder-view mode
 ;;    2    -> Switch to flat-view mode
 ;;    3    -> Switch to folder-hidden-view mode
@@ -258,6 +258,7 @@
 ;; - `project-buffer-get-file-path'            to get the path of a file of the project
 ;; - `project-buffer-get-current-node-type'    to get the type of the current node (including folder)
 ;; - `project-buffer-get-current-node-name'    to get the name  of the current node (including folder)
+;; - `project-buffer-get-marked-node-list'     to get the list of marked files
 ;;
 ;; If you need to have some local variables to be saved; register them in `project-buffer-locals-to-save'.
 ;; The same way, if there is need to save extra hooks: register them in `project-buffer-hooks-to-save'.
@@ -309,7 +310,10 @@
 ;;        - `project-buffer-delete-folder' to remove a folder and all its files
 ;;        - `project-buffer-exists-p' to check if a node exists (file or folder) inside a project
 ;;        - `project-buffer-project-exists-p' to check if a project exists
-;;        
+;; v1.21: Remap the update action to G; to remove the key conflict with the 'unmark all' command.
+;;        Added the following user function:
+;;        - `project-buffer-get-marked-node-list' to get the list of marked files
+;;
 
 (require 'cl)
 (require 'ewoc)
@@ -595,7 +599,7 @@ FILE-BUFFER is the buffer of the file.")
     (define-key project-buffer-mode-map [?C] 'project-buffer-perform-clean-action)
     (define-key project-buffer-mode-map [?R] 'project-buffer-perform-run-action)
     (define-key project-buffer-mode-map [?D] 'project-buffer-perform-debug-action)
-    (define-key project-buffer-mode-map [?U] 'project-buffer-perform-update-action)
+    (define-key project-buffer-mode-map [?G] 'project-buffer-perform-update-action)
     (define-key project-buffer-mode-map [?s] 'project-buffer-mark-files-containing-regexp)
 
     (define-key project-buffer-mode-map [?1] 'project-buffer-set-folder-view-mode)
@@ -1821,6 +1825,27 @@ If non-nil the return value is a list containing:
   (let ((node (ewoc-locate project-buffer-status)))
     (when node
       (project-buffer-node->name (ewoc-data node)))))
+
+
+(defun project-buffer-get-marked-node-list ()
+  "Retrieve the list of marked files.
+Each node of the returned list are also list as:
+  '(project-file-name full-path project-name)"
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let* ((status project-buffer-status)
+	 (node (ewoc-nth status 0))
+	 marked-node-list)
+    (while node
+      (let ((node-data (ewoc-data node)))
+	(when (and (eq (project-buffer-node->type node-data) 'file)
+		   (project-buffer-node->marked node-data))
+	  (setq marked-node-list (cons (list (project-buffer-node->name node-data)
+					     (project-buffer-node->filename node-data)
+					     (project-buffer-node->project node-data))
+				       marked-node-list))))
+      (setq node (ewoc-next status node)))
+    (reverse marked-node-list)
+))
 
 
 
