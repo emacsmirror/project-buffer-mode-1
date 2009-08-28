@@ -525,7 +525,7 @@ FILE-LIST should be a list of list '(file-name file-path project)."
       (setq virtual-folder (concat virtual-folder "/")))
     ;; Let's delete all files from the project:
     (mapcar (lambda (file-node)
-		(project-buffer-delete-file (car file-node) (nth 2 file-node)))
+		(project-buffer-delete-file (car file-node) (nth 2 file-node) t))
 	    file-list)
     ;; Re-add each node making sure they are uniq:
     (mapcar (lambda (file-node)
@@ -553,7 +553,7 @@ FILE-LIST should be a list of list '(file-name file-path project)."
 	(setq folder-name (read-from-minibuffer (format "Enter the base directory to move the %s into%s: " file-str def-string)
 						nil nil nil 'iproject-last-base-directory-history))))
     (unless node-list
-      (setq node-list current-node))
+      (setq node-list (list current-node)))
     (iproject-move-files-within-project node-list folder-name)))
 
 
