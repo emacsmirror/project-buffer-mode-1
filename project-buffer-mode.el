@@ -383,6 +383,12 @@ no files got marked/unmarked)."
                 (function-item y-or-n-p))
   :group 'project-buffer)
 
+(defcustom project-buffer-dont-cleanup-empty-projects t
+  "Unless set, deleting the last file of a project will result in
+deleting the project itself."
+  :type 'boolean
+  :group 'project-buffer)
+
 
 
 ;;
@@ -1105,7 +1111,7 @@ This may change depending on the view mode."
 ))
 
 
-(defun project-buffer-delete-node(status node)
+(defun project-buffer-delete-node(status node &optional dont-delete-project)
   "Delete a specific node.
 Also cleanup with empty folder/project resulting of the deletion."
   (let ((parent-node       (project-buffer-node->parent (ewoc-data node)))
@@ -1124,23 +1130,24 @@ Also cleanup with empty folder/project resulting of the deletion."
 	    (let ((new-parent-node (and (not (eq (project-buffer-node->type parent-data) 'project))
 					(project-buffer-node->parent parent-data))))
 	      (if (not new-parent-node)
-		  (project-buffer-delete-project-node status project parent-node)
+		  (unless dont-delete-project
+		    (project-buffer-delete-project-node status project parent-node))
 		  (ewoc-delete status parent-node))
 	      (setq parent-node new-parent-node))
 	    )))
     ))
 
 
-(defun project-buffer-delete-file-node(status name project)
+(defun project-buffer-delete-file-node(status name project &optional dont-delete-project)
   "Delete the node named NAME which belongs to PROJECT.
 Empty folder node will also be cleared up."
   (let* ((node (project-buffer-search-node status name project)))
     (when node
-      (project-buffer-delete-node status node))
+      (project-buffer-delete-node status node dont-delete-project))
     ))
 
 
-(defun project-buffer-delete-folder-node(status folder-node)
+(defun project-buffer-delete-folder-node(status folder-node &optional dont-delete-project)
   "Delete the folder FOLDER-NODE and all it's files.
 Empty parent folder node will also be cleared up."
   (let* ((folder (and folder-node (project-buffer-node->name (ewoc-data folder-node)))))
@@ -1159,7 +1166,7 @@ Empty parent folder node will also be cleared up."
 	      (setq node next-node
 		    node-data (and node (ewoc-data node)))))))
       ;; Now let's delete the node:
-      (project-buffer-delete-node status folder-node)
+      (project-buffer-delete-node status folder-node dont-delete-project)
       )))
 
 
@@ -1625,18 +1632,21 @@ note: regarding the project node, it's recommended to have NAME = PROJECT"
   (project-buffer-insert-node project-buffer-status
 			      (project-buffer-create-node name type filename project)))
 
-(defun project-buffer-delete-file (name project)
+(defun project-buffer-delete-file (name project &optional dont-delete-project)
   "Delete the node named NAME which belongs to PROJECT.
-Empty folder node will also be cleared up."
+Empty folder node will also be cleared up.  If no more file
+remain in the project; the project will also be deleted unless
+DONT-DELETE-PROJECT is set."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (project-buffer-delete-file-node project-buffer-status name project))
+  (project-buffer-delete-file-node project-buffer-status name project dont-delete-project))
 
 
-(defun project-buffer-delete-folder (name project)
+(defun project-buffer-delete-folder (name project &optional dont-delete-project)
   "Delete the node named NAME which belongs to PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (project-buffer-delete-folder-node project-buffer-status
-				     (project-buffer-search-node project-buffer-status name project)))
+				     (project-buffer-search-node project-buffer-status name project)
+				     dont-delete-project))
 
 
 (defun project-buffer-delete-project (project)
@@ -2573,9 +2583,9 @@ If the cursor is on a file - nothing will be done."
 		       (concat (format "Delete %s%s " name (if (eq type 'file) "" " and its content"))))
 	  (message "Deleting %s..." name)
 	  (cond ((eq type 'file)
-		 (project-buffer-delete-node status node))
+		 (project-buffer-delete-node status node project-buffer-dont-cleanup-empty-projects))
 		((eq type 'folder)
-		 (project-buffer-delete-folder-node status node))
+		 (project-buffer-delete-folder-node status node project-buffer-dont-cleanup-empty-projects))
 		((eq type 'project)
 		 (project-buffer-delete-project-node project-buffer-status name node))
 		(t (error "Unknown data type"))))))))
@@ -2604,7 +2614,7 @@ If the cursor is on a file - nothing will be done."
 	     (result-str  (format "%i deletion%s done" lgt (if (> lgt 1) "s" ""))))
 	(when (funcall project-buffer-confirm-function confirm-str)
 	  (while node-list
-	    (project-buffer-delete-node status (pop node-list)))
+	    (project-buffer-delete-node status (pop node-list) project-buffer-dont-cleanup-empty-projects))
 	  (message result-str))))))
 
 
