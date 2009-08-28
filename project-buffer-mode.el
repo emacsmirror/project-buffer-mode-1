@@ -1118,6 +1118,9 @@ Also cleanup with empty folder/project resulting of the deletion."
 	(project           (project-buffer-node->project (ewoc-data node)))
 	(inhibit-read-only t))
     ;; Delete the found node:
+    (when (and project-buffer-cache-subdirectory
+	       (eq node (cdr project-buffer-cache-subdirectory)))
+      (setq project-buffer-cache-subdirectory nil))
     (ewoc-delete status node)
 
     ;; Now it's time to check the parent node the file belong to:
@@ -1132,7 +1135,10 @@ Also cleanup with empty folder/project resulting of the deletion."
 	      (if (not new-parent-node)
 		  (unless dont-delete-project
 		    (project-buffer-delete-project-node status project parent-node))
-		  (ewoc-delete status parent-node))
+		  (progn (when (and project-buffer-cache-subdirectory
+				    (eq parent-node (cdr project-buffer-cache-subdirectory)))
+			   (setq project-buffer-cache-subdirectory nil))
+			 (ewoc-delete status parent-node)))
 	      (setq parent-node new-parent-node))
 	    )))
     ))
@@ -1162,6 +1168,8 @@ Empty parent folder node will also be cleared up."
 			(not (eq (project-buffer-node->type node-data) 'project))
 			(project-buffer-parent-of-p (project-buffer-node->name node-data) folder))
 	      (setq next-node (ewoc-next status node))
+	      (when (and project-buffer-cache-subdirectory (eq node (cdr project-buffer-cache-subdirectory)))
+		(setq project-buffer-cache-subdirectory nil))
 	      (ewoc-delete status node)
 	      (setq node next-node
 		    node-data (and node (ewoc-data node)))))))
@@ -1562,6 +1570,32 @@ variable."
     ;; Final result:
     found
     ))
+
+
+(defun project-buffer-rename-file-node(status node name)
+  "Rename NODE NAME which belongs to PROJECT."
+  (setf (project-buffer-node->name (ewoc-data node)) name)
+  (ewoc-invalidate status node))
+  
+
+(defun project-buffer-rename-folder-node(status node name)
+  "Rename NODE NAME which belongs to PROJECT."
+  (let ((old-name (project-buffer-node->name (ewoc-data node))))
+    ;; Rename the folder:
+    (setf (project-buffer-node->name (ewoc-data node)) name)
+    (ewoc-invalidate status node)
+    (when (and project-buffer-cache-subdirectory
+	       (string-equal (car project-buffer-cache-subdirectory) old-name))
+      (setq project-buffer-cache-subdirectory nil))
+    ;; And each nodes under which belong to it:
+    (setq node (ewoc-next status node))
+    (while node
+      (let* ((node-data (ewoc-data node))
+	     (node-name (project-buffer-node->name node-data)))
+	(if (project-buffer-parent-of-p node-name old-name)
+	    (progn (setf (project-buffer-node->name node-data) (concat name (substring node-name (length old-name))))
+		   (setq node (ewoc-next status node)))
+	    (setq node nil))))))
 
 
 ;;
@@ -2557,6 +2591,40 @@ If the cursor is on a file - nothing will be done."
 		project-buffer-status))
     (unless result
       (project-buffer-unmark-file))))
+
+
+(defun project-buffer-rename-current-node(&optional new-name)
+  "Rename the current node to NEW-NAME."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((status project-buffer-status)
+	(node   (ewoc-locate project-buffer-status)))
+    (unless node (error "No current node found"))
+    (let* ((node-data (ewoc-data node))
+	   (file-name (project-buffer-node->name node-data))
+	   (type      (project-buffer-node->type node-data))
+	   (project   (project-buffer-node->project node-data))
+	   (base-name (file-name-nondirectory file-name))
+	   (dir-name  (file-name-directory file-name)))
+      (unless new-name
+	(setq new-name (read-from-minibuffer (format "Rename %s %s into: " type base-name) base-name)))
+      (when (string-match "/" new-name)
+	(error "'/' isn't allowed for node names"))
+      (when dir-name
+	(setq new-name (concat dir-name new-name)))
+      (unless (string-equal new-name base-name)
+	(cond ((eq type 'project)
+	       (error "Not supported yet."))
+	      ((eq type 'file)
+	       (when (project-buffer-search-node status new-name project)
+		 (error "The node %s already exists" new-name))
+	       (project-buffer-rename-file-node status node new-name))
+	      ((eq type 'folder)
+	       (when (project-buffer-search-node status new-name project)
+		 (error "The node %s already exists" new-name))
+	       (project-buffer-rename-folder-node status node new-name))
+	      (t (error "Unknown type")))
+	))))
 
 
 (defun project-buffer-view-file ()
