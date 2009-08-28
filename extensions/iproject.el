@@ -512,40 +512,56 @@ Returns nil if the FILE-NAME is already in PROJECT."
       )))
 
 
-(defun iproject-move-marked-files-within-project(folder-name)
+(defun iproject-move-files-within-project(file-list folder-name)
+  "Move the file present in FILE-LIST into the folder FOLDER-NAME.
+FILE-LIST should be a list of list '(file-name file-path project)."
+  (let ((virtual-folder folder-name))
+    ;; Make sure the folder name doesn't start with a '/' but ends with one.
+    (when (and (> (length virtual-folder) 0)
+	       (string-equal (substring virtual-folder 0 1) "/"))
+      (setq virtual-folder (substring virtual-folder 1)))
+    (unless (or (= (length virtual-folder) 0)
+		(string-equal (substring virtual-folder -1) "/"))
+      (setq virtual-folder (concat virtual-folder "/")))
+    ;; Let's delete all files from the project:
+    (mapcar (lambda (file-node)
+		(project-buffer-delete-file (car file-node) (nth 2 file-node)))
+	    file-list)
+    ;; Re-add each node making sure they are uniq:
+    (mapcar (lambda (file-node)
+	      (let ((file-name (nth 0 file-node))
+		    (file-path (nth 1 file-node))
+		    (project   (nth 2 file-node)))
+		(setq file-name (iproject-uniquify-name (concat virtual-folder (file-name-nondirectory file-name))
+							file-path project))
+		(when file-name
+		  (project-buffer-insert file-name 'file file-path project))))
+	    file-list)))
+  
+  
+(defun iproject-move-marked-files-or-current-file-within-project(&optional folder-name)
   "Move the marked files into an specified project's folder."
-  (interactive "sEnter the folder to move the marked files into: ")
-  (let ((node-list (project-buffer-get-marked-node-list)))
-    (when node-list
-      (let ((virtual-folder folder-name))
-	;; Make sure the folder name doesn't start with a '/' but ends with one.
-	(when (and (> (length virtual-folder) 0)
-		   (string-equal (substring virtual-folder 0 1) "/"))
-	  (setq virtual-folder (substring virtual-folder 1)))
-	(unless (or (= (length virtual-folder) 0)
-		    (string-equal (substring virtual-folder -1) "/"))
-	  (setq virtual-folder (concat virtual-folder "/")))
-	;; Let's delete all files from the project:
-	(mapcar (lambda (file-node)
-		  (project-buffer-delete-file (car file-node) (nth 2 file-node)))
-		node-list)
-	;; Re-add each node making sure they are uniq:
-	(mapcar (lambda (file-node)
-		  (let ((file-name (nth 0 file-node))
-			(file-path (nth 1 file-node))
-			(project   (nth 2 file-node)))
-		    (setq file-name (iproject-uniquify-name (concat virtual-folder (file-name-nondirectory file-name))
-							    file-path project))
-		    (when file-name
-		      (project-buffer-insert file-name 'file file-path project))))
-		node-list)))))
+  (interactive)
+  (let* ((node-list    (project-buffer-get-marked-node-list))
+	 (current-node (unless node-list (project-buffer-get-current-file-data))))
+    (unless (or node-list current-node) (error "No marked files / No current file found"))
+    (unless folder-name
+      (let ((def-string (if iproject-last-base-directory-choosen
+			    (concat " [default " (iproject-shorten-string iproject-last-base-directory-choosen 9) "]")
+			    ""))
+	    (file-str (if node-list (if (> (length node-list) 1) "marked files" "marked file") "current file")))
+	(setq folder-name (read-from-minibuffer (format "Enter the base directory to move the %s into%s: " file-str def-string)
+						nil nil nil 'iproject-last-base-directory-history))))
+    (unless node-list
+      (setq node-list current-node))
+    (iproject-move-files-within-project node-list folder-name)))
 
 
 (defun iproject-setup-local-key()
   "Define a local key-bindings."
   (local-set-key [(control ?c) ?n] 'iproject-add-project)
   (local-set-key [(control ?c) ?+] 'iproject-add-files-to-current-project)
-  (local-set-key [(control ?c) ?m] 'iproject-move-marked-files-within-project)
+  (local-set-key [(control ?c) ?m] 'iproject-move-marked-files-or-current-file-within-project)
 
   (local-set-key [(control ?c) (control ?r)] 'project-buffer-revert)
   (local-set-key [(control ?x) (control ?s)] 'project-buffer-save-file)
