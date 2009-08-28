@@ -313,6 +313,9 @@
 ;; v1.21: Remap the update action to G; to remove the key conflict with the 'unmark all' command.
 ;;        Added the following user function:
 ;;        - `project-buffer-get-marked-node-list' to get the list of marked files
+;;        Added the following user command: 
+;;        - `project-buffer-rename-current-node' to rename the current node
+;;        Fix bug when deleting the cached folder.
 ;;
 
 (require 'cl)
@@ -2615,7 +2618,12 @@ If the cursor is on a file - nothing will be done."
 	  (setq new-name (concat dir-name new-name)))
 	(unless (string-equal new-name base-name)
 	  (cond ((eq type 'project)
-		 (error "Not supported yet."))
+		 ;; Note: remaming a project would involve: 
+		 ;; - renaming the master project
+		 ;; - make sure the list of project stays correct
+		 ;; - possibly invalidating the project cache
+		 ;; - renaming each 'project' field in each nodes belonging to the renamed project
+		 (error "Project renaming is not currently supported"))
 		((eq type 'file)
 		 (when (project-buffer-search-node status new-name project)
 		   (error "The node %s already exists" new-name))
