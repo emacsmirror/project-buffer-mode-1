@@ -433,6 +433,34 @@ FILE-FILTER will be added to the project."
   ))
 
 
+(defun iproject-uniquify-name(file-name file-path project)
+  "Returns a uniq name based on FILE-NAME to be inserted inside PROJECT.
+Returns nil if the FILE-NAME is already in PROJECT."
+  (let (cur-name)
+    ;; Check: if file-name ends with " (N)" but not file-path; we'll remove it.
+    (let ((ndx (string-match " ([0-9]+)$" file-name)))
+      (if (and ndx (not (string-match " ([0-9]+)$" file-path))) ;; I'm ignoring the fact the number may be different :)
+	  (setq cur-name (substring file-name 0 ndx))
+	  (setq cur-name file-name)))
+    ;; Check name conflict:
+    (let ((exists        (project-buffer-exists-p cur-name project))
+	  (existing-path (project-buffer-get-file-path cur-name project))
+	  (count 2))
+      (when exists
+	(if (and existing-path (string-equal file-path existing-path))
+	    (setq cur-name nil) ; if the file is already present, skip it (note: the search is very basic; it is possible to trick the system and add a file twice...)
+	    (setq cur-name (concat cur-name " (1)"))))
+      (while (and exists cur-name)
+	(setq exists        (project-buffer-exists-p cur-name project))
+	(setq existing-path (project-buffer-get-file-path cur-name project))
+	(when exists
+	  (if (and existing-path (string-equal file-path existing-path))
+	      (setq cur-name nil) ; if the file is already present, skip it
+	      (setq cur-name (concat (substring proj-name 0 -2) (format "%i)" count))
+		    count (1+ count)))))
+      cur-name)))
+
+
 (defun iproject-add-files-to-current-project(&optional root-folder file-filter base-virtual-folder)
   "Add extra files to the current project."
   (interactive)
@@ -476,32 +504,48 @@ FILE-FILTER will be added to the project."
 		(let* ((relative-path (file-relative-name name))
 		       (full-path     (abbreviate-file-name name))
 		       (file-name     (if (> (length relative-path) (length full-path)) full-path relative-path))
-		       (proj-name     (concat base-virtual-folder (substring name (length (expand-file-name root-folder)) (length name)))))
-		  (let ((exist     (project-buffer-exists-p proj-name current-project))
-			(file-path (project-buffer-get-file-path proj-name current-project))
-			(count 2))
-		    (when exist
-		      (if (and file-path (string-equal file-name file-path))
-			  (setq proj-name nil) ; if the file is already present, skip it (note: the search is very basic; it is possible to trick the system and add a file twice...)
-			  (setq proj-name (concat proj-name " (1)"))))
-		    (while (and exist proj-name)
-		      (setq exist (project-buffer-exists-p proj-name current-project))
-      		      (setq file-path (project-buffer-get-file-path proj-name current-project))
-		      (when exist
-			(if (and file-path (string-equal file-name file-path))
-			    (setq proj-name nil) ; if the file is already present, skip it
-			    (setq proj-name (concat (substring proj-name 0 -2) (format "%i)" count))
-				  count (1+ count)))))
-		      (when proj-name ;; skip it?
-			(project-buffer-insert proj-name 'file  file-name current-project)))))
+		       (proj-name     (iproject-uniquify-name (concat base-virtual-folder (substring name (length (expand-file-name root-folder)) (length name)))
+							      file-name current-project)))
+		  (when proj-name
+		    (project-buffer-insert proj-name 'file  file-name current-project))))
 	      file-list)
       )))
+
+
+(defun iproject-move-marked-files-within-project(folder-name)
+  "Move the marked files into an specified project's folder."
+  (interactive "sEnter the folder to move the marked files into: ")
+  (let ((node-list (project-buffer-get-marked-node-list)))
+    (when node-list
+      (let ((virtual-folder folder-name))
+	;; Make sure the folder name doesn't start with a '/' but ends with one.
+	(when (and (> (length virtual-folder) 0)
+		   (string-equal (substring virtual-folder 0 1) "/"))
+	  (setq virtual-folder (substring virtual-folder 1)))
+	(unless (or (= (length virtual-folder) 0)
+		    (string-equal (substring virtual-folder -1) "/"))
+	  (setq virtual-folder (concat virtual-folder "/")))
+	;; Let's delete all files from the project:
+	(mapcar (lambda (file-node)
+		  (project-buffer-delete-file (car file-node) (nth 2 file-node)))
+		node-list)
+	;; Re-add each node making sure they are uniq:
+	(mapcar (lambda (file-node)
+		  (let ((file-name (nth 0 file-node))
+			(file-path (nth 1 file-node))
+			(project   (nth 2 file-node)))
+		    (setq file-name (iproject-uniquify-name (concat virtual-folder (file-name-nondirectory file-name))
+							    file-path project))
+		    (when file-name
+		      (project-buffer-insert file-name 'file file-path project))))
+		node-list)))))
 
 
 (defun iproject-setup-local-key()
   "Define a local key-bindings."
   (local-set-key [(control ?c) ?n] 'iproject-add-project)
   (local-set-key [(control ?c) ?+] 'iproject-add-files-to-current-project)
+  (local-set-key [(control ?c) ?m] 'iproject-move-marked-files-within-project)
 
   (local-set-key [(control ?c) (control ?r)] 'project-buffer-revert)
   (local-set-key [(control ?x) (control ?s)] 'project-buffer-save-file)
