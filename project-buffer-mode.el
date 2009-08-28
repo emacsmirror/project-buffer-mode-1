@@ -383,8 +383,8 @@ no files got marked/unmarked)."
                 (function-item y-or-n-p))
   :group 'project-buffer)
 
-(defcustom project-buffer-dont-cleanup-empty-projects t
-  "Unless set, deleting the last file of a project will result in
+(defcustom project-buffer-cleanup-empty-projects nil
+  "When set, deleting the last file of a project will result in
 deleting the project itself."
   :type 'boolean
   :group 'project-buffer)
@@ -2583,9 +2583,9 @@ If the cursor is on a file - nothing will be done."
 		       (concat (format "Delete %s%s " name (if (eq type 'file) "" " and its content"))))
 	  (message "Deleting %s..." name)
 	  (cond ((eq type 'file)
-		 (project-buffer-delete-node status node project-buffer-dont-cleanup-empty-projects))
+		 (project-buffer-delete-node status node (not project-buffer-cleanup-empty-projects)))
 		((eq type 'folder)
-		 (project-buffer-delete-folder-node status node project-buffer-dont-cleanup-empty-projects))
+		 (project-buffer-delete-folder-node status node (not project-buffer-cleanup-empty-projects)))
 		((eq type 'project)
 		 (project-buffer-delete-project-node project-buffer-status name node))
 		(t (error "Unknown data type"))))))))
@@ -2614,7 +2614,7 @@ If the cursor is on a file - nothing will be done."
 	     (result-str  (format "%i deletion%s done" lgt (if (> lgt 1) "s" ""))))
 	(when (funcall project-buffer-confirm-function confirm-str)
 	  (while node-list
-	    (project-buffer-delete-node status (pop node-list) project-buffer-dont-cleanup-empty-projects))
+	    (project-buffer-delete-node status (pop node-list) (not project-buffer-cleanup-empty-projects)))
 	  (message result-str))))))
 
 
