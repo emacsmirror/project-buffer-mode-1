@@ -55,7 +55,6 @@
 ;; C-c n   to add new project
 ;; C-c +   to add file to an existing project
 ;; C-c m   to move marked file or current file to a specified folder (within the same project)
-;; C-c r   to rename the current node (file/folder)
 ;; C-c C-r to revert the project
 ;; C-x C-w to write the project
 ;; C-x C-s to save the project
@@ -569,7 +568,6 @@ FILE-LIST should be a list of list '(file-name file-path project)."
   (local-set-key [(control ?c) ?n] 'iproject-add-project)
   (local-set-key [(control ?c) ?+] 'iproject-add-files-to-current-project)
   (local-set-key [(control ?c) ?m] 'iproject-move-marked-files-or-current-file-within-project)
-  (local-set-key [(control ?c) ?r] 'project-buffer-rename-current-node)
 
   (local-set-key [(control ?c) (control ?r)] 'project-buffer-revert)
   (local-set-key [(control ?x) (control ?s)] 'project-buffer-save-file)
