@@ -277,10 +277,6 @@
 ;;  - provide a compile/build marked files command
 ;;  - add a command to easily find the corresponding header/source for the current file (or specified file)
 ;;  - disable project which doesn't have the current selected platform/build-configuration in their list ???
-;;  - when the item is displayed we should check if the file exists or not.
-;;    gray unexisting items;
-;;    note: if should be possible to disable the file-exists-p check feature
-;;    in case it become too slow.
 
 
 
@@ -319,6 +315,8 @@
 ;;        - `project-buffer-get-marked-node-list' to get the list of marked files
 ;;        Fix bug when deleting the cached folder.
 ;;        Added the refresh command bound to 'g'.
+;;        The non-existing files are now 'grayed' out (can be disabled
+;;          setting `project-buffer-check-file-existence' to nil)
 ;;
 
 (require 'cl)
@@ -396,6 +394,14 @@ deleting the project itself."
   :group 'project-buffer)
 
 
+(defcustom project-buffer-check-file-existence t
+  "When set, the displayed files will be displayed with
+'project-buffer-file-doesnt-exist' font if the file doesn't
+exists."
+  :type 'boolean
+  :group 'project-buffer)
+
+
 
 ;;
 ;;  Font
@@ -452,6 +458,13 @@ deleting the project itself."
 (defface project-buffer-matching-file-face
   '((default (:inherit project-buffer-file-face :bold t)))
   "Project buffer mode face used matching file."
+  :group 'project-buffer)
+
+
+(defface project-buffer-file-doesnt-exist
+  '((((class color) (background light)) (:foreground "dark gray"))
+    (((class color) (background dark)) (:foreground "dim gray")))
+  "Project buffer mode face used to highlight non-existing file nodes."
   :group 'project-buffer)
 
 
@@ -703,7 +716,13 @@ check if any files should be added or remove from the proejct.")
 (defun project-buffer-convert-name-for-display(node-data)
   "Convert the node name into the displayed string depending on the project-buffer-view-mode."
   (let* ((node-name   (project-buffer-node->name node-data))
-	 (file-color  (if (project-buffer-node->matched node-data) 'project-buffer-matching-file-face 'project-buffer-file-face))
+	 (file-color  (if (project-buffer-node->matched node-data) 
+			  'project-buffer-matching-file-face 
+			  (if (and project-buffer-check-file-existence
+				   (eq (project-buffer-node->type node-data) 'file)
+				   (not (file-exists-p (project-buffer-node->filename node-data))))
+			      'project-buffer-file-doesnt-exist
+			      'project-buffer-file-face)))
 	 (node-color  (if (eq (project-buffer-node->type node-data) 'file) file-color 'project-buffer-folder-face))
 	 (file-help   (concat "mouse-1: find file other window: " (project-buffer-node->filename node-data)))
 	 (folder-help (concat "mouse-1: "
