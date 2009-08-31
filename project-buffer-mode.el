@@ -163,6 +163,7 @@
 ;;    U    -> unmark all
 ;;    f    -> open marked files
 ;;    q    -> cancel file search or bury project-buffer
+;;    g    -> refresh the display
 ;;    ?    -> show brief help!!
 ;;    /    -> search file name matching regexp
 ;;    n    -> next file matching regexp
@@ -275,8 +276,11 @@
 ;;  - provide a touch marked files command
 ;;  - provide a compile/build marked files command
 ;;  - add a command to easily find the corresponding header/source for the current file (or specified file)
-;;  - add 'g' to refresh the display
 ;;  - disable project which doesn't have the current selected platform/build-configuration in their list ???
+;;  - when the item is displayed we should check if the file exists or not.
+;;    gray unexisting items;
+;;    note: if should be possible to disable the file-exists-p check feature
+;;    in case it become too slow.
 
 
 
@@ -314,6 +318,7 @@
 ;;        Added the following user function:
 ;;        - `project-buffer-get-marked-node-list' to get the list of marked files
 ;;        Fix bug when deleting the cached folder.
+;;        Added the refresh command bound to 'g'.
 ;;
 
 (require 'cl)
@@ -493,6 +498,13 @@ Where PROJECT-BUFFER is the buffer of the project, and
 FILE-BUFFER is the buffer of the file.")
 
 
+(defcustom project-buffer-refresh-hook nil
+  "Hook to run before refreshing every node..
+
+This is the place to add functions which reload the project file,
+check if any files should be added or remove from the proejct.")
+
+
 ;;
 ;;  Buffer local variables:
 ;;
@@ -601,6 +613,7 @@ FILE-BUFFER is the buffer of the file.")
     (define-key project-buffer-mode-map [(control down)] 'project-buffer-go-to-next-folder-or-project)
     (define-key project-buffer-mode-map [??] 'project-buffer-help)
     (define-key project-buffer-mode-map [?q] 'project-buffer-quit)
+    (define-key project-buffer-mode-map [?g] 'project-buffer-refresh)
 
     (define-key project-buffer-mode-map [?B] 'project-buffer-perform-build-action)
     (define-key project-buffer-mode-map [?C] 'project-buffer-perform-clean-action)
@@ -1618,7 +1631,7 @@ Commands:
       (setq project-buffer-projects-list nil)
       (setq project-buffer-file-name nil)
       (setq project-buffer-locals-to-save '(project-buffer-view-mode project-buffer-current-platform project-buffer-current-build-configuration))
-      (setq project-buffer-hooks-to-save '(project-buffer-mode-hook project-buffer-action-hook project-buffer-post-load-hook project-buffer-post-find-file-hook))
+      (setq project-buffer-hooks-to-save '(project-buffer-mode-hook project-buffer-action-hook project-buffer-post-load-hook project-buffer-post-find-file-hook project-buffer-refresh-hook))
 
       (project-buffer-refresh-ewoc-hf status)
 
@@ -2641,6 +2654,16 @@ will get deleted."
 	       (project-buffer-node->marked (ewoc-data node)))
 	  (project-buffer-delete-marked-files)
 	  (project-buffer-delete-current-node)))))
+
+
+(defun project-buffer-refresh()
+  "Call the `project-buffer-refresh-hook' then redisplay every nodes."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (save-excursion
+    (run-hooks 'project-buffer-refresh-hook)
+    (project-buffer-refresh-all-items project-buffer-status)
+    (project-buffer-refresh-ewoc-hf project-buffer-status)))
 
 
 ;;
