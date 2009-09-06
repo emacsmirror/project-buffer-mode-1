@@ -271,7 +271,6 @@
 ;;  - show project dependencies
 ;;     e.g: [+] ProjName1           <deps: ProjName3, ProjName2>
 ;;  - add collapsed all / expand all commands
-;;  - grayed out exclude from build files??
 ;;  - different color for files referenced in the proj but don't exist?
 ;;  - provide a touch marked files command
 ;;  - provide a compile/build marked files command
@@ -578,6 +577,7 @@ check if any files should be added or remove from the proejct.")
   build-configurations-list	;; list of build configuration avalailable for the project (valid in project node only)
 
   user-data                     ;; user data could be set (mainly useful to store something per project)
+  project-settings              ;; user data field used to store the project settings
 )
 
 
@@ -1449,14 +1449,15 @@ project-buffer context."
 			   (eq (car block-line) 'end)
 			   (eq (nth 1 block-line) 'node-list))))
       (if (and (listp block-line)
-	       (= (length block-line) 7))
+	       (= (length block-line) 8))
 	  (let ((name                      (nth 0 block-line))
 		(type                      (nth 1 block-line))
 		(filename                  (nth 2 block-line))
 		(project                   (nth 3 block-line))
 		(platform-list             (nth 4 block-line))
 		(build-configurations-list (nth 5 block-line))
-		(user-data                 (nth 6 block-line)))
+		(user-data                 (nth 6 block-line))
+		(project-settings          (nth 7 block-line)))
 	    (let ((data (project-buffer-create-node name type filename project)))
 	      (project-buffer-insert-node status data)
 	      (when platform-list
@@ -1464,7 +1465,10 @@ project-buffer context."
 	      (when build-configurations-list
 		(project-buffer-set-project-build-configurations-data status project build-configurations-list))
 	      (when user-data
-		(setf (project-buffer-node->user-data data) user-data)))  )
+		(setf (project-buffer-node->user-data data) user-data))
+	      (when project-settings
+		(setf (project-buffer-node->project-settings data) project-settings))
+	      ))
 	  (error "Unknown node-list line: %s" block-line))
       (setq block-line (read data-buffer)))))
 
@@ -1750,7 +1754,8 @@ reloaded through `project-buffer-raw-load' function."
 			 (project-buffer-node->project data)
 			 (project-buffer-node->platform-list data)
 			 (project-buffer-node->build-configurations-list data)
-			 (project-buffer-node->user-data data))
+			 (project-buffer-node->user-data data)
+			 (project-buffer-node->project-settings data))
 		   (current-buffer))))
 	(setq node (ewoc-next status node)))
       (print (list 'end 'node-list) (current-buffer))
@@ -1838,6 +1843,22 @@ If non-nil the return value is a list containing:
       (list (project-buffer-node->name data)
 	    (project-buffer-node->filename data)
 	    (project-buffer-node->project data)))))
+
+
+(defun project-buffer-set-project-settings (project settings-data)
+  "Attach SETTINGS-DATA to the project node named PROJECT."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (project-buffer-search-project-node project-buffer-status project)))
+    (when node
+      (setf (project-buffer-node->project-settings (ewoc-data node)) settings-data))))
+
+
+(defun project-buffer-get-project-settings (project)
+  "Retrieve the project settings from PROJECT."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (project-buffer-search-project-node project-buffer-status project)))
+    (when node
+      (project-buffer-node->project-settings (ewoc-data node)))))
 
 
 (defun project-buffer-exists-p (name project)
