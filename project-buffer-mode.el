@@ -239,27 +239,30 @@
 ;;
 ;;
 ;; List of user functions available to handle your own project:
-;; - `project-buffer-mode'                     which initialize the project-buffer mode
-;; - `project-buffer-insert'                   to insert a file or project to the view
-;; - `project-buffer-delete-file'              to remove a file
-;; - `project-buffer-delete-folder'            to remove a folder and all its files
-;; - `project-buffer-delete-project'           to remove a project and all its files
-;; - `project-buffer-set-project-platforms'    to set the platform configuration for a particular project
-;; - `project-buffer-set-build-configurations' to set the build configurations for a particular project
-;; - `project-buffer-raw-save'                 to save a project into a file
-;; - `project-buffer-raw-load'                 to load a project from a file
-;; - `project-buffer-set-project-user-data'    to set user data to a project node
-;; - `project-buffer-get-project-user-data'    to get user data from a project node
-;; - `project-buffer-set-file-user-data'       to set user data to a file node
-;; - `project-buffer-get-file-user-data'       to get user data from a file node
-;; - `project-buffer-get-current-project-name' to get the nane of the current project the cursor is on
-;; - `project-buffer-get-current-file-data'    to get data about the current file the cursor is on; nil if it's on a folder or a project
-;; - `project-buffer-exists-p'                 to check if a node exists (file or folder) inside a project
-;; - `project-buffer-project-exists-p'         to check if a project exists
-;; - `project-buffer-get-file-path'            to get the path of a file of the project
-;; - `project-buffer-get-current-node-type'    to get the type of the current node (including folder)
-;; - `project-buffer-get-current-node-name'    to get the name  of the current node (including folder)
-;; - `project-buffer-get-marked-node-list'     to get the list of marked files
+;; - `project-buffer-mode'                      which initialize the project-buffer mode
+;; - `project-buffer-insert'                    to insert a file or project to the view
+;; - `project-buffer-delete-file'               to remove a file
+;; - `project-buffer-delete-folder'             to remove a folder and all its files
+;; - `project-buffer-delete-project'            to remove a project and all its files
+;; - `project-buffer-set-project-platforms'     to set the platform configuration for a particular project
+;; - `project-buffer-set-build-configurations'  to set the build configurations for a particular project
+;; - `project-buffer-raw-save'                  to save a project into a file
+;; - `project-buffer-raw-load'                  to load a project from a file
+;; - `project-buffer-set-project-user-data'     to set user data to a project node
+;; - `project-buffer-get-project-user-data'     to get user data from a project node
+;; - `project-buffer-set-file-user-data'        to set user data to a file node
+;; - `project-buffer-get-file-user-data'        to get user data from a file node
+;; - `project-buffer-get-current-project-name'  to get the nane of the current project the cursor is on
+;; - `project-buffer-get-current-file-data'     to get data about the current file the cursor is on; nil if it's on a folder or a project
+;; - `project-buffer-exists-p'                  to check if a node exists (file or folder) inside a project
+;; - `project-buffer-project-exists-p'          to check if a project exists
+;; - `project-buffer-get-file-path'             to get the path of a file of the project
+;; - `project-buffer-get-current-node-type'     to get the type of the current node (including folder)
+;; - `project-buffer-get-current-node-name'     to get the name  of the current node (including folder)
+;; - `project-buffer-get-marked-node-list'      to get the list of marked files
+;; - `project-buffer-set-project-settings-data' to set user project settings data
+;; - `project-buffer-get-project-settings-data' to retrive the user project settings data
+
 ;;
 ;; If you need to have some local variables to be saved; register them in `project-buffer-locals-to-save'.
 ;; The same way, if there is need to save extra hooks: register them in `project-buffer-hooks-to-save'.
@@ -316,7 +319,9 @@
 ;;        Added the refresh command bound to 'g'.
 ;;        The non-existing files are now 'grayed' out (can be disabled
 ;;          setting `project-buffer-check-file-existence' to nil)
-;;
+;; v1.22: Added the following user functions:
+;;        - `project-buffer-set-project-settings-data' to set user project settings data
+;;        - `project-buffer-get-project-settings-data' to retrive the user project settings data
 
 (require 'cl)
 (require 'ewoc)
@@ -1845,7 +1850,7 @@ If non-nil the return value is a list containing:
 	    (project-buffer-node->project data)))))
 
 
-(defun project-buffer-set-project-settings (project settings-data)
+(defun project-buffer-set-project-settings-data (project settings-data)
   "Attach SETTINGS-DATA to the project node named PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((node (project-buffer-search-project-node project-buffer-status project)))
@@ -1853,7 +1858,7 @@ If non-nil the return value is a list containing:
       (setf (project-buffer-node->project-settings (ewoc-data node)) settings-data))))
 
 
-(defun project-buffer-get-project-settings (project)
+(defun project-buffer-get-project-settings-data (project)
   "Retrieve the project settings from PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((node (project-buffer-search-project-node project-buffer-status project)))
