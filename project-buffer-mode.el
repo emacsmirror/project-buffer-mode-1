@@ -1569,8 +1569,16 @@ variable."
 	(folder-found   nil)
 	(node-data      nil))
 
+    ;; Before checking the cache; let's check the current node:
+    (let* ((cur-node (ewoc-locate status))
+	   (cur-data (and cur-node (ewoc-data cur-node))))
+      (setq found (and cur-node
+		       (string-equal (project-buffer-node->project cur-data) project)
+		       (string-equal (project-buffer-node->name cur-data) name)
+		       cur-node)))
+
     ;; Cache check: <no cache update>
-    (when project-buffer-cache-project
+    (when (and (not found) project-buffer-cache-project)
       (cond
        ;; cache-project < current-project -> we can start the search from here (at least).
        ((string-lessp (car project-buffer-cache-project) proj-data)
