@@ -574,7 +574,7 @@ check if any files should be added or remove from the proejct.")
 
   matched			;; the file matches the regexp search
 
-  filename			;; full path to the filename
+  filename			;; path to the filename
   project			;; name of the project the file belongs to
   parent			;; parent node (parent folder or project or nil)
 
@@ -1848,7 +1848,7 @@ nodes either."
   "Retrieve data about the current file the cursor is on.
 Return nil if the cursor is not on a file.
 If non-nil the return value is a list containing:
-  '(project-file-name full-path project-name)"
+  '(project-file-name file-path project-name)"
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((node (ewoc-locate project-buffer-status))
 	 (data (and node (ewoc-data node))))
@@ -1915,7 +1915,7 @@ If non-nil the return value is a list containing:
 (defun project-buffer-get-marked-node-list ()
   "Retrieve the list of marked files.
 Each node of the returned list are also list as:
-  '(project-file-name full-path project-name)"
+  '(project-file-name file-path project-name)"
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let* ((status project-buffer-status)
 	 (node (ewoc-nth status 0))
