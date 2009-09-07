@@ -105,6 +105,7 @@
     (haskell   ("\\.hs$"))
     (ocaml     ("\\.ml$"))
     (lisp      ("\\.cl$"))
+    (awk       ("\\.awk$"))
     (java      ("\\.java$" "\\.js$"))
     (cg        ("\\.cg\\(?:fx\\)?$"))
     (web       ("\\.htm\\(?:l\\)?$" "\\.xml" "\\.php$" "\\.js$" "\\.css$"))
