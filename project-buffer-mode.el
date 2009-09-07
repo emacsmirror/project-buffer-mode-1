@@ -262,7 +262,7 @@
 ;; - `project-buffer-get-marked-node-list'      to get the list of marked files
 ;; - `project-buffer-set-project-settings-data' to set user project settings data
 ;; - `project-buffer-get-project-settings-data' to retrive the user project settings data
-
+;; - `project-buffer-apply-to-each-file'        to perform a function call on every file node
 ;;
 ;; If you need to have some local variables to be saved; register them in `project-buffer-locals-to-save'.
 ;; The same way, if there is need to save extra hooks: register them in `project-buffer-hooks-to-save'.
@@ -321,7 +321,8 @@
 ;;          setting `project-buffer-check-file-existence' to nil)
 ;; v1.22: Added the following user functions:
 ;;        - `project-buffer-set-project-settings-data' to set user project settings data
-;;        - `project-buffer-get-project-settings-data' to retrive the user project settings data
+;;        - `project-buffer-get-project-settings-data' to retrieve the user project settings data
+;;        - `project-buffer-apply-to-each-file'        to perform a function call on every file node
 
 (require 'cl)
 (require 'ewoc)
@@ -1931,6 +1932,24 @@ Each node of the returned list are also list as:
       (setq node (ewoc-next status node)))
     (reverse marked-node-list)
 ))
+
+
+(defun project-buffer-apply-to-each-file(func &rest args)
+  "Call FUNC for each existing file nodes.
+FUNC's prototype must be: 
+  (lambda (project-file-name file-path project-name &rest ARGS) ...)"
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let* ((status project-buffer-status)
+	 (node (ewoc-nth status 0)))
+    (while node
+      (let ((node-data (ewoc-data node)))
+	(when (eq (project-buffer-node->type node-data) 'file)
+	  (apply func
+		 (project-buffer-node->name node-data)
+		 (project-buffer-node->filename node-data)
+		 (project-buffer-node->project node-data)
+		 args))
+	(setq node (ewoc-next status node))))))
 
 
 
