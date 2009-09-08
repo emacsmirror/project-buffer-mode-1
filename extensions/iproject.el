@@ -405,7 +405,7 @@ FILE-FILTER will be added to the project."
       (setq file-filter (iproject-choose-file-filter)))
     )
 
-  (let (file-list user-data)
+  (let (file-list user-data project-settings)
     ;;
     ;; Collect the project's file
     ;;
@@ -420,11 +420,18 @@ FILE-FILTER will be added to the project."
 						   project-name
 						   project-main-file
 						   project-root-folder))
+
+    ;; Create the initial project settings:
+    ;; project settings is a list of lists, each sub list should follow the following format:
+    ;;   (root-project-folder root-file-folder file-filter-list ignore-folder-list 
+    (setq project-settings (list (list "" project-root-folder (nth 1 file-filter) iproject-ignore-folder)))
+
     ;; Add the project node
     (project-buffer-insert project-name 'project project-main-file project-name)
     (project-buffer-set-project-build-configurations project-name iproject-build-configuration-list)
     (project-buffer-set-project-platforms            project-name iproject-platform-list)
     (project-buffer-set-project-user-data            project-name user-data)
+    (project-buffer-set-project-settings-data        project-name  project-settings)
 
     ;; Add each individual files to the project:
     (mapcar (lambda (name)
@@ -494,7 +501,7 @@ Returns nil if the FILE-NAME is already in PROJECT."
 							  nil nil nil 'iproject-last-base-directory-history))))
       )
 
-    (let (file-list user-data)
+    (let (file-list user-data project-settings)
       ;; Collect the project's file
       (setq file-list (iproject-collect-files root-folder (nth 1 file-filter) iproject-ignore-folder))
 
@@ -505,6 +512,12 @@ Returns nil if the FILE-NAME is already in PROJECT."
       (unless (or (= (length base-virtual-folder) 0)
 		  (string-equal (substring base-virtual-folder -1) "/"))
 	(setq base-virtual-folder (concat base-virtual-folder "/")))
+
+      ;; Update the project settings:
+     (setq project-settings (cons (list base-virtual-folder project-root-folder (nth 1 file-filter) iproject-ignore-folder)
+				  (project-buffer-get-project-settings-data current-project)))
+     (project-buffer-set-project-settings-data current-project project-settings)
+     
 
       ;; Add each individual files to the project:
       (mapcar (lambda (name)
