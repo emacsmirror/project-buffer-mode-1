@@ -347,7 +347,7 @@
 ;; Constants:
 ;;
 
-(defconst project-buffer-mode-version "1.20"
+(defconst project-buffer-mode-version "1.22"
   "Version numbers of this version of `project-buffer-mode'.")
 
 
@@ -1455,15 +1455,15 @@ project-buffer context."
 			   (eq (car block-line) 'end)
 			   (eq (nth 1 block-line) 'node-list))))
       (if (and (listp block-line)
-	       (= (length block-line) 8))
+	       (> (length block-line) 5))
 	  (let ((name                      (nth 0 block-line))
 		(type                      (nth 1 block-line))
 		(filename                  (nth 2 block-line))
 		(project                   (nth 3 block-line))
 		(platform-list             (nth 4 block-line))
 		(build-configurations-list (nth 5 block-line))
-		(user-data                 (nth 6 block-line))
-		(project-settings          (nth 7 block-line)))
+		(user-data                 (and (> (length block-line) 6) (nth 6 block-line)))
+		(project-settings          (and (> (length block-line) 7) (nth 7 block-line))))
 	    (let ((data (project-buffer-create-node name type filename project)))
 	      (project-buffer-insert-node status data)
 	      (when platform-list
