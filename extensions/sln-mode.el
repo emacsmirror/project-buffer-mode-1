@@ -55,6 +55,9 @@
 ;; just a 'viewer'.  Note that it doens't have to stay that way if
 ;; people really need this feature. ;-)
 ;;
+;; However it is possible to save the project as project-buffer
+;; project files and reload it from there.
+;;
 ;; -------
 
 
@@ -62,15 +65,10 @@
 ;; 
 ;; v1.00: First official release.
 ;; v1.01: Register the project local variable in `project-buffer-locals-to-save'
-;; v1.02: Ask confirmation before cleaning the project.
+;; v1.02: Ask confirmation before cleaning the project.  
+;;        Added refresh handler which reload the sln-file or the
+;;        vcproj of the current project.
 
-
-;;; Todo:
-;;  - Auto reload if file modified on disk?
-;;  - Add refresh command.
-;;
-;; Need to update the keys:
-;;    g    -> reload/reparse project files (mmm should probably be done in the upper file or handler should be provided)
 
 (require 'cl)
 (require 'project-buffer-mode)
