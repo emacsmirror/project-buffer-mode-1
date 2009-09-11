@@ -74,7 +74,6 @@
 ;;   should go through all opened files and if these files belong to
 ;;   the current ipb; it should attached them to it.
 ;; - compile one file
-;; - move marked files into a new project folder
 
 
 ;;; History:
@@ -423,7 +422,7 @@ FILE-FILTER will be added to the project."
 
     ;; Create the initial project settings:
     ;; project settings is a list of lists, each sub list should follow the following format:
-    ;;   (root-project-folder root-file-folder file-filter-list ignore-folder-list 
+    ;;   (root-project-folder root-file-folder file-filter-list ignore-folder-list)
     (setq project-settings (list (list "" project-root-folder (nth 1 file-filter) iproject-ignore-folder)))
 
     ;; Add the project node
@@ -475,6 +474,20 @@ Returns nil if the FILE-NAME is already in PROJECT."
       cur-name)))
 
 
+(defun iproject-add-file-list-to-current-project(current-project base-virtual-folder root-folder file-list)
+  "Add files contained in FILE-LIST in the CURRENT-PROJECT
+prefixing the project's filename with BASE-VIRTUAL-FOLDER."
+  (mapcar (lambda (name)
+	    (let* ((relative-path (file-relative-name name))
+		   (full-path     (abbreviate-file-name name))
+		   (file-name     (if (> (length relative-path) (length full-path)) full-path relative-path))
+		   (proj-name     (iproject-uniquify-name (concat base-virtual-folder (substring name (length (expand-file-name root-folder)) (length name)))
+							  file-name current-project)))
+		  (when proj-name
+		    (project-buffer-insert proj-name 'file  file-name current-project))))
+	      file-list))
+
+
 (defun iproject-add-files-to-current-project(&optional root-folder file-filter base-virtual-folder)
   "Add extra files to the current project."
   (interactive)
@@ -512,23 +525,14 @@ Returns nil if the FILE-NAME is already in PROJECT."
       (unless (or (= (length base-virtual-folder) 0)
 		  (string-equal (substring base-virtual-folder -1) "/"))
 	(setq base-virtual-folder (concat base-virtual-folder "/")))
-
+      
       ;; Update the project settings:
-     (setq project-settings (cons (list base-virtual-folder project-root-folder (nth 1 file-filter) iproject-ignore-folder)
-				  (project-buffer-get-project-settings-data current-project)))
-     (project-buffer-set-project-settings-data current-project project-settings)
+      (setq project-settings (cons (list base-virtual-folder root-folder (nth 1 file-filter) iproject-ignore-folder)
+				   (project-buffer-get-project-settings-data current-project)))
+      (project-buffer-set-project-settings-data current-project project-settings)
      
-
       ;; Add each individual files to the project:
-      (mapcar (lambda (name)
-		(let* ((relative-path (file-relative-name name))
-		       (full-path     (abbreviate-file-name name))
-		       (file-name     (if (> (length relative-path) (length full-path)) full-path relative-path))
-		       (proj-name     (iproject-uniquify-name (concat base-virtual-folder (substring name (length (expand-file-name root-folder)) (length name)))
-							      file-name current-project)))
-		  (when proj-name
-		    (project-buffer-insert proj-name 'file  file-name current-project))))
-	      file-list)
+      (iproject-add-file-list-to-current-project current-project base-virtual-folder root-folder file-list)
       )))
 
 
@@ -575,6 +579,31 @@ FILE-LIST should be a list of list '(file-name file-path project)."
     (unless node-list
       (setq node-list (list current-node)))
     (iproject-move-files-within-project node-list folder-name)))
+
+
+(defun iproject-refresh-project(project)
+  "Reparse the directories associated to PROJECT, add the new files to it."
+  (let ((settings (project-buffer-get-project-settings-data project)))
+    (while settings
+      (let ((current (pop settings))
+	    file-list)
+	(when (file-directory-p (nth 1 current))
+	  ;; currest is a list (root-project-folder root-file-folder file-filter-list ignore-folder-list)
+	  (setq file-list (iproject-collect-files (nth 1 current) (nth 2 current) (nth 3 current)))
+	  ;; Add each individual files to the project:
+	  (iproject-add-file-list-to-current-project project (nth 0 current) (nth 1 current) file-list)
+	  )))))
+
+
+(defun iproject-refresh-handler(project-list content)
+  "Refresh all projects, check if there are new files to be added.
+PROJECT-LIST is a list containing the project's names"
+  (when (and project-list
+	     (funcall project-buffer-confirm-function 
+		      (if (cdr project-list) "Reparse the projects' directoriess "
+			  (format "Reparse %s's directories " (car project-list)))))
+    (while project-list
+      (iproject-refresh-project (pop project-list)))))
 
 
 (defun iproject-setup-local-key()
@@ -629,6 +658,7 @@ FILE-LIST should be a list of list '(file-name file-path project)."
       (iproject-setup-local-key)
       (add-hook 'project-buffer-post-load-hook 'iproject-setup-local-key nil t)
       (add-hook 'project-buffer-action-hook    'iproject-action-handler  nil t)
+      (add-hook 'project-buffer-refresh-hook   'iproject-refresh-handler nil t)
       )))
 
 
