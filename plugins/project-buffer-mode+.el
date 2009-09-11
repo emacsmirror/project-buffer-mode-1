@@ -164,7 +164,7 @@ This will allow to retrieve the buffer."
   (project-buffer-mode-p-attach-project-buffer project-buffer file-buffer))
 
 
-(defun project-buffer-mode-p-link-buffers-to-current-project(project-or-project-list)
+(defun project-buffer-mode-p-link-buffers-to-current-project(project-list content)
   "Check the different opened file buffer to see if they belong to the project.
 
 Note: technically it's possible to also limit the research to the
@@ -182,7 +182,7 @@ someone would wanna do that!?"
 					     (project-buffer-mode-p-attach-project-buffer project-buffer (cdr assoc-data))
 					     (setq count (1+ count)))))
 				       buffers-assoc)
-    (message "Found %i buffer%s" count (if (> count 1) "s" ""))
+    (message "%i buffer%s attached to this project" count (if (> count 1) "s" ""))
     ))
 
 

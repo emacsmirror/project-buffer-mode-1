@@ -523,9 +523,9 @@ FILE-BUFFER is the buffer of the file.")
   "Hook to run before refreshing every node..
 
 The function should follow the prototype:
-  (lambda (project-buffer project-list-or-project-name))
-Where PROJECT-LIST-OR-PROJECT-NAME is either a list of project
-names, or a single project name to refresh (can be nil).
+  (lambda (project-list content))
+Where PROJECT-LIST is a list of project names (can be nil), 
+and CONTENT can either be 'current or 'all.
 
 This is the place to add functions which reload the project file,
 check if any files should be added or remove from the proejct.")
@@ -2741,8 +2741,8 @@ will get deleted."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (save-excursion
     (if current-project-only
-	(run-hook-with-args 'project-buffer-refresh-hook (project-buffer-get-current-project-name))
-	(run-hook-with-args 'project-buffer-refresh-hook project-buffer-projects-list))
+	(run-hook-with-args 'project-buffer-refresh-hook (list (project-buffer-get-current-project-name)) 'current)
+	(run-hook-with-args 'project-buffer-refresh-hook project-buffer-projects-list 'all))
     (project-buffer-refresh-all-items project-buffer-status)
     (project-buffer-refresh-ewoc-hf project-buffer-status)))
 
