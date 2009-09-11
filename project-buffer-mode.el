@@ -279,6 +279,8 @@
 ;;  - provide a compile/build marked files command
 ;;  - add a command to easily find the corresponding header/source for the current file (or specified file)
 ;;  - disable project which doesn't have the current selected platform/build-configuration in their list ???
+;;  - C-u s to generate an occur buffer
+;;  - C-u g to refresh the current project only!!
 
 
 
@@ -2562,8 +2564,7 @@ If the cursor is on a file - nothing will be done."
   "Run the user hook to perform the build action."
   (interactive)
   (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (when (funcall project-buffer-confirm-function "Clean the master project ")
-    (project-buffer-perform-action-hook 'clean)))
+  (project-buffer-perform-action-hook 'clean))
 
 
 (defun project-buffer-perform-run-action ()

@@ -279,8 +279,10 @@
 		       ((eq action 'clean) "Clean")
 		       ((eq action 'run)   "RunExit")
 		       ((eq action 'debug) "DebugExe"))))
-    (compile
-     (concat sln-mode-devenv-2005 " \"" sln-mode-solution-name "\" /" sln-cmd " \""  (concat configuration "|" platform) "\" /project \"" project-path "\""))))
+    (when (or (not (eq action 'clean))
+	      (funcall project-buffer-confirm-function (format "Clean the project %s " project-name)))
+      (compile
+       (concat sln-mode-devenv-2005 " \"" sln-mode-solution-name "\" /" sln-cmd " \""  (concat configuration "|" platform) "\" /project \"" project-path "\"")))))
 
 (defun sln-action-handler-2008(action project-name project-path platform configuration)
   "Project-Buffer action handler."
@@ -290,9 +292,11 @@
 			((eq action 'clean) (concat "/Clean " cfg-str))
 			((eq action 'run)   (concat "/ProjectConfig " cfg-str ))
 			((eq action 'debug) (concat "/ProjectConfig " cfg-str )))))
-    (compile
-     (concat sln-mode-devenv-2008 " \"" sln-mode-solution-name "\" "
-	     prj-str sln-cmd))))
+    (when (or (not (eq action 'clean))
+	      (funcall project-buffer-confirm-function (format "Clean the project %s " project-name)))
+      (compile
+       (concat sln-mode-devenv-2008 " \"" sln-mode-solution-name "\" "
+	       prj-str sln-cmd)))))
 
 
 (defun make-sln-project-buffer(sln-file &optional using2008)
