@@ -164,8 +164,12 @@ This will allow to retrieve the buffer."
   (project-buffer-mode-p-attach-project-buffer project-buffer file-buffer))
 
 
-(defun project-buffer-mode-p-link-buffers-to-current-project()
-  "Check the different opened file buffer to see if they belong to the project."
+(defun project-buffer-mode-p-link-buffers-to-current-project(project-or-project-list)
+  "Check the different opened file buffer to see if they belong to the project.
+
+Note: technically it's possible to also limit the research to the
+current project or to the projects in the list. I don't see why
+someone would wanna do that!?"
   (let ((project-buffer (current-buffer))
 	(buffers-assoc (remq nil (mapcar (lambda (cur-buf) 
 				     (let ((file (buffer-file-name cur-buf))) 

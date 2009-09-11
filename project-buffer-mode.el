@@ -325,6 +325,7 @@
 ;;        - `project-buffer-set-project-settings-data' to set user project settings data
 ;;        - `project-buffer-get-project-settings-data' to retrieve the user project settings data
 ;;        - `project-buffer-apply-to-each-file'        to perform a function call on every file node
+;;        Refresh hooks now receive the current project or the project list as argument.
 
 (require 'cl)
 (require 'ewoc)
@@ -520,6 +521,11 @@ FILE-BUFFER is the buffer of the file.")
 
 (defcustom project-buffer-refresh-hook nil
   "Hook to run before refreshing every node..
+
+The function should follow the prototype:
+  (lambda (project-buffer project-list-or-project-name))
+Where PROJECT-LIST-OR-PROJECT-NAME is either a list of project
+names, or a single project name to refresh (can be nil).
 
 This is the place to add functions which reload the project file,
 check if any files should be added or remove from the proejct.")
@@ -2729,12 +2735,14 @@ will get deleted."
 	  (project-buffer-delete-current-node)))))
 
 
-(defun project-buffer-refresh()
+(defun project-buffer-refresh(current-project-only)
   "Call the `project-buffer-refresh-hook' then redisplay every nodes."
-  (interactive)
+  (interactive "P")
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (save-excursion
-    (run-hooks 'project-buffer-refresh-hook)
+    (if current-project-only
+	(run-hook-with-args 'project-buffer-refresh-hook (project-buffer-get-current-project-name))
+	(run-hook-with-args 'project-buffer-refresh-hook project-buffer-projects-list))
     (project-buffer-refresh-all-items project-buffer-status)
     (project-buffer-refresh-ewoc-hf project-buffer-status)))
 
