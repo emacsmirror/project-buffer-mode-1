@@ -163,7 +163,7 @@
 ;;    U    -> unmark all
 ;;    f    -> open marked files
 ;;    q    -> cancel file search or bury project-buffer
-;;    g    -> refresh the display
+;;    g    -> refresh the display / the projects (C-u g: refresh the current project only)
 ;;    ?    -> show brief help!!
 ;;    /    -> search file name matching regexp
 ;;    n    -> next file matching regexp
@@ -280,7 +280,6 @@
 ;;  - add a command to easily find the corresponding header/source for the current file (or specified file)
 ;;  - disable project which doesn't have the current selected platform/build-configuration in their list ???
 ;;  - C-u s to generate an occur buffer
-;;  - C-u g to refresh the current project only!!
 
 
 
@@ -326,6 +325,7 @@
 ;;        - `project-buffer-get-project-settings-data' to retrieve the user project settings data
 ;;        - `project-buffer-apply-to-each-file'        to perform a function call on every file node
 ;;        Refresh hooks now receive the current project or the project list as argument.
+;;        It is now possible to refresh the current project only using the prefix argument
 
 (require 'cl)
 (require 'ewoc)
