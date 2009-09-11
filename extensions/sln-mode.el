@@ -62,7 +62,7 @@
 ;; 
 ;; v1.00: First official release.
 ;; v1.01: Register the project local variable in `project-buffer-locals-to-save'
-;; 
+;; v1.02: Ask confirmation before cleaning the project.
 
 
 ;;; Todo:
