@@ -256,6 +256,7 @@
 ;; - `project-buffer-get-current-file-data'     to get data about the current file the cursor is on; nil if it's on a folder or a project
 ;; - `project-buffer-exists-p'                  to check if a node exists (file or folder) inside a project
 ;; - `project-buffer-project-exists-p'          to check if a project exists
+;; - `project-buffer-get-project-path'          to get a project's path
 ;; - `project-buffer-get-file-path'             to get the path of a file of the project
 ;; - `project-buffer-get-current-node-type'     to get the type of the current node (including folder)
 ;; - `project-buffer-get-current-node-name'     to get the name  of the current node (including folder)
@@ -324,6 +325,7 @@
 ;;        - `project-buffer-set-project-settings-data' to set user project settings data
 ;;        - `project-buffer-get-project-settings-data' to retrieve the user project settings data
 ;;        - `project-buffer-apply-to-each-file'        to perform a function call on every file node
+;;        - `project-buffer-get-project-path'          to get a project's path
 ;;        Refresh hooks now receive the current project or the project list as argument.
 ;;        It is now possible to refresh the current project only using the prefix argument
 
@@ -1895,6 +1897,13 @@ If non-nil the return value is a list containing:
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (let ((node (project-buffer-search-project-node project-buffer-status project)))
     (and node t)))
+
+
+(defun project-buffer-get-project-path (project)
+  "Return the path/file attached to the project PROJECT."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (project-buffer-search-project-node project-buffer-status project)))
+    (and node (project-buffer-node->filename (ewoc-data node)))))
 
 
 (defun project-buffer-get-file-path (name project)
