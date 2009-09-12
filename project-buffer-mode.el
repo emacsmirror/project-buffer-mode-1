@@ -275,12 +275,10 @@
 ;;  - show project dependencies
 ;;     e.g: [+] ProjName1           <deps: ProjName3, ProjName2>
 ;;  - add collapsed all / expand all commands
-;;  - different color for files referenced in the proj but don't exist?
 ;;  - provide a touch marked files command
 ;;  - provide a compile/build marked files command
 ;;  - add a command to easily find the corresponding header/source for the current file (or specified file)
 ;;  - disable project which doesn't have the current selected platform/build-configuration in their list ???
-;;  - C-u s to generate an occur buffer
 
 
 
