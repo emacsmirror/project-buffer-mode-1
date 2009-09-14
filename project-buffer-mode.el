@@ -1960,6 +1960,47 @@ FUNC's prototype must be:
 	(setq node (ewoc-next status node))))))
 
 
+(defun project-buffer-apply-to-marked-files(func &rest args)
+  "Call FUNC for each marked file nodes.
+FUNC's prototype must be:
+  (lambda (project-file-name file-path project-name &rest ARGS) ...)"
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let* ((status project-buffer-status)
+	 (node (ewoc-nth status 0))
+	 found-marked-files)
+    (while node
+      (let ((node-data (ewoc-data node)))
+	(when (and (eq (project-buffer-node->type node-data) 'file)
+		   (project-buffer-node->marked node-data))
+	  (setq found-marked-files t)
+	  (apply func
+		 (project-buffer-node->name node-data)
+		 (project-buffer-node->filename node-data)
+		 (project-buffer-node->project node-data)
+		 args))
+	(setq node (ewoc-next status node))))
+    found-marked-files))
+
+
+(defun project-buffer-apply-to-project-files(project func &rest args)
+  "Call FUNC for each file nodes in PROJECT.
+FUNC's prototype must be:
+  (lambda (project-file-name file-path project-name &rest ARGS) ...)"
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let* ((status project-buffer-status)
+	 (node (project-buffer-search-project-node status project)))
+    (while (and node
+		(string= (project-buffer-node->project (ewoc-data node)) project))
+      (let ((node-data (ewoc-data node)))
+	(when (eq (project-buffer-node->type node-data) 'file)
+	  (apply func
+		 (project-buffer-node->name node-data)
+		 (project-buffer-node->filename node-data)
+		 (project-buffer-node->project node-data)
+		 args))
+	(setq node (ewoc-next status node))))))
+
+
 
 ;;
 ;;  Interactive commands:
