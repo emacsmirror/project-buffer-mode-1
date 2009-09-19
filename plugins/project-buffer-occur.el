@@ -293,6 +293,57 @@ PROJECT-FILE-NAME and PROJECT-NAME are ignored."
   )
 
 
+(defun project-buffer-occur-goto-file(file &optional other-window)
+  "Go to the selected files."
+  (if other-window
+      (find-file-other-window file)
+      (find-file file)))
+
+
+(defun project-buffer-occur-goto-matching-string(file line matching-line before-string after-string regexp &optional other-window)
+  "Go to an occurrence."
+  (let* ((current-buffer (find-file-noselect file))
+	(window (get-buffer-window current-buffer)))
+    (if window 
+	(select-window window)
+	(if other-window 
+	    (switch-to-buffer-other-window current-buffer)
+	    (switch-to-buffer current-buffer)))
+    (set-buffer current-buffer)
+    (save-restriction
+      (widen)
+      (goto-char (point-min))
+      (forward-line (1- line)))
+    ;; note: need to make sure the file hasn't change since last time
+    ;; so basically need to refine using before-string and after-string
+    ;; finally; search regexp between the two spots. 
+    ;; ALSO another todo: 
+    ;; consider highlighting all occurrence of the string (or at least the current one!) in the buffer.
+    ;; with a clear-highlight stuff as soon as a key is pressed!
+    ))
+
+
+(defun project-buffer-occur-goto-occurrence(pos)
+  "Go to the occurence found at POS."
+  (let (context)
+    ;; Check if there is a context at that line:
+    (mapcar (lambda (overlay) (when (overlay-get overlay 'project-buffer-occur-context)
+				(setq context (overlay-get overlay 'project-buffer-occur-context))))
+	    (overlays-at pos))
+    (unless context
+      (error "No occurrence on this line"))
+    (let ((file-name (car context))
+	  (occurrence (nth 1 context))
+	  (regexp (nth 2 context)))
+      (if occurrence
+	  (let ((occ-line-num   (car occurrence))
+		(occ-line-str   (nth 1 occurrence))
+		(occ-before-str (nth 2 occurrence))
+		(occ-after-str  (nth 3 occurrence)))
+	    (project-buffer-occur-goto-matching-string file-name occ-line-num occ-line-str occ-before-str occ-after-str regexp t))
+	  (project-buffer-occur-goto-file file-name t)))))
+  
+
 ;;
 ;;  Interactive commands:
 ;;
@@ -302,22 +353,7 @@ PROJECT-FILE-NAME and PROJECT-NAME are ignored."
   (interactive "e")
   (save-excursion
     (set-buffer (window-buffer (posn-window (event-end event))))
-    (save-excursion
-      (goto-char (posn-point (event-end event)))
-      (let (context)
-	;; Check if there is a context at that line:
-	(mapcar (lambda (overlay) (when (overlay-get overlay 'project-buffer-occur-context)
-				    (setq context (overlay-get overlay 'project-buffer-occur-context))))
-		(overlays-at (point)))
-	(unless context
-	  (error "No occurrence on this line"))
-
-	(let ((file-name (car context))
-	      (occurrence (nth 1 context))
-	      (regexp (nth 2 context)))
-	  (if occurrence
-	      (message "Go to occurrence.")
-	      (message "Go to file.")))))))
+    (project-buffer-occur-goto-occurrence (posn-point (event-end event)))))
 
 
 (defun project-buffer-occur(regexp all-files)
