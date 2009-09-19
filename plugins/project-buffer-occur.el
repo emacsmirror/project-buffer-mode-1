@@ -302,14 +302,14 @@ PROJECT-FILE-NAME and PROJECT-NAME are ignored."
 
 (defun project-buffer-occur-goto-matching-string(file line matching-line before-string after-string regexp &optional other-window)
   "Go to an occurrence."
-  (let* ((current-buffer (find-file-noselect file))
-	(window (get-buffer-window current-buffer)))
+  (let* ((buffer (find-file-noselect file))
+	(window (get-buffer-window buffer)))
     (if window 
-	(select-window window)
+	(progn (select-window window)
+	       (set-buffer buffer))
 	(if other-window 
-	    (switch-to-buffer-other-window current-buffer)
-	    (switch-to-buffer current-buffer)))
-    (set-buffer current-buffer)
+	    (switch-to-buffer-other-window buffer)
+	    (switch-to-buffer buffer)))
     (save-restriction
       (widen)
       (goto-char (point-min))
@@ -351,9 +351,8 @@ PROJECT-FILE-NAME and PROJECT-NAME are ignored."
 
 (defun project-buffer-occur-mouse-find-file(event)
   (interactive "e")
-  (save-excursion
-    (set-buffer (window-buffer (posn-window (event-end event))))
-    (project-buffer-occur-goto-occurrence (posn-point (event-end event)))))
+  (set-buffer (window-buffer (posn-window (event-end event))))
+  (project-buffer-occur-goto-occurrence (posn-point (event-end event))))
 
 
 (defun project-buffer-occur(regexp all-files)
