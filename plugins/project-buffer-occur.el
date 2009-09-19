@@ -378,5 +378,6 @@ project (current project is determined by the cursor position)."
     ;; Reparse the occur buffer to add file headers:
 
     (display-buffer occur-buffer)
+    (goto-char (point-min))
     (message "Done.")))
   
