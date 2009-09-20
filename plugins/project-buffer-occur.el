@@ -94,7 +94,9 @@
 ;; Define the key mapping for the spu mode:
 (defvar project-buffer-occur-map
   (let ((project-buffer-occur-map (make-keymap)))
-;    (define-key project-buffer-occur-mode-map [return] 'project-buffer-node-find-file)
+    (define-key project-buffer-occur-map [return] 'project-buffer-occur-goto-occurrence)
+    (define-key project-buffer-occur-map [?o] 'project-buffer-occur-goto-occurrence)
+;    (define-key project-buffer-occur-map [?v] 'project-buffer-occur-view-occurrence)
   ;;  ret - goto-occurence 
   ;;  o   - goto-occurence other window
   ;;  v   - display occurrence
@@ -102,6 +104,8 @@
   ;;  p   - prev occurence / next search occurrence
   ;;  M-n - next file
   ;;  M-p - prev file
+  ;;  C-n - go to next occurrence and display it
+  ;;  C-p - go to the previous occurrence and display it
   ;;  r   - rename buffer
   ;;  g   - revert-buffer??? refresh the research
   ;;  q   - quit-window
@@ -386,17 +390,10 @@ PROJECT-FILE-NAME and PROJECT-NAME are ignored."
 		    (if (search-backward matching-line nil t)
 			(progn (goto-char (match-beginning 0))
 			       (goto-char (point-at-bol)))
-			(goto-char cur-pt))))))))
-
-    ;;
-    
-    ;; Highlight the occurrences:
-    (project-buffer-occur-highlight-current regexp (point) (+ (point) (length matching-line)))
-
-    ))
+			(goto-char cur-pt))))))))))
 
 
-(defun project-buffer-occur-goto-occurrence(pos)
+(defun project-buffer-occur-goto-occurrence-at-pos(pos other-window)
   "Go to the occurence found at POS."
   (let (context)
     ;; Check if there is a context at that line:
@@ -413,9 +410,10 @@ PROJECT-FILE-NAME and PROJECT-NAME are ignored."
 		(occ-line-str   (nth 1 occurrence))
 		(occ-before-str (nth 2 occurrence))
 		(occ-after-str  (nth 3 occurrence)))
-	    (project-buffer-occur-goto-matching-string file-name occ-line-num occ-line-str occ-before-str occ-after-str regexp t))
-	  (project-buffer-occur-goto-file file-name t)))))
-  
+	    (project-buffer-occur-goto-matching-string file-name occ-line-num occ-line-str occ-before-str occ-after-str regexp other-window)
+	    (project-buffer-occur-highlight-current regexp (point) (+ (point) (length occ-line-str))))
+	  (project-buffer-occur-goto-file file-name other-window)))))
+
 
 ;;
 ;;  Interactive commands:
@@ -423,9 +421,35 @@ PROJECT-FILE-NAME and PROJECT-NAME are ignored."
 
 
 (defun project-buffer-occur-mouse-find-file(event)
+  "Goto the selected occurrence."
   (interactive "e")
   (set-buffer (window-buffer (posn-window (event-end event))))
-  (project-buffer-occur-goto-occurrence (posn-point (event-end event))))
+  (project-buffer-occur-goto-occurrence-at-pos (posn-point (event-end event)) t))
+
+
+(defun project-buffer-occur-goto-occurrence()
+  "Goto the selected occurrence."
+  (interactive)
+  (project-buffer-occur-goto-occurrence-at-pos (point) nil))
+
+
+(defun project-buffer-occur-goto-occurrence-other-window()
+  "Goto the selected occurrence in another window."
+  (interactive)
+  (project-buffer-occur-goto-occurrence-at-pos (point) t))
+
+
+;(defun project-buffer-occur-view-occurrence()
+;  "View the selected occurrence without leaving the project-buffer."
+;  (interactive)
+;  (let ((buffer (current-buffer)))
+;    (project-buffer-occur-goto-occurrence-at-pos (point) t)
+;    (set-buffer (current-buffer))))
+
+
+;;
+;;  Entry command:
+;;
 
 
 (defun project-buffer-occur(regexp all-files)
