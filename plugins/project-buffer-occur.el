@@ -300,6 +300,24 @@ PROJECT-FILE-NAME and PROJECT-NAME are ignored."
       (find-file file)))
 
 
+(defun project-buffer-occur-highlight-current(regexp start end)
+  "Highlight all occurrences of REGEXP between START adn END points"
+  (let (ovl-list)
+    (unwind-protect
+	(save-match-data
+	  (save-excursion
+	    (goto-char start)
+	    (while (re-search-forward regexp end t)
+	      (let ((overlay (make-overlay (match-beginning 0) (match-end 0))))
+		(overlay-put overlay 'face 'project-buffer-occur-highlight-matching-string)
+		(overlay-put overlay 'project-buffer-occur-tag t)
+		(setq ovl-list (cons overlay ovl-list)))))
+	  (sit-for 10))
+      (mapcar (lambda (overlay)
+		(delete-overlay overlay))
+	      ovl-list))))
+      
+
 (defun project-buffer-occur-goto-matching-string(file line matching-line before-string after-string regexp &optional other-window)
   "Go to an occurrence."
   (let* ((buffer (find-file-noselect file))
@@ -370,9 +388,11 @@ PROJECT-FILE-NAME and PROJECT-NAME are ignored."
 			       (goto-char (point-at-bol)))
 			(goto-char cur-pt))))))))
 
-    ;; ALSO another todo: 
-    ;; consider highlighting all occurrence of the string (or at least the current one!) in the buffer.
-    ;; with a clear-highlight stuff as soon as a key is pressed!
+    ;;
+    
+    ;; Highlight the occurrences:
+    (project-buffer-occur-highlight-current regexp (point) (+ (point) (length matching-line)))
+
     ))
 
 
