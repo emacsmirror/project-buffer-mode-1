@@ -46,7 +46,7 @@
 ;;  Global configuration variable:
 ;;
 
-(defvar project-buffer-occur-context-size 16
+(defvar project-buffer-occur-context-size 32
   "Size of the context stored for each occurrence; to help retrieving the data after modification.")
 
 
@@ -314,9 +314,62 @@ PROJECT-FILE-NAME and PROJECT-NAME are ignored."
       (widen)
       (goto-char (point-min))
       (forward-line (1- line)))
-    ;; note: need to make sure the file hasn't change since last time
-    ;; so basically need to refine using before-string and after-string
-    ;; finally; search regexp between the two spots. 
+
+    ;;
+    (let ((cur-pt (point))
+	  (end-pt (+ (point) (length matching-line) 1))
+	  aft-pt
+	  bef-pt
+	  found)
+      (when (and after-string (search-forward after-string nil t))
+	(setq aft-pt (match-beginning 0))
+	(goto-char aft-pt))
+      (when (and before-string (search-backward before-string nil t))
+	(setq bef-pt (match-end 0))
+	(goto-char bef-pt))
+
+      (cond
+       ((and aft-pt bef-pt)
+	(if (search-forward matching-line aft-pt t)
+	    (progn (goto-char (match-beginning 0))
+		   (goto-char (point-at-bol)))
+	    (if (re-search-forward regexp aft-pt t)
+		(progn (goto-char (match-beginning 0))
+		       (goto-char (point-at-bol)))
+		(goto-char cur-pt))))
+       (aft-pt
+	(goto-char cur-pt)
+	(if (search-forward matching-line aft-pt t)
+	    (progn (goto-char (match-beginning 0))
+		   (goto-char (point-at-bol)))
+	    (if (re-search-forward regexp aft-pt t)
+		(progn (goto-char (match-beginning 0))
+		       (goto-char (point-at-bol)))
+		(goto-char cur-pt))))
+       (bef-pt
+	(if (search-forward matching-line end-pt t)
+	    (progn (goto-char (match-beginning 0))
+		   (goto-char (point-at-bol)))
+	    (if (re-search-forward regexp end-pt t)
+		(progn (goto-char (match-beginning 0))
+		       (goto-char (point-at-bol)))
+		(goto-char cur-pt))))
+       (t
+	(goto-char cur-pt)
+	(if (search-forward matching-line end-pt t)
+	    (progn (goto-char (match-beginning 0))
+		   (goto-char (point-at-bol)))
+	    (if (re-search-forward regexp end-pt t)
+		(progn (goto-char (match-beginning 0))
+		       (goto-char (point-at-bol)))
+		(if (search-forward matching-line nil t)
+		    (progn (goto-char (match-beginning 0))
+			   (goto-char (point-at-bol)))
+		    (if (search-backward matching-line nil t)
+			(progn (goto-char (match-beginning 0))
+			       (goto-char (point-at-bol)))
+			(goto-char cur-pt))))))))
+
     ;; ALSO another todo: 
     ;; consider highlighting all occurrence of the string (or at least the current one!) in the buffer.
     ;; with a clear-highlight stuff as soon as a key is pressed!
