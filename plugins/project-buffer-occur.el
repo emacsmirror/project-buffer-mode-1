@@ -76,6 +76,7 @@
 ;;
 ;; v1.0: First official release.
 ;; v1.1: Fix bug: (goto-char (point-min)) was not working.
+;;       Fix bug: file-name weren't attached properly to the occurrences
 ;;
 
 
@@ -327,21 +328,22 @@ PROJECT-FILE-NAME and PROJECT-NAME are ignored."
 	(let ((inhibit-read-only t))
 	  (goto-char (point-max))
 	  (let ((start-pos (point)))
-		(insert (propertize (format "%i occurrence%s found in %s"
+		(insert (propertize (format "%i occurrence%s found in %s/%s"
 					    (length occurrences)
 					    (if (= 1 (length occurrences)) "" "s")
+					    project-name
 					    project-file-name)
 				    'follow-link t
 				    'mouse-face 'highlight
 				    'face 'project-buffer-occur-file-line))
 		(let ((overlay (make-overlay start-pos (point))))
 		  (overlay-put overlay 'project-buffer-occur-tag t)
-		  (overlay-put overlay 'project-buffer-occur-context (list project-file-name nil regexp))))
+		  (overlay-put overlay 'project-buffer-occur-context (list file-path nil regexp))))
 	  (insert "\n")
 	  (let ((occ-count 1))
 	    (while occurrences
 	      (let ((occurrence (pop occurrences)))
-		(project-buffer-occur-add-occurrence project-file-name occurrence occ-count regexp)
+		(project-buffer-occur-add-occurrence file-path occurrence occ-count regexp)
 		(setq occ-count (1+ occ-count))))))))))
 
 
