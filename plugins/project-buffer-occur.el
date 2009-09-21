@@ -95,8 +95,19 @@
 (defvar project-buffer-occur-map
   (let ((project-buffer-occur-map (make-keymap)))
     (define-key project-buffer-occur-map [return] 'project-buffer-occur-goto-occurrence)
-    (define-key project-buffer-occur-map [?o] 'project-buffer-occur-goto-occurrence)
-;    (define-key project-buffer-occur-map [?v] 'project-buffer-occur-view-occurrence)
+    (define-key project-buffer-occur-map [?o] 'project-buffer-occur-goto-occurrence-other-window)
+    (define-key project-buffer-occur-map [?v] 'project-buffer-occur-view-occurrence)
+    (define-key project-buffer-occur-map [?n] 'project-buffer-occur-next-occurrence)
+    (define-key project-buffer-occur-map [?p] 'project-buffer-occur-previous-occurrence)
+    (define-key project-buffer-occur-map [(meta ?n)] 'project-buffer-occur-next-file)
+    (define-key project-buffer-occur-map [(meta ?p)] 'project-buffer-occur-previous-file)
+    (define-key project-buffer-occur-map [(control ?n)] 'project-buffer-occur-view-next-occurrence)
+    (define-key project-buffer-occur-map [(control ?p)] 'project-buffer-occur-view-previous-occurrence)
+    (define-key project-buffer-occur-map [?q] 'quit-window)
+    ;(define-key project-buffer-occur-map [?r] 'project-buffer-occur-rename-buffer)
+    ;(define-key project-buffer-occur-map [?g] 'project-buffer-occur-refresh)
+
+    (define-key project-buffer-occur-map [??] 'project-buffer-occur-help)
   ;;  ret - goto-occurence 
   ;;  o   - goto-occurence other window
   ;;  v   - display occurrence
@@ -109,7 +120,7 @@
   ;;  r   - rename buffer
   ;;  g   - revert-buffer??? refresh the research
   ;;  q   - quit-window
-  ;;  /   - quick research! :)
+  ;;  ?   - quick-help
 
     (define-key project-buffer-occur-map [mouse-2] 'project-buffer-occur-mouse-find-file)
     project-buffer-occur-map))
@@ -265,7 +276,10 @@ PROJECT-FILE-NAME and PROJECT-NAME are ignored."
 	(let ((inhibit-read-only t))
 	  (goto-char (point-max))
 	  (let ((start-pos (point)))
-		(insert (propertize (format "%i occurrences found in %s" (length occurrences) project-file-name)
+		(insert (propertize (format "%i occurrence%s found in %s" 
+					    (length occurrences) 
+					    (if (= 1 (length occurrences)) "" "s")
+					    project-file-name)
 				    'follow-link t
 				    'mouse-face 'highlight
 				    'face 'project-buffer-occur-file-line))
@@ -281,7 +295,10 @@ PROJECT-FILE-NAME and PROJECT-NAME are ignored."
 
 
 (defun project-buffer-occur-mode()
-  "Major mode."
+  "Major mode for output from `project-buffer-occur'
+
+Commands:
+\\{project-buffer-mode-map}"
   (kill-all-local-variables)
   (use-local-map project-buffer-occur-map)
   ;;  
@@ -439,12 +456,90 @@ PROJECT-FILE-NAME and PROJECT-NAME are ignored."
   (project-buffer-occur-goto-occurrence-at-pos (point) t))
 
 
-;(defun project-buffer-occur-view-occurrence()
-;  "View the selected occurrence without leaving the project-buffer."
+(defun project-buffer-occur-view-occurrence()
+  "View the selected occurrence without leaving the project-buffer."
+  (interactive)
+  (let ((buffer (current-buffer)))
+    (project-buffer-occur-goto-occurrence-at-pos (point) t)
+    (let ((window (get-buffer-window buffer)))
+      (when window
+	(select-window window)))))
+
+
+(defun project-buffer-occur-next-occurrence()
+  "Go to the next occurrence."
+  (interactive)
+  (forward-line 1)
+  (goto-char (point-at-bol))
+  (while (and (not (eobp)) 
+	      (looking-at "^[0-9]+ occurrence"))
+    (forward-line 1)))
+
+
+(defun project-buffer-occur-previous-occurrence()
+  "Go to the next occurrence."
+  (interactive)
+  (forward-line -1)
+  (goto-char (point-at-bol))
+  (while (and (not (bobp)) 
+	      (looking-at "^[0-9]+ occurrence"))
+    (forward-line -1))
+  (if (and (bobp)
+	   (looking-at "^[0-9]+ occurrence"))
+      (project-buffer-occur-next)))
+
+
+(defun project-buffer-occur-next-file()
+  "Go to the next file."
+  (interactive)
+  (let ((current (point)))
+    (forward-line 1)
+    (goto-char (point-at-bol))
+    (while (and (not (eobp)) 
+		(not (looking-at "^[0-9]+ occurrence")))
+      (forward-line 1))
+    (unless (looking-at "^[0-9]+ occurrence")
+      (goto-char current))))
+
+
+(defun project-buffer-occur-previous-file()
+  "Go to the next file."
+  (interactive)
+  (let ((current (point)))
+    (forward-line -1)
+    (goto-char (point-at-bol))
+    (while (and (not (eobp))
+		(not (looking-at "^[0-9]+ occurrence")))
+      (forward-line -1))
+    (unless (looking-at "^[0-9]+ occurrence")
+      (goto-char current))))
+
+
+(defun project-buffer-occur-view-next-occurrence()
+  "Go to the next occurrence and view it."
+  (interactive)
+  (project-buffer-occur-next-occurrence)
+  (project-buffer-occur-view-occurrence))
+
+
+(defun project-buffer-occur-view-previous-occurrence()
+  "Go to the next occurrence."
+  (interactive)
+  (project-buffer-occur-previous-occurrence)
+  (project-buffer-occur-view-occurrence))
+
+
+(defun project-buffer-occur-help ()
+  "Display help for project-buffer-occur mode."
+  (interactive)
+  (describe-function 'project-buffer-occur-mode))
+
+
+;(defun project-buffer-occur-rename-buffer()
+;  "Rename the buffer; make its name uniq."
 ;  (interactive)
-;  (let ((buffer (current-buffer)))
-;    (project-buffer-occur-goto-occurrence-at-pos (point) t)
-;    (set-buffer (current-buffer))))
+;  (
+;  )
 
 
 ;;
