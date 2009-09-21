@@ -75,7 +75,7 @@
 ;;; History:
 ;;
 ;; v1.0: First official release.
-;; v1.1: Fix bug: 
+;; v1.1: Bugs fixed:
 ;;       - (goto-char (point-min)) was not working.
 ;;       - file-name weren't attached properly to the occurrences
 ;;       - non-existing files were stopping the research / they are now skipped.
