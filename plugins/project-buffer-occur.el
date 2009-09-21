@@ -36,14 +36,14 @@
 ;;
 
 ;; HOW TO USE IT:
-;; 
+;;
 ;; Call the command `project-buffer-occur' in a project-buffer-mode buffer.
-;; 
+;;
 ;; The research will occur in all marked files; or in all files
 ;; belonging to the current project if there are no files.  Using the
 ;; prefix argument, the research will be done in all files.
 ;;
-;; 
+;;
 ;; TO INSTALL IT:
 ;;
 ;; Put the following lines in your .emacs:
@@ -56,7 +56,7 @@
 ;;
 ;; KEY BINDINGS:
 ;;
-;; <RET> - goto-occurence 
+;; <RET> - goto-occurence
 ;;  o    - goto-occurence other window
 ;;  v    - display occurrence
 ;;  n    - next occurence / prev search occurrence
@@ -215,7 +215,7 @@ OCCURRENCE-NUM represents the OCCURENCE-NUM'th occurrence found in FILE"
     (insert (propertize occ-line-str
 			'follow-link t
 			'mouse-face 'highlight
-			'face (if (oddp occurrence-num) 
+			'face (if (oddp occurrence-num)
 				  'project-buffer-occur-odd-matching-line
 				  'project-buffer-occur-even-matching-line)))
     (when (not (= (point) (point-at-bol)))
@@ -295,7 +295,7 @@ required."
 
 (defun project-buffer-occur-research(project-file-name file-path project-name regexp occur-buffer)
   "Research REGEXP in FILE-PATH and fill OCCUR-BUFFER with the
-different occurences found. 
+different occurences found.
 PROJECT-FILE-NAME and PROJECT-NAME are ignored."
   (let (occurrences)
     (message "Project '%s' -- Searching in '%s'" project-name file-path)
@@ -315,8 +315,8 @@ PROJECT-FILE-NAME and PROJECT-NAME are ignored."
 	(let ((inhibit-read-only t))
 	  (goto-char (point-max))
 	  (let ((start-pos (point)))
-		(insert (propertize (format "%i occurrence%s found in %s" 
-					    (length occurrences) 
+		(insert (propertize (format "%i occurrence%s found in %s"
+					    (length occurrences)
 					    (if (= 1 (length occurrences)) "" "s")
 					    project-file-name)
 				    'follow-link t
@@ -340,7 +340,7 @@ Commands:
 \\{project-buffer-mode-map}"
   (kill-all-local-variables)
   (use-local-map project-buffer-occur-map)
-  ;;  
+  ;;
   (setq major-mode 'project-buffer-occur-mode)
   (setq mode-name "pbm-occur")
   ;;
@@ -379,16 +379,16 @@ Commands:
       (mapcar (lambda (overlay)
 		(delete-overlay overlay))
 	      ovl-list))))
-      
+
 
 (defun project-buffer-occur-goto-matching-string(file line matching-line before-string after-string regexp &optional other-window)
   "Go to an occurrence."
   (let* ((buffer (find-file-noselect file))
 	(window (get-buffer-window buffer)))
-    (if window 
+    (if window
 	(progn (select-window window)
 	       (set-buffer buffer))
-	(if other-window 
+	(if other-window
 	    (switch-to-buffer-other-window buffer)
 	    (switch-to-buffer buffer)))
     (save-restriction
@@ -513,7 +513,7 @@ Commands:
   (interactive)
   (forward-line 1)
   (goto-char (point-at-bol))
-  (while (and (not (eobp)) 
+  (while (and (not (eobp))
 	      (looking-at "^[0-9]+ occurrence"))
     (forward-line 1)))
 
@@ -523,7 +523,7 @@ Commands:
   (interactive)
   (forward-line -1)
   (goto-char (point-at-bol))
-  (while (and (not (bobp)) 
+  (while (and (not (bobp))
 	      (looking-at "^[0-9]+ occurrence"))
     (forward-line -1))
   (if (and (bobp)
@@ -537,7 +537,7 @@ Commands:
   (let ((current (point)))
     (forward-line 1)
     (goto-char (point-at-bol))
-    (while (and (not (eobp)) 
+    (while (and (not (eobp))
 		(not (looking-at "^[0-9]+ occurrence")))
       (forward-line 1))
     (unless (looking-at "^[0-9]+ occurrence")
@@ -597,7 +597,7 @@ Commands:
       ;; Fill the occur buffer with all occurrences:
       (save-excursion
 	(set-buffer project-buffer-occur-saved-project-buffer)
-	(if all-files 
+	(if all-files
 	    (project-buffer-apply-to-each-file 'project-buffer-occur-research regexp occur-buffer)
 	    (unless (project-buffer-apply-to-marked-files 'project-buffer-occur-research regexp occur-buffer)
 	      (project-buffer-apply-to-project-files project 'project-buffer-occur-research regexp occur-buffer)))))))
@@ -627,7 +627,7 @@ project (current project is determined by the cursor position)."
       (setq project-buffer-occur-saved-project-buffer pb-buffer)
       (setq project-buffer-occur-saved-regexp (list regexp all-files (project-buffer-get-current-project-name)))
       ;; Fill the occur buffer with all occurrences:
-      (if all-files 
+      (if all-files
 	  (project-buffer-apply-to-each-file 'project-buffer-occur-research regexp occur-buffer)
 	  (unless (project-buffer-apply-to-marked-files 'project-buffer-occur-research regexp occur-buffer)
 	    (project-buffer-apply-to-project-files (project-buffer-get-current-project-name)
@@ -635,4 +635,4 @@ project (current project is determined by the cursor position)."
       (display-buffer occur-buffer)
       (goto-char (point-min))
       (message "Done."))))
-  
+
