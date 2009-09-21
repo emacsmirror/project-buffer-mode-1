@@ -665,9 +665,11 @@ project (current project is determined by the cursor position)."
   ;; Generate an occur buffer:
   (let ((pb-buffer (current-buffer)))
     (let ((occur-buffer (project-buffer-occur-get-and-clear-occur-buffer))
-	  (project-name (project-buffer-get-current-project-name)))
+	  (project-name (project-buffer-get-current-project-name))
+	  (project-directory default-directory))
       ;; Set the local variable:
       (with-current-buffer occur-buffer
+	(cd project-directory)
 	(setq project-buffer-occur-saved-project-buffer pb-buffer)
 	(setq project-buffer-occur-saved-regexp (list regexp all-files project-name)))
       ;; Fill the occur buffer with all occurrences:
