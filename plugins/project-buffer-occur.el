@@ -85,6 +85,15 @@
   :group 'project-buffer-occur)
 
 
+;;
+;;  Local variables:
+;;
+
+
+(defvar project-buffer-occur-saved-project-buffer nil)
+(defvar project-buffer-occur-saved-regexp nil)
+
+
 
 ;;
 ;;  Key Bindings:
@@ -104,8 +113,8 @@
     (define-key project-buffer-occur-map [(control ?n)] 'project-buffer-occur-view-next-occurrence)
     (define-key project-buffer-occur-map [(control ?p)] 'project-buffer-occur-view-previous-occurrence)
     (define-key project-buffer-occur-map [?q] 'quit-window)
-    ;(define-key project-buffer-occur-map [?r] 'project-buffer-occur-rename-buffer)
-    ;(define-key project-buffer-occur-map [?g] 'project-buffer-occur-refresh)
+    (define-key project-buffer-occur-map [?r] 'project-buffer-occur-rename-buffer)
+    (define-key project-buffer-occur-map [?g] 'project-buffer-occur-refresh)
 
     (define-key project-buffer-occur-map [??] 'project-buffer-occur-help)
   ;;  ret - goto-occurence 
@@ -304,8 +313,11 @@ Commands:
   ;;  
   (setq major-mode 'project-buffer-occur-mode)
   (setq mode-name "pbm-occur")
+  ;;
+  (make-local-variable 'project-buffer-occur-saved-project-buffer)
+  (make-local-variable 'project-buffer-occur-saved-regexp)
+  ;;
   ;(set (make-local-variable 'revert-buffer-function) 'occur-revert-function)
-  ;(make-local-variable 'occur-revert-arguments)
   ;(add-hook 'change-major-mode-hook 'font-lock-defontify nil t)
   ;(setq next-error-function 'occur-next-error)
   ;(run-mode-hooks 'occur-mode-hook)
@@ -535,11 +547,30 @@ Commands:
   (describe-function 'project-buffer-occur-mode))
 
 
-;(defun project-buffer-occur-rename-buffer()
-;  "Rename the buffer; make its name uniq."
-;  (interactive)
-;  (
-;  )
+(defun project-buffer-occur-rename-buffer()
+  "Rename the buffer; make its name uniq."
+  (interactive)
+  (let ((new-name (format "*Project-Buffer-Occur:%s*" project-buffer-occur-saved-project-buffer)))
+    (rename-buffer new-name t)))
+
+
+(defun project-buffer-occur-refresh()
+  "Refresh the buffer."
+  (interactive)
+  (let ((inhibit-read-only t))
+    (project-buffer-occur-clear-overlays)
+    (erase-buffer)
+    (let ((regexp       (nth 0 project-buffer-occur-saved-regexp))
+	  (all-files    (nth 1 project-buffer-occur-saved-regexp))
+	  (project      (nth 2 project-buffer-occur-saved-regexp))
+	  (occur-buffer (current-buffer)))
+      ;; Fill the occur buffer with all occurrences:
+      (save-excursion
+	(set-buffer project-buffer-occur-saved-project-buffer)
+	(if all-files 
+	    (project-buffer-apply-to-each-file 'project-buffer-occur-research regexp occur-buffer)
+	    (unless (project-buffer-apply-to-marked-files 'project-buffer-occur-research regexp occur-buffer)
+	      (project-buffer-apply-to-project-files project 'project-buffer-occur-research regexp occur-buffer)))))))
 
 
 ;;
@@ -560,16 +591,18 @@ project (current project is determined by the cursor position)."
   (unless (and regexp (not (string-equal regexp "")))
     (error "Invalid regexp."))
   ;; Generate an occur buffer:
-  (let ((occur-buffer (project-buffer-occur-get-and-clear-occur-buffer)))
-    ;; Fill the occur buffer with all occurrences:
-    (if all-files 
-	(project-buffer-apply-to-each-file 'project-buffer-occur-research regexp occur-buffer)
-	(unless (project-buffer-apply-to-marked-files 'project-buffer-occur-research regexp occur-buffer)
-	  (project-buffer-apply-to-project-files (project-buffer-get-current-project-name)
-						 'project-buffer-occur-research regexp occur-buffer)))
-    ;; Reparse the occur buffer to add file headers:
-
-    (display-buffer occur-buffer)
-    (goto-char (point-min))
-    (message "Done.")))
+  (let ((pb-buffer (current-buffer)))
+    (let ((occur-buffer (project-buffer-occur-get-and-clear-occur-buffer)))
+      ;; Set the local variable:
+      (setq project-buffer-occur-saved-project-buffer pb-buffer)
+      (setq project-buffer-occur-saved-regexp (list regexp all-files (project-buffer-get-current-project-name)))
+      ;; Fill the occur buffer with all occurrences:
+      (if all-files 
+	  (project-buffer-apply-to-each-file 'project-buffer-occur-research regexp occur-buffer)
+	  (unless (project-buffer-apply-to-marked-files 'project-buffer-occur-research regexp occur-buffer)
+	    (project-buffer-apply-to-project-files (project-buffer-get-current-project-name)
+						   'project-buffer-occur-research regexp occur-buffer)))
+      (display-buffer occur-buffer)
+      (goto-char (point-min))
+      (message "Done."))))
   
