@@ -67,6 +67,7 @@
 ;;  C-p  - go to the previous occurrence and display it
 ;;  r    - rename buffer
 ;;  g    - refresh the research
+;;  d    - delete the current line
 ;;  q    - quit-window
 ;;  ?    - show brief help
 
@@ -130,6 +131,12 @@
   '((((class color) (background light)) (:background "yellow"))
     (((class color) (background dark)) (:background "yellow")))
   "Project buffer occur face used to highlight the matching string."
+  :group 'project-buffer-occur)
+
+
+(defcustom project-buffer-occur-mode-hook nil
+  "Post `project-buffer-occur-mode' initialization hook."
+  :type 'hook
   :group 'project-buffer-occur)
 
 
@@ -351,10 +358,9 @@ Commands:
   (make-local-variable 'project-buffer-occur-saved-project-buffer)
   (make-local-variable 'project-buffer-occur-saved-regexp)
   ;;
-  ;(run-mode-hooks 'project-buffer-occur-mode-hook)
   (setq buffer-read-only t)
   (setq buffer-undo-list t) ; disable undo recording
-  )
+  (run-mode-hooks 'project-buffer-occur-mode-hook))
 
 
 (defun project-buffer-occur-goto-file(file &optional other-window)
