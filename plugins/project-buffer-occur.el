@@ -161,6 +161,7 @@
     (define-key project-buffer-occur-map [(meta ?p)] 'project-buffer-occur-previous-file)
     (define-key project-buffer-occur-map [(control ?n)] 'project-buffer-occur-view-next-occurrence)
     (define-key project-buffer-occur-map [(control ?p)] 'project-buffer-occur-view-previous-occurrence)
+    (define-key project-buffer-occur-map [?d] 'project-buffer-occur-delete-line)
     (define-key project-buffer-occur-map [?q] 'quit-window)
     (define-key project-buffer-occur-map [?r] 'project-buffer-occur-rename-buffer)
     (define-key project-buffer-occur-map [?g] 'project-buffer-occur-refresh)
@@ -350,10 +351,7 @@ Commands:
   (make-local-variable 'project-buffer-occur-saved-project-buffer)
   (make-local-variable 'project-buffer-occur-saved-regexp)
   ;;
-  ;(set (make-local-variable 'revert-buffer-function) 'occur-revert-function)
-  ;(add-hook 'change-major-mode-hook 'font-lock-defontify nil t)
-  ;(setq next-error-function 'occur-next-error)
-  ;(run-mode-hooks 'occur-mode-hook)
+  ;(run-mode-hooks 'project-buffer-occur-mode-hook)
   (setq buffer-read-only t)
   (setq buffer-undo-list t) ; disable undo recording
   )
@@ -476,6 +474,33 @@ Commands:
 	    (project-buffer-occur-highlight-current regexp (point) (+ (point) (length occ-line-str))))
 	  (project-buffer-occur-goto-file file-name other-window)))))
 
+
+(defun project-buffer-occur-delete-line()
+  "Delete the current occurrence line from this buffer."
+  (interactive)
+  (goto-char (point-at-bol))
+  (let ((start (point))
+	end
+	(inhibit-read-only t))
+    (if (looking-at "^[0-9]+ occurrence")
+	(progn (project-buffer-occur-next-file)
+	       (setq end (if (eq start (point)) (point-max) (point)))
+	       (delete-region start end))
+	(progn (forward-line 1)
+	       (setq end (point))
+	       (save-excursion
+		 (save-match-data
+		   (project-buffer-occur-previous-file)
+		   (looking-at "^[0-9]+")
+		   (let ((num (string-to-int (buffer-substring-no-properties (match-beginning 0) (match-end 0)))))
+		     (if (= num 1)
+			 (setq start (point))
+			 (progn (delete-region (match-beginning 0) (match-end 0))
+				(insert (propertize (format "%i" (1- num))
+						    'follow-link t
+						    'mouse-face 'highlight
+						    'face 'project-buffer-occur-file-line)))))))
+	       (delete-region start end)))))
 
 
 ;;
