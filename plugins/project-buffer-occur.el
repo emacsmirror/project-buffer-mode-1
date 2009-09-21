@@ -572,7 +572,7 @@ Commands:
 
 
 (defun project-buffer-occur-help ()
-  "Display help for project-buffer-occur mode."
+  "Display help for `project-buffer-occur' mode."
   (interactive)
   (describe-function 'project-buffer-occur-mode))
 
@@ -619,7 +619,7 @@ project (current project is determined by the cursor position)."
 	 current-prefix-arg))
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (unless (and regexp (not (string-equal regexp "")))
-    (error "Invalid regexp."))
+    (error "Invalid regexp"))
   ;; Generate an occur buffer:
   (let ((pb-buffer (current-buffer)))
     (let ((occur-buffer (project-buffer-occur-get-and-clear-occur-buffer)))
@@ -636,3 +636,8 @@ project (current project is determined by the cursor position)."
       (goto-char (point-min))
       (message "Done."))))
 
+;;
+
+(provide 'project-buffer-occur)
+
+;;; project-buffer-occur.el ends here
