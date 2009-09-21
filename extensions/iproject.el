@@ -54,7 +54,6 @@
 ;;
 ;; C-c n   to add new project
 ;; C-c +   to add file to an existing project
-;; C-c m   to move marked file or current file to a specified folder (within the same project)
 ;; C-c C-r to revert the project
 ;; C-x C-w to write the project
 ;; C-x C-s to save the project
@@ -66,14 +65,6 @@
 ;; C-x p n to create a new iproject
 ;; C-x p f to load a project file
 ;;
-
-
-;; TODOs:
-
-;; - probably add: iproject-bing-opened-file-to-current-buffer which
-;;   should go through all opened files and if these files belong to
-;;   the current ipb; it should attached them to it.
-;; - compile one file
 
 
 ;;; History:
