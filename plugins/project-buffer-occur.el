@@ -23,8 +23,53 @@
 ;;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 ;;
 
+;;; Summary:
+;;
+
+;; This is an extension for project-buffer-mode.
+;;
+;; Provide a 'occur' like functionality for project-buffer-mode.
+;;
+
+
 ;;; Commentary:
 ;;
+
+;; HOW TO USE IT:
+;; 
+;; Call the command `project-buffer-occur' in a project-buffer-mode buffer.
+;; 
+;; The research will occur in all marked files; or in all files
+;; belonging to the current project if there are no files.  Using the
+;; prefix argument, the research will be done in all files.
+;;
+;; 
+;; TO INSTALL IT:
+;;
+;; Put the following lines in your .emacs:
+;;
+;; (eval-after-load "project-buffer-mode"
+;;  '(progn
+;;    (require 'project-buffer-occur)
+;;    (define-key project-buffer-mode-map [(control ?f)] 'project-buffer-occur)))
+;;
+;;
+;; KEY BINDINGS:
+;;
+;; <RET> - goto-occurence 
+;;  o    - goto-occurence other window
+;;  v    - display occurrence
+;;  n    - next occurence / prev search occurrence
+;;  p    - prev occurence / next search occurrence
+;;  M-n  - go to next file
+;;  M-p  - go to prev file
+;;  C-n  - go to next occurrence and display it
+;;  C-p  - go to the previous occurrence and display it
+;;  r    - rename buffer
+;;  g    - refresh the research
+;;  q    - quit-window
+;;  ?    - show brief help
+
 
 ;;; History:
 ;;
@@ -115,22 +160,7 @@
     (define-key project-buffer-occur-map [?q] 'quit-window)
     (define-key project-buffer-occur-map [?r] 'project-buffer-occur-rename-buffer)
     (define-key project-buffer-occur-map [?g] 'project-buffer-occur-refresh)
-
     (define-key project-buffer-occur-map [??] 'project-buffer-occur-help)
-  ;;  ret - goto-occurence 
-  ;;  o   - goto-occurence other window
-  ;;  v   - display occurrence
-  ;;  n   - next occurence / prev search occurrence
-  ;;  p   - prev occurence / next search occurrence
-  ;;  M-n - next file
-  ;;  M-p - prev file
-  ;;  C-n - go to next occurrence and display it
-  ;;  C-p - go to the previous occurrence and display it
-  ;;  r   - rename buffer
-  ;;  g   - revert-buffer??? refresh the research
-  ;;  q   - quit-window
-  ;;  ?   - quick-help
-
     (define-key project-buffer-occur-map [mouse-2] 'project-buffer-occur-mouse-find-file)
     project-buffer-occur-map))
 
