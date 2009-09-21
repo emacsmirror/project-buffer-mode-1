@@ -1,7 +1,7 @@
 ;;; project-buffer-mode+.el --- Extension for project-buffer-mode
 ;;
 ;; Author:      Cedric Lallain <kandjar76@hotmail.com>
-;; Version:     1.00
+;; Version:     1.10
 ;; Keywords:    project mode buffer viewer extension
 ;; Description: Extension for project-buffer-mode.
 ;; Tested with: GNU Emacs 22.x and GNU Emacs 23.x
