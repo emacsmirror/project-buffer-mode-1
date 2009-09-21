@@ -75,8 +75,10 @@
 ;;; History:
 ;;
 ;; v1.0: First official release.
-;; v1.1: Fix bug: (goto-char (point-min)) was not working.
-;;       Fix bug: file-name weren't attached properly to the occurrences
+;; v1.1: Fix bug: 
+;;       - (goto-char (point-min)) was not working.
+;;       - file-name weren't attached properly to the occurrences
+;;       - non-existing files were stopping the research / they are now skipped.
 ;;
 
 
@@ -318,9 +320,10 @@ PROJECT-FILE-NAME and PROJECT-NAME are ignored."
 	  (with-current-buffer file-buf
 	    (save-excursion
 	      (setq occurrences (project-buffer-occur-collect-occurrences regexp))))
-	  (with-temp-buffer
-	    (insert-file-contents file-path)
-	    (setq occurrences (project-buffer-occur-collect-occurrences regexp)))))
+	  (when (file-exists-p file-path)
+	    (with-temp-buffer
+	      (insert-file-contents file-path)
+	      (setq occurrences (project-buffer-occur-collect-occurrences regexp))))))
 
     ;; Then populate the occurr buffer with it:
     (when occurrences
@@ -661,15 +664,17 @@ project (current project is determined by the cursor position)."
     (error "Invalid regexp"))
   ;; Generate an occur buffer:
   (let ((pb-buffer (current-buffer)))
-    (let ((occur-buffer (project-buffer-occur-get-and-clear-occur-buffer)))
+    (let ((occur-buffer (project-buffer-occur-get-and-clear-occur-buffer))
+	  (project-name (project-buffer-get-current-project-name)))
       ;; Set the local variable:
-      (setq project-buffer-occur-saved-project-buffer pb-buffer)
-      (setq project-buffer-occur-saved-regexp (list regexp all-files (project-buffer-get-current-project-name)))
+      (with-current-buffer occur-buffer
+	(setq project-buffer-occur-saved-project-buffer pb-buffer)
+	(setq project-buffer-occur-saved-regexp (list regexp all-files project-name)))
       ;; Fill the occur buffer with all occurrences:
       (if all-files
 	  (project-buffer-apply-to-each-file 'project-buffer-occur-research regexp occur-buffer)
 	  (unless (project-buffer-apply-to-marked-files 'project-buffer-occur-research regexp occur-buffer)
-	    (project-buffer-apply-to-project-files (project-buffer-get-current-project-name)
+	    (project-buffer-apply-to-project-files project-name
 						   'project-buffer-occur-research regexp occur-buffer)))
       (with-current-buffer occur-buffer
 	(goto-char (point-min)))
