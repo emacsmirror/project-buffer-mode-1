@@ -1,7 +1,7 @@
 ;;; project-buffer-mode.el --- Generic mode to browse project file
 ;;
 ;; Author:      Cedric Lallain <kandjar76@hotmail.com>
-;; Version:     1.20
+;; Version:     1.22
 ;; Keywords:    project mode buffer viewer generic
 ;; Description: Generic mode to handle projects.
 ;; Tested with: GNU Emacs 22.x and GNU Emacs 23.x
@@ -31,15 +31,19 @@
 ;; projects with in one buffer.
 ;;
 ;;
-;; Two extensions already exist for this mode:
+;; Three project implementation uses this mode:
 ;; - fsproject  - which creates a project based on the file system
 ;; - sln-mode   - which parses a sln files and create a project representing it
+;; - iproject   - which stands for Interactive Project allowing the user to easily add/remove projects.
 ;;
+;; Two generic extensions are also available:
+;; - project-buffer-mode+ - which allow to run user actions such as build/clean.. commands from the project files
+;; - project-buffer-occur - which provides a function to search in project files and list all occurrences
 ;;
 ;; Key features:
-;; - find file based on regular expression
-;; - four different view mode
-;; - advance 'search in files' system
+;; - find files based on regular expression
+;; - four different view modes
+;; - advanced 'search in files' system
 ;; - notion of master project to launch build/clean/run/debug and update.
 ;; - intuitive key bindings (at least I hope)
 ;; - full save/load of a project including hooks and local configuration.
@@ -102,7 +106,7 @@
 ;; or this project.
 ;;
 ;;
-;; ADVANCE SEARCH IN FILES SYSTEM:
+;; ADVANCED SEARCH IN FILES SYSTEM:
 ;;
 ;; The search in files functionality comes with three different behaviors:
 ;; - Narrow the marked files (<default>)
@@ -264,6 +268,8 @@
 ;; - `project-buffer-set-project-settings-data' to set user project settings data
 ;; - `project-buffer-get-project-settings-data' to retrive the user project settings data
 ;; - `project-buffer-apply-to-each-file'        to perform a function call on every file node
+;; - `project-buffer-apply-to-marked-files'     to perform a function call on eveyr marked files; the function returns nil if no marked files were found
+;; - `project-buffer-apply-to-project-files'    to perform a function call on every files belonging to a specified project
 ;;
 ;; If you need to have some local variables to be saved; register them in `project-buffer-locals-to-save'.
 ;; The same way, if there is need to save extra hooks: register them in `project-buffer-hooks-to-save'.
@@ -323,6 +329,8 @@
 ;;        - `project-buffer-set-project-settings-data' to set user project settings data
 ;;        - `project-buffer-get-project-settings-data' to retrieve the user project settings data
 ;;        - `project-buffer-apply-to-each-file'        to perform a function call on every file node
+;;        - `project-buffer-apply-to-marked-files'     to perform a function call on eveyr marked files; the function returns nil if no marked files were found
+;;        - `project-buffer-apply-to-project-files'    to perform a function call on every files belonging to a specified project
 ;;        - `project-buffer-get-project-path'          to get a project's path
 ;;        Refresh hooks now receive the current project or the project list as argument.
 ;;        It is now possible to refresh the current project only using the prefix argument
