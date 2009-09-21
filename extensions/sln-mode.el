@@ -1,7 +1,7 @@
 ;;; sln-mode.el --- Create a project-buffer using sln file
 ;;
 ;; Author:      Cedric Lallain <kandjar76@hotmail.com>
-;; Version:     1.01
+;; Version:     1.02
 ;; Keywords:    project buffer msvc sln vcproj viewer
 ;; Description: SLN File Project Viewer
 ;; Tested with: GNU Emacs 22.x and GNU Emacs 23.x
