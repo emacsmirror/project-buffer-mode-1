@@ -1,7 +1,7 @@
 ;;; project-buffer-occur.el --- Occur functionality for Project Mode
 ;;
 ;; Author:      Cedric Lallain <kandjar76@hotmail.com>
-;; Version:     1.0
+;; Version:     1.1
 ;; Keywords:    occur project buffer makefile filesystem management
 ;; Description: Occur Functionality for Project-Buffer-Mode
 ;; Tested with: GNU Emacs 22.x and GNU Emacs 23.x
@@ -75,6 +75,7 @@
 ;;; History:
 ;;
 ;; v1.0: First official release.
+;; v1.1: Fix bug: (goto-char (point-min)) was not working.
 ;;
 
 
@@ -668,9 +669,11 @@ project (current project is determined by the cursor position)."
 	  (unless (project-buffer-apply-to-marked-files 'project-buffer-occur-research regexp occur-buffer)
 	    (project-buffer-apply-to-project-files (project-buffer-get-current-project-name)
 						   'project-buffer-occur-research regexp occur-buffer)))
+      (with-current-buffer occur-buffer
+	(goto-char (point-min)))
       (display-buffer occur-buffer)
-      (goto-char (point-min))
-      (message "Done."))))
+      (message "Done.")
+)))
 
 
 ;;
