@@ -80,6 +80,7 @@
 (require 'project-buffer-mode)
 
 
+
 ;;; Code:
 
 
@@ -87,9 +88,11 @@
   "An occur mode for project-buffer.")
 
 
+
 ;;
 ;;  Global configuration variable:
 ;;
+
 
 (defvar project-buffer-occur-context-size 32
   "Size of the context stored for each occurrence; to help retrieving the data after modification.")
@@ -128,6 +131,7 @@
     (((class color) (background dark)) (:background "yellow")))
   "Project buffer occur face used to highlight the matching string."
   :group 'project-buffer-occur)
+
 
 
 ;;
@@ -289,8 +293,7 @@ required."
 	;; Carry on:
 	(goto-char next-start)
 	(setq next-start (re-search-forward regexp nil t)))
-      (reverse occurrences)
-    )))
+      (reverse occurrences))))
 
 
 (defun project-buffer-occur-research(project-file-name file-path project-name regexp occur-buffer)
@@ -474,6 +477,7 @@ Commands:
 	  (project-buffer-occur-goto-file file-name other-window)))))
 
 
+
 ;;
 ;;  Interactive commands:
 ;;
@@ -603,6 +607,7 @@ Commands:
 	      (project-buffer-apply-to-project-files project 'project-buffer-occur-research regexp occur-buffer)))))))
 
 
+
 ;;
 ;;  Entry command:
 ;;
@@ -635,6 +640,7 @@ project (current project is determined by the cursor position)."
       (display-buffer occur-buffer)
       (goto-char (point-min))
       (message "Done."))))
+
 
 ;;
 
