@@ -51,7 +51,8 @@
 ;; (eval-after-load "project-buffer-mode"
 ;;  '(progn
 ;;    (require 'project-buffer-occur)
-;;    (define-key project-buffer-mode-map [(control ?f)] 'project-buffer-occur)))
+;;    (define-key project-buffer-mode-map [(control ?f)] 'project-buffer-occur)
+;;    (define-key project-buffer-mode-map [(control ?F)] 'project-buffer-occur-case-sensitive)))
 ;;
 ;;
 ;; KEY BINDINGS:
@@ -79,8 +80,9 @@
 ;;       - (goto-char (point-min)) was not working.
 ;;       - file-name weren't attached properly to the occurrences
 ;;       - non-existing files were stopping the research / they are now skipped.
+;; v1.2: New command:
+;;       - `project-buffer-occur-case-sensitive' to enforce the case sensitive while researching a regexp
 ;;
-
 
 (require 'project-buffer-mode)
 
@@ -683,6 +685,24 @@ project (current project is determined by the cursor position)."
       (display-buffer occur-buffer)
       (message "Done.")
 )))
+
+
+(defun project-buffer-occur-case-sensitive(regexp all-files)
+  "Search REGEXP in the project files; if ALL-FILES is t the
+research will occur in all project's files; if ALL-FILES is
+false, the research will occur in all marked files unless there
+are none in which case it will occur in all files of the current
+project (current project is determined by the cursor position).
+
+The search is case sensitive."
+  (interactive
+   (list (project-buffer-read-regexp (format "List lines matching regexp%s: " (if current-prefix-arg " [all files / case-sensitive]" " [case sensitive]")))
+	 current-prefix-arg))
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (unless (and regexp (not (string-equal regexp "")))
+    (error "Invalid regexp"))
+  (let ((case-fold-search nil))
+    (project-buffer-occur regexp all-files)))
 
 
 ;;
