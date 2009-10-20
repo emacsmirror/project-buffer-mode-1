@@ -334,6 +334,9 @@
 ;;        - `project-buffer-get-project-path'          to get a project's path
 ;;        Refresh hooks now receive the current project or the project list as argument.
 ;;        It is now possible to refresh the current project only using the prefix argument
+;; v1.23: Added key bindings: M-n M-p to go to the next and previous project
+;;
+
 
 (require 'cl)
 (require 'ewoc)
@@ -623,8 +626,8 @@ check if any files should be added or remove from the proejct.")
     (define-key project-buffer-mode-map [?f] 'project-buffer-find-marked-files)
     (define-key project-buffer-mode-map [?/] 'project-buffer-search-forward-regexp)
     (define-key project-buffer-mode-map [?n] 'project-buffer-goto-next-match)
-
     (define-key project-buffer-mode-map [?p] 'project-buffer-goto-prev-match)
+
     (define-key project-buffer-mode-map [?v] 'project-buffer-view-file)
     (define-key project-buffer-mode-map [?c ?s] 'project-buffer-toggle-search-mode)
     (define-key project-buffer-mode-map [?c ?v] 'project-buffer-toggle-view-mode)
@@ -661,6 +664,9 @@ check if any files should be added or remove from the proejct.")
     (define-key project-buffer-mode-map [?2] 'project-buffer-set-flat-view-mode)
     (define-key project-buffer-mode-map [?3] 'project-buffer-set-folder-hidden-view-mode)
     (define-key project-buffer-mode-map [?4] 'project-buffer-set-marked-view-mode)
+
+    (define-key project-buffer-mode-map [(meta ?n)] 'project-buffer-go-to-next-project)
+    (define-key project-buffer-mode-map [(meta ?p)] 'project-buffer-go-to-previous-project)
 
     (define-key project-buffer-mode-map [delete] 'project-buffer-delete-current-node-or-marked-files)
 
