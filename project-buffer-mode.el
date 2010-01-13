@@ -285,6 +285,7 @@
 ;;  - provide a compile/build marked files command
 ;;  - add a command to easily find the corresponding header/source for the current file (or specified file)
 ;;  - disable project which doesn't have the current selected platform/build-configuration in their list ???
+;;  - keep the state of the project (saved or not?)
 
 
 
@@ -600,6 +601,8 @@ check if any files should be added or remove from the proejct.")
 
   platform-list			;; list of the platform available for the project (valid in project node only)
   build-configurations-list	;; list of build configuration avalailable for the project (valid in project node only)
+
+  dependent-project-list        ;; list of project the current project depends on
 
   user-data                     ;; user data could be set (mainly useful to store something per project)
   project-settings              ;; user data field used to store the project settings
@@ -1485,7 +1488,8 @@ project-buffer context."
 		(platform-list             (nth 4 block-line))
 		(build-configurations-list (nth 5 block-line))
 		(user-data                 (and (> (length block-line) 6) (nth 6 block-line)))
-		(project-settings          (and (> (length block-line) 7) (nth 7 block-line))))
+		(project-settings          (and (> (length block-line) 7) (nth 7 block-line)))
+		(dependent-project-list    (and (> (length block-line) 8) (nth 8 block-line))))
 	    (let ((data (project-buffer-create-node name type filename project)))
 	      (project-buffer-insert-node status data)
 	      (when platform-list
@@ -1496,6 +1500,8 @@ project-buffer context."
 		(setf (project-buffer-node->user-data data) user-data))
 	      (when project-settings
 		(setf (project-buffer-node->project-settings data) project-settings))
+	      (when dependent-project-list
+		(setf (project-buffer-node->dependent-project-list data) dependent-project-list))
 	      ))
 	  (error "Unknown node-list line: %s" block-line))
       (setq block-line (read data-buffer)))))
@@ -1791,7 +1797,8 @@ reloaded through `project-buffer-raw-load' function."
 			 (project-buffer-node->platform-list data)
 			 (project-buffer-node->build-configurations-list data)
 			 (project-buffer-node->user-data data)
-			 (project-buffer-node->project-settings data))
+			 (project-buffer-node->project-settings data)
+			 (project-buffer-node->dependent-project-list data))
 		   (current-buffer))))
 	(setq node (ewoc-next status node)))
       (print (list 'end 'node-list) (current-buffer))
