@@ -475,6 +475,12 @@ exists."
   "Project buffer mode face used highligh file names."
   :group 'project-buffer)
 
+(defface project-buffer-dependent-list-face
+  '((((class color) (background light)) (:foreground "gray50"))
+    (((class color) (background dark)) (:foreground "gray50")))
+  "Project buffer mode face used highligh file names."
+  :group 'project-buffer)
+
 (defface project-buffer-matching-file-face
   '((default (:inherit project-buffer-file-face :bold t)))
   "Project buffer mode face used matching file."
@@ -819,6 +825,7 @@ check if any files should be added or remove from the proejct.")
 	(node-matching (project-buffer-node->matched node))
 	(node-prjcol   (project-buffer-node->project-collapsed node))
 	(node-project  (project-buffer-node->project node))
+	(node-deps     (project-buffer-node->dependent-project-list node))
 	(project-help  (concat "mouse-1: "
 			       (if (project-buffer-node->collapsed node) "expand" "collapse")
 			       " project "
@@ -872,6 +879,14 @@ check if any files should be added or remove from the proejct.")
 	    (indent-to-column 40)
 	    (insert (concat " " (propertize (project-buffer-node->filename node)
 					    'face 'project-buffer-filename-face))))
+	  (when (and (eq node-type 'project)
+		     node-deps)
+	    (insert " ")
+	    (indent-to-column 30)
+	    (insert (propertize (concat "<" 
+					(reduce (lambda (str item) (concat str ", " item)) node-deps) 
+					">")
+				'face 'project-buffer-dependent-list-face)))
 	  (insert "\n"))
 	)))
 
@@ -1902,6 +1917,39 @@ If non-nil the return value is a list containing:
   (let ((node (project-buffer-search-project-node project-buffer-status project)))
     (when node
       (project-buffer-node->project-settings (ewoc-data node)))))
+
+
+(defun project-buffer-add-dependent-project(project dependent-project)
+  "Add a dependent project to the PROJECT. 
+DEPENDENT-PROJECT is the dependent project's name."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (project-buffer-search-project-node project-buffer-status project)))
+    (when node
+      (let* ((project-data (ewoc-data node))
+	     (dependent-project-list (project-buffer-node->dependent-project-list project-data)))
+	(unless (member dependent-project dependent-project-list)
+	  (setf (project-buffer-node->dependent-project-list project-data)
+		(cons dependent-project dependent-project-list)))))))
+
+
+(defun project-buffer-remove-dependent-project(project dependent-project)
+  "Remove a dependent project to the PROJECT. 
+DEPENDENT-PROJECT is the dependent project's name."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (project-buffer-search-project-node project-buffer-status project)))
+    (when node
+      (let* ((project-data (ewoc-data node))
+	     (dependent-project-list (project-buffer-node->dependent-project-list project-data)))
+	(setf (project-buffer-node->dependent-project-list project-data)
+	      (delete dependent-project dependent-project-list))))))
+
+
+(defun project-buffer-get-dependent-project-list(project)
+  "Retrieve the dependent project list of PROJECT."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (project-buffer-search-project-node project-buffer-status project)))
+    (when node
+      (project-buffer-node->dependent-project-list (ewoc-data node)))))
 
 
 (defun project-buffer-exists-p (name project)
