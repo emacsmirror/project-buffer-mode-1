@@ -193,6 +193,8 @@
 ;;    c B  -> prompt to change build configuration
 ;;    c M  -> prompt for the master project (project to build)
 ;;    c P  -> prompt to change platform
+;;    d a  -> add a project dependency
+;;    d r  -> remove a project dependency
 ;;    B    -> launch build
 ;;    C    -> launch clean
 ;;    D    -> launch run/with debugger
@@ -207,7 +209,7 @@
 ;; Future improvement:
 ;;    T    -> touch marked files (need a variable to make sure touch is always available)
 ;;    h    -> find corresponding header/source (need regexps to match one and the other such as: source/header = ( "\.c\(pp\)?" . "\.h\(pp\)?" ) )
-;;    d    -> show/hide project dependencies
+;;    d s  -> toggle show/hide project dependencies
 ;;    b    -> compile/buils marked files
 ;;
 ;;
@@ -243,33 +245,38 @@
 ;;
 ;;
 ;; List of user functions available to handle your own project:
-;; - `project-buffer-mode'                      which initialize the project-buffer mode
-;; - `project-buffer-insert'                    to insert a file or project to the view
-;; - `project-buffer-delete-file'               to remove a file
-;; - `project-buffer-delete-folder'             to remove a folder and all its files
-;; - `project-buffer-delete-project'            to remove a project and all its files
-;; - `project-buffer-set-project-platforms'     to set the platform configuration for a particular project
-;; - `project-buffer-set-build-configurations'  to set the build configurations for a particular project
-;; - `project-buffer-raw-save'                  to save a project into a file
-;; - `project-buffer-raw-load'                  to load a project from a file
-;; - `project-buffer-set-project-user-data'     to set user data to a project node
-;; - `project-buffer-get-project-user-data'     to get user data from a project node
-;; - `project-buffer-set-file-user-data'        to set user data to a file node
-;; - `project-buffer-get-file-user-data'        to get user data from a file node
-;; - `project-buffer-get-current-project-name'  to get the nane of the current project the cursor is on
-;; - `project-buffer-get-current-file-data'     to get data about the current file the cursor is on; nil if it's on a folder or a project
-;; - `project-buffer-exists-p'                  to check if a node exists (file or folder) inside a project
-;; - `project-buffer-project-exists-p'          to check if a project exists
-;; - `project-buffer-get-project-path'          to get a project's path
-;; - `project-buffer-get-file-path'             to get the path of a file of the project
-;; - `project-buffer-get-current-node-type'     to get the type of the current node (including folder)
-;; - `project-buffer-get-current-node-name'     to get the name  of the current node (including folder)
-;; - `project-buffer-get-marked-node-list'      to get the list of marked files
-;; - `project-buffer-set-project-settings-data' to set user project settings data
-;; - `project-buffer-get-project-settings-data' to retrive the user project settings data
-;; - `project-buffer-apply-to-each-file'        to perform a function call on every file node
-;; - `project-buffer-apply-to-marked-files'     to perform a function call on eveyr marked files; the function returns nil if no marked files were found
-;; - `project-buffer-apply-to-project-files'    to perform a function call on every files belonging to a specified project
+;; - `project-buffer-mode'                                   which initialize the project-buffer mode
+;; - `project-buffer-insert'                                 to insert a file or project to the view
+;; - `project-buffer-delete-file'                            to remove a file
+;; - `project-buffer-delete-folder'                          to remove a folder and all its files
+;; - `project-buffer-delete-project'                         to remove a project and all its files
+;; - `project-buffer-set-project-platforms'                  to set the platform configuration for a particular project
+;; - `project-buffer-set-build-configurations'               to set the build configurations for a particular project
+;; - `project-buffer-raw-save'                               to save a project into a file
+;; - `project-buffer-raw-load'                               to load a project from a file
+;; - `project-buffer-set-project-user-data'                  to set user data to a project node
+;; - `project-buffer-get-project-user-data'                  to get user data from a project node
+;; - `project-buffer-set-file-user-data'                     to set user data to a file node
+;; - `project-buffer-get-file-user-data'                     to get user data from a file node
+;; - `project-buffer-get-current-project-name'               to get the nane of the current project the cursor is on
+;; - `project-buffer-get-current-file-data'                  to get data about the current file the cursor is on; nil if it's on a folder or a project
+;; - `project-buffer-exists-p'                               to check if a node exists (file or folder) inside a project
+;; - `project-buffer-project-exists-p'                       to check if a project exists
+;; - `project-buffer-get-project-path'                       to get a project's path
+;; - `project-buffer-get-file-path'                          to get the path of a file of the project
+;; - `project-buffer-get-current-node-type'                  to get the type of the current node (including folder)
+;; - `project-buffer-get-current-node-name'                  to get the name  of the current node (including folder)
+;; - `project-buffer-get-marked-node-list'                   to get the list of marked files
+;; - `project-buffer-set-project-settings-data'              to set user project settings data
+;; - `project-buffer-get-project-settings-data'              to retrive the user project settings data
+;; - `project-buffer-apply-to-each-file'                     to perform a function call on every file node
+;; - `project-buffer-apply-to-marked-files'                  to perform a function call on eveyr marked files; the function returns nil if no marked files were found
+;; - `project-buffer-apply-to-project-files'                 to perform a function call on every files belonging to a specified project
+;; - `project-buffer-add-dependency-to-current-project'      to add a dependency to the current project
+;; - `project-buffer-remove-dependency-from-current-project' to add a dependency to the current project
+;; - `project-buffer-add-dependency-to-project'              to add a dependency to a project
+;; - `project-buffer-remove-dependency-from-project'         to remove a dependency from a project
+;; - `project-buffer-get-project-dependency-list'            to get the list of dependency attached to a project
 ;;
 ;; If you need to have some local variables to be saved; register them in `project-buffer-locals-to-save'.
 ;; The same way, if there is need to save extra hooks: register them in `project-buffer-hooks-to-save'.
@@ -336,6 +343,16 @@
 ;;        Refresh hooks now receive the current project or the project list as argument.
 ;;        It is now possible to refresh the current project only using the prefix argument
 ;; v1.23: Added key bindings: M-n M-p to go to the next and previous project
+;; v1.30: Added feature: project dependencies
+;;          it is now possible to have a project dependending on other projects.
+;;          this will cause the dependent project to be build/clean... first before building/cleaning... the dependent project.
+;;          Note: no tests are currently performed to check if there are potential cycling dependencies.
+;;        Added the following user functions:
+;;        - `project-buffer-add-dependency-to-current-project'      to add a dependency to the current project
+;;        - `project-buffer-remove-dependency-from-current-project' to add a dependency to the current project
+;;        - `project-buffer-add-dependency-to-project'              to add a dependency to a project
+;;        - `project-buffer-remove-dependency-from-project'         to remove a dependency from a project
+;;        - `project-buffer-get-project-dependency-list'            to get the list of dependency attached to a project
 ;;
 
 
@@ -646,6 +663,8 @@ check if any files should be added or remove from the proejct.")
     (define-key project-buffer-mode-map [?c ?B] 'project-buffer-choose-build-configuration)
     (define-key project-buffer-mode-map [?c ?P] 'project-buffer-choose-platform)
     (define-key project-buffer-mode-map [?c ?M] 'project-buffer-choose-master-project)
+    (define-key project-buffer-mode-map [?d ?a] 'project-buffer-add-dependency-to-current-project)
+    (define-key project-buffer-mode-map [?d ?r] 'project-buffer-remove-dependency-from-current-project)
     (define-key project-buffer-mode-map [backspace] 'project-buffer-goto-dir-up)
 
     (define-key project-buffer-mode-map [?\ ] 'project-buffer-next-file)
@@ -1506,7 +1525,6 @@ project-buffer context."
 		(project-settings          (and (> (length block-line) 7) (nth 7 block-line)))
 		(dependent-project-list    (and (> (length block-line) 8) (nth 8 block-line))))
 	    (let ((data (project-buffer-create-node name type filename project)))
-	      (project-buffer-insert-node status data)
 	      (when platform-list
 		(project-buffer-set-project-platforms-data status project platform-list))
 	      (when build-configurations-list
@@ -1517,6 +1535,7 @@ project-buffer context."
 		(setf (project-buffer-node->project-settings data) project-settings))
 	      (when dependent-project-list
 		(setf (project-buffer-node->dependent-project-list data) dependent-project-list))
+	      (project-buffer-insert-node status data)
 	      ))
 	  (error "Unknown node-list line: %s" block-line))
       (setq block-line (read data-buffer)))))
@@ -1664,6 +1683,33 @@ variable."
     ;; Final result:
     found
     ))
+
+
+(defun project-buffer-add-dependency-to-project(status project dependent-project)
+  "Add a dependent project to the PROJECT. 
+DEPENDENT-PROJECT is the dependent project's name."
+  (let ((node (project-buffer-search-project-node status project)))
+    (when node
+      (let* ((project-data (ewoc-data node))
+	     (dependent-project-list (project-buffer-node->dependent-project-list project-data)))
+	(unless (member dependent-project dependent-project-list)
+	  (setf (project-buffer-node->dependent-project-list project-data)
+		(cons dependent-project dependent-project-list))))
+      (ewoc-invalidate status node)
+      )))
+
+
+(defun project-buffer-remove-dependency-from-project(status project dependent-project)
+  "Remove a dependent project to the PROJECT. 
+DEPENDENT-PROJECT is the dependent project's name."
+  (let ((node (project-buffer-search-project-node status project)))
+    (when node
+      (let* ((project-data (ewoc-data node))
+	     (dependent-project-list (project-buffer-node->dependent-project-list project-data)))
+	(setf (project-buffer-node->dependent-project-list project-data)
+	      (remove dependent-project dependent-project-list)))
+      (ewoc-invalidate status node)
+      )))
 
 
 ;;
@@ -1919,39 +1965,6 @@ If non-nil the return value is a list containing:
       (project-buffer-node->project-settings (ewoc-data node)))))
 
 
-(defun project-buffer-add-dependent-project(project dependent-project)
-  "Add a dependent project to the PROJECT. 
-DEPENDENT-PROJECT is the dependent project's name."
-  (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (let ((node (project-buffer-search-project-node project-buffer-status project)))
-    (when node
-      (let* ((project-data (ewoc-data node))
-	     (dependent-project-list (project-buffer-node->dependent-project-list project-data)))
-	(unless (member dependent-project dependent-project-list)
-	  (setf (project-buffer-node->dependent-project-list project-data)
-		(cons dependent-project dependent-project-list)))))))
-
-
-(defun project-buffer-remove-dependent-project(project dependent-project)
-  "Remove a dependent project to the PROJECT. 
-DEPENDENT-PROJECT is the dependent project's name."
-  (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (let ((node (project-buffer-search-project-node project-buffer-status project)))
-    (when node
-      (let* ((project-data (ewoc-data node))
-	     (dependent-project-list (project-buffer-node->dependent-project-list project-data)))
-	(setf (project-buffer-node->dependent-project-list project-data)
-	      (delete dependent-project dependent-project-list))))))
-
-
-(defun project-buffer-get-dependent-project-list(project)
-  "Retrieve the dependent project list of PROJECT."
-  (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (let ((node (project-buffer-search-project-node project-buffer-status project)))
-    (when node
-      (project-buffer-node->dependent-project-list (ewoc-data node)))))
-
-
 (defun project-buffer-exists-p (name project)
   "Return true if a node NAME exists in PROJECT."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
@@ -2075,6 +2088,14 @@ FUNC's prototype must be:
 		 (project-buffer-node->project node-data)
 		 args))
 	(setq node (ewoc-next status node))))))
+
+
+(defun project-buffer-get-project-dependency-list(project)
+  "Retrieve the dependent project list of PROJECT."
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let ((node (project-buffer-search-project-node project-buffer-status project)))
+    (when node
+      (project-buffer-node->dependent-project-list (ewoc-data node)))))
 
 
 
@@ -2850,6 +2871,40 @@ will get deleted."
 	       (project-buffer-node->marked (ewoc-data node)))
 	  (project-buffer-delete-marked-files)
 	  (project-buffer-delete-current-node)))))
+
+
+(defun project-buffer-add-dependency-to-current-project ()
+  "Prompt the user to add a dependency to the current project."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let* ((status    project-buffer-status)
+	 (project   (project-buffer-get-current-project-name))
+	 (proj-list (remove project project-buffer-projects-list))
+	 (proj-deps (project-buffer-get-project-dependency-list project))
+	 new-dep)
+    ;; Remove the already dependent project from the list:
+    (setq proj-list (remove nil (mapcar (lambda (item) (and (not (member item proj-deps)) item))
+					proj-list)))
+    (setq new-dep (completing-read (format "Enter a dependent project for %s: " project) proj-list nil t))
+    (when (and new-dep
+	       (> (length new-dep) 0))
+      (project-buffer-add-dependency-to-project status project new-dep))
+    ))
+
+
+(defun project-buffer-remove-dependency-from-current-project ()
+  "Prompt the user to remove a dependency from the current project."
+  (interactive)
+  (unless project-buffer-status (error "Not in project-buffer buffer"))
+  (let* ((status    project-buffer-status)
+	 (project   (project-buffer-get-current-project-name))
+	 (proj-deps (project-buffer-get-project-dependency-list project))
+	 (cur-deps  (completing-read (format "Dependency to remove from %s: " project) 
+				     proj-deps nil t)))
+    (when (and cur-deps
+	      (> (length cur-deps) 0))
+      (project-buffer-remove-dependency-from-project status project cur-deps))
+    ))
 
 
 (defun project-buffer-refresh(current-project-only)
