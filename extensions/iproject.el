@@ -311,7 +311,7 @@ which will be replaced by their respective value:
 
 (defun iproject-action-handler(action project-name project-path platform configuration)
   (let* ((user-data (project-buffer-get-project-user-data project-name))
-	 (query-string (concat (upcase-initials (format "%s" action)) " command: "))
+	 (query-string (concat "[" project-name "] " (upcase-initials (format "%s" action)) " command: "))
 	 user-command)
     ;; user data's format is: '((platform1 (config1 . ((action1 . "cmd") (action2 . "cmd"))) (config2 ...)) (platform2...))
     ;; platform-data:         '(curplat (config1 . ((act...))) (config2 ...))
