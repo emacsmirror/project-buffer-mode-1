@@ -1324,12 +1324,27 @@ Each files/folder under the project will also be deleted."
 
 (defun project-buffer-perform-action-hook(action)
   "Call the user hook to perform ACTION."
-  (run-hook-with-args 'project-buffer-action-hook
-		      action
-		      (car project-buffer-master-project)
-		      (project-buffer-node->filename (ewoc-data (cdr project-buffer-master-project)))
-		      project-buffer-current-platform
-		      project-buffer-current-build-configuration))
+  (let ((root-project-name (car project-buffer-master-project))
+	(root-project-path (project-buffer-node->filename (ewoc-data (cdr project-buffer-master-project)))))
+    (let* ((dep-list (list root-project-name))
+	   final-deps-list)
+      (while dep-list
+	(let ((item (pop dep-list)))
+	  (when (not (member item final-deps-list))
+	    (setq final-deps-list (cons item final-deps-list))
+	    (setq dep-list (append (project-buffer-get-project-dependency-list item)
+				   dep-list)))))
+      (while final-deps-list
+	(let* ((project-name (pop final-deps-list))
+	       (project-path (if (string= project-name root-project-name)
+				 root-project-path
+				 (project-buffer-get-project-path project-name))))
+	  (run-hook-with-args 'project-buffer-action-hook
+			      action
+			      project-name
+			      project-path
+			      project-buffer-current-platform
+			      project-buffer-current-build-configuration))))))
 
 
 (defun project-buffer-search-and-mark-files(status regexp project marked-flag)
