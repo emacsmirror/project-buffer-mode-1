@@ -209,7 +209,6 @@
 ;; Future improvement:
 ;;    T    -> touch marked files (need a variable to make sure touch is always available)
 ;;    h    -> find corresponding header/source (need regexps to match one and the other such as: source/header = ( "\.c\(pp\)?" . "\.h\(pp\)?" ) )
-;;    d s  -> toggle show/hide project dependencies
 ;;    b    -> compile/buils marked files
 ;;
 ;;
@@ -285,8 +284,6 @@
 ;;; Todo:
 ;;
 
-;;  - show project dependencies
-;;     e.g: [+] ProjName1           <deps: ProjName3, ProjName2>
 ;;  - add collapsed all / expand all commands
 ;;  - provide a touch marked files command
 ;;  - provide a compile/build marked files command
@@ -541,7 +538,9 @@ The function should follow the prototype:
 (defcustom project-buffer-post-load-hook nil
   "Hook to run after performing `project-buffer-raw-load'.
 
-Register functions here to keep the customization after reloading the project.")
+Register functions here to keep the customization after reloading the project."
+  :type 'hook
+  :group 'project-buffer)
 
 
 (defcustom project-buffer-post-find-file-hook nil
@@ -551,7 +550,9 @@ Register functions here to keep the customization after reloading the project.")
 The function should follow the prototype:
   (lambda (project-buffer file-buffer))
 Where PROJECT-BUFFER is the buffer of the project, and
-FILE-BUFFER is the buffer of the file.")
+FILE-BUFFER is the buffer of the file."
+  :type 'hook
+  :group 'project-buffer)
 
 
 (defcustom project-buffer-refresh-hook nil
@@ -563,7 +564,9 @@ Where PROJECT-LIST is a list of project names (can be nil),
 and CONTENT can either be 'current or 'all.
 
 This is the place to add functions which reload the project file,
-check if any files should be added or remove from the proejct.")
+check if any files should be added or remove from the proejct."
+  :type 'hook
+  :group 'project-buffer)
 
 
 ;;
