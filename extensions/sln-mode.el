@@ -284,7 +284,7 @@
 
 (defun sln-action-handler-2008(action project-name project-path platform configuration)
   "Project-Buffer action handler."
-  (let* ((prj-str (concat "/Project \"" project-path "\" "))
+  (let* ((prj-str (concat "/Project \"" project-name "\" "))
 	 (cfg-str (concat "\"" configuration "|" platform "\" "))
 	 (sln-cmd (cond ((eq action 'build) (concat "/Build " cfg-str))
 			((eq action 'clean) (concat "/Clean " cfg-str))
@@ -343,7 +343,7 @@ the projects; or just refresh the selected projects."
 	      (sln-add-vcproj-project project-name vcproj-file)))))))
 
 
-(defun make-sln-project-buffer(sln-file &optional using2008)
+(defun make-sln-project-buffer(sln-file &optional using2005)
   "Create a project buffer interpreting SLN-FILE to populate it."
   (let ((buffer (generate-new-buffer (concat "ms:" (file-name-nondirectory sln-file))))
 	(sln-projects (sln-extract-projects sln-file)) ; list of proj-nane / project file
@@ -357,9 +357,9 @@ the projects; or just refresh the selected projects."
       (make-local-variable 'sln-mode-solution-name)
       (add-to-list 'project-buffer-locals-to-save 'sln-mode-solution-name)
       (setq sln-mode-solution-name (file-name-nondirectory sln-file))
-      (if using2008
-	  (add-hook 'project-buffer-action-hook 'sln-action-handler-2008 nil t)
-	  (add-hook 'project-buffer-action-hook 'sln-action-handler-2005 nil t))
+      (if using2005
+	  (add-hook 'project-buffer-action-hook 'sln-action-handler-2005 nil t)
+	  (add-hook 'project-buffer-action-hook 'sln-action-handler-2008 nil t))
       (add-hook 'project-buffer-refresh-hook 'sln-refresh-handler)
       ;;
       (while sln-projects
@@ -374,14 +374,14 @@ the projects; or just refresh the selected projects."
 ;;
 
 ;;;###autoload
-(defun find-sln(solution-name &optional using2008)
+(defun find-sln(solution-name &optional using2005)
   "Open an sln file and create a project buffer using the data in it."
   (interactive
    (list (read-file-name "SLN file: " nil nil t nil 'sln-file-p)
 	 current-prefix-arg))
   (when (and solution-name
 	     (> (length solution-name) 0))
-    (make-sln-project-buffer solution-name using2008)))
+    (make-sln-project-buffer solution-name using2005)))
 
 
 ;;
