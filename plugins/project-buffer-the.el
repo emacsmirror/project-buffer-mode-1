@@ -39,20 +39,19 @@
 ;;;_ , Customizations
 
 (defcustom project-buffer-the-projects-file "~/.emacs.d/projects"
-  "Default projects file to load on startup."
+  "Default projects file."
   :type '(file :must-match t)
   :group 'project-buffer)
 
 (defcustom project-buffer-the-ask nil
-  "When set, on startup, ask which projects file to load."
+  "When set, always ask which projects file to load."
   :type 'boolean
   :group 'project-buffer)
 
 ;;;_ , Variables
 
 (defvar project-buffer-the-buffer nil
-   "The project-buffer-mode buffer.
-For now, we allow only one per session." )
+   "The known project-buffer-mode buffer." )
 
 ;;;_ , project-buffer-the-switch
 (defun project-buffer-the-switch ()
@@ -64,7 +63,8 @@ For now, we allow only one per session." )
 
 ;;;_ , project-buffer-the-get-buffer
 (defun project-buffer-the-get-buffer ()
-   "Find or read a project-buffer-mode buffer."
+   "Return a project-buffer-mode buffer.
+Tries hard to do so without user interaction"
    (unless project-buffer-the-buffer
       (setq project-buffer-the-buffer
 	 (let
