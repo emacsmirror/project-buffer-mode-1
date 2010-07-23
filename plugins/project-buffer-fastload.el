@@ -1,4 +1,4 @@
-;;;_ project-buffer-the.el --- Load a default projects file without interaction
+;;;_ project-buffer-fastload.el --- Load a default projects file without interaction
 
 ;;;_. Headers
 ;;;_ , License
@@ -28,7 +28,7 @@
 ;; without requiring user interaction.
 
 ;; If you like it, I would suggest rebinding iproject's keybinding
-;; C-x p f to #'project-buffer-the-switch
+;; C-x p f to #'project-buffer-fastload-switch
 
 ;;;_ , Requires
 
@@ -38,35 +38,35 @@
 
 ;;;_ , Customizations
 
-(defcustom project-buffer-the-projects-file "~/.emacs.d/projects"
+(defcustom project-buffer-fastload-projects-file "~/.emacs.d/projects"
   "Default projects file."
   :type '(file :must-match t)
   :group 'project-buffer)
 
-(defcustom project-buffer-the-ask nil
+(defcustom project-buffer-fastload-ask nil
   "When set, always ask which projects file to load."
   :type 'boolean
   :group 'project-buffer)
 
 ;;;_ , Variables
 
-(defvar project-buffer-the-buffer nil
+(defvar project-buffer-fastload-buffer nil
    "The known project-buffer-mode buffer." )
 
-;;;_ , project-buffer-the-switch
-(defun project-buffer-the-switch ()
+;;;_ , project-buffer-fastload-switch
+(defun project-buffer-fastload-switch ()
    "Switch to a project-buffer-mode buffer."
    
    (interactive)
-   (switch-to-buffer (project-buffer-the-get-buffer)))
+   (switch-to-buffer (project-buffer-fastload-get-buffer)))
 
 
-;;;_ , project-buffer-the-get-buffer
-(defun project-buffer-the-get-buffer ()
+;;;_ , project-buffer-fastload-get-buffer
+(defun project-buffer-fastload-get-buffer ()
    "Return a project-buffer-mode buffer.
 Tries hard to do so without user interaction"
-   (unless project-buffer-the-buffer
-      (setq project-buffer-the-buffer
+   (unless project-buffer-fastload-buffer
+      (setq project-buffer-fastload-buffer
 	 (let
 	    (
 	       (buf-name-list
@@ -86,12 +86,12 @@ Tries hard to do so without user interaction"
 		     ((filename
 			 (if 
 			    (or
-			       project-buffer-the-ask
-			       (null project-buffer-the-projects-file))
+			       project-buffer-fastload-ask
+			       (null project-buffer-fastload-projects-file))
 			    (read-file-name
 			       "Which file is the projects savefile? "
-			       nil project-buffer-the-projects-file t)
-			    project-buffer-the-projects-file)))
+			       nil project-buffer-fastload-projects-file t)
+			    project-buffer-fastload-projects-file)))
 		  (save-window-excursion
 		     (project-buffer-find-file filename))))
 
@@ -104,12 +104,12 @@ Tries hard to do so without user interaction"
 		  (completing-read
 		     "Use which of the projects buffers? "
 		     buf-name-list nil t))))))
-   project-buffer-the-buffer)
+   project-buffer-fastload-buffer)
 
 ;;;_. Footers
 ;;;_ , Provides
 
-(provide 'project-buffer-the)
+(provide 'project-buffer-fastload)
 
 ;;;_ * Local emacs vars.
 ;;;_  + Local variables:
@@ -117,4 +117,4 @@ Tries hard to do so without user interaction"
 ;;;_  + End:
 
 ;;;_ , End
-;;; project-buffer-the.el ends here
+;;; project-buffer-fastload.el ends here
