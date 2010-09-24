@@ -13,6 +13,10 @@ DRC_PATTERN="DRC errors found"
 	else touch $*.drc2-succeeded ; \
 	fi
 
+#For gnucap
+%.net:%.sch %.drc2-succeeded
+	gnetlist -s -g spice-sdb -o $*.net $*.sch
 
-#Check was:
-#	@if grep --quiet $(DRC_PATTERN) $*.drc2 ; \
+
+%.verbose-net:%.sch %.drc2-succeeded
+	gnetlist -v -s -g spice-sdb -o $*.verbose-net $*.sch

@@ -106,7 +106,8 @@
    ""
    (local-set-key [(control ?c) ?e] 'eda-project-edit-schematic)
    (local-set-key [(control ?c) ?a] 'eda-project-autocheck)
-   (local-set-key [(control ?c) ?b] 'eda-project-build-netlist))
+   (local-set-key [(control ?c) ?b] 'eda-project-build-netlist)
+   (local-set-key [(control ?c) ?v] 'eda-project-verbose-netlist))
 
 
 ;;;_ , Utility
@@ -156,20 +157,6 @@ If OUTPUT-EXT is given, replace the file extension with it."
 	 output-ext)))
 
 ;;;_ , Gnetlist support functions
-;;;_  . eda-project-gnetlist+args
-;;$$OBSOLESCENT
-(defun eda-project-gnetlist+args (filename output-ext extra-args)
-   "Shell command to use gnetlist"
-   ;;All of these should use make instead.
-   (list
-      "gnetlist" 
-      extra-args
-      "-o" (concat 
-	      (file-name-sans-extension filename)
-	      "."
-	      output-ext)
-      filename))
-
 ;;;_  . eda-project-gnetlist-autocheck
 (defun eda-project-gnetlist-autocheck (filename)
    "Shell command to autocheck the design of schematic FILENAME"
@@ -178,17 +165,13 @@ If OUTPUT-EXT is given, replace the file extension with it."
 ;;;_  . eda-project-gnetlist-build-netlist
 (defun eda-project-gnetlist-build-netlist (filename)
    "Shell command to build a netlist from FILENAME"
-   '(eda-project-make-target filename "net")
-   (eda-project-gnetlist+args filename "net"
-      eda-project-cmd-build-net-list))
+   (eda-project-make-target filename "net"))
 
 ;;;_  . eda-project-gnetlist-verbose-netlist
 (defun eda-project-gnetlist-verbose-netlist (filename)
    "Shell command to build a verbose quasi-netlist from FILENAME.
 AFAIK it can't be used as an actual netlist"
-   '(eda-project-make-target filename "net")
-   (eda-project-gnetlist+args filename "verbose-net"
-      (cons "-v" eda-project-cmd-build-net-list)))
+   (eda-project-make-target filename "verbose-net"))
 
 ;;;_ , Gschem support functions
 
@@ -212,18 +195,22 @@ AFAIK it can't be used as an actual netlist"
 	 (eda-project-gschem-edit-schematic filename))))
 
 ;;;_  . eda-project-autocheck
-;;To be replaced by a command to visit the autocheck file, first
-;;making $*.drc2-succeeded.  
+;;This may be specific to gnetlist.
 (defun eda-project-autocheck ()
-   "Autocheck the schematic file."
+   "View the drc2 file (autocheck) about the schematic file at point."
    (interactive)
    (eda-project-act-on-file filename "sch"
-      ;;This is now done by makefile as part of netlist build.  So
-      ;;instead, make $*.drc2-succeeded and view $*.drc2.  That's
-      ;;specific to gnetlist and this strategy, though.
+      ;;Make the check file (really $*.drc2-succeeded)
       (eda-project-start-process
 	 "check-schematic"
-	 (eda-project-gnetlist-autocheck filename))))
+	 (eda-project-gnetlist-autocheck filename))
+      ;;This should wait till the make command is done.
+      (view-file
+	 (concat 
+	    (file-name-sans-extension filename)
+	    "."
+	    "drc2"))))
+
 
 ;;;_  . eda-project-build-netlist
 (defun eda-project-build-netlist ()
@@ -240,11 +227,12 @@ AFAIK it can't be used as an actual netlist"
    (interactive)
    (eda-project-act-on-file filename "sch"
       (eda-project-start-process
-	 "build-netlist"
+	 "build-verbose-netlist"
 	 (eda-project-gnetlist-verbose-netlist filename))))
 
 ;;;_  . eda-project-analysis-op
 ;;"gnucap -b Scheme-file"
+;;This may use a comint buffer.
 
 ;;;_. Footers
 ;;;_ , Provides
