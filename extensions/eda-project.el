@@ -104,8 +104,9 @@
 
 ;;;_ , Support
 ;;;_  . eda-project-act-on-file
-(defmacro eda-project-act-on-file (file-sym &rest body)
-   ""
+(defmacro eda-project-act-on-file (file-sym filter &rest body)
+   "If current node is a file and its extension matches FILTER,
+evaluate BODY with symbol FILE-SYM bound to filename."
    (let
       ((node (make-symbol "node"))
 	 (node-data (make-symbol "node-data")))
@@ -116,7 +117,12 @@
 	     (when (eq (project-buffer-node->type ,node-data) 'file)
 		(let
 		   ((,file-sym (project-buffer-node->filename ,node-data)))
-		   ,@body))))))
+		   ,@(if filter
+			`((when
+			     (string= (file-name-extension filename) ,filter)
+			     ,@body))
+			body)))))))
+
 ;;;_  . eda-project-start-process
 (defun eda-project-start-process (name args)
    ""
@@ -125,7 +131,7 @@
 
 ;;;_ , Gnetlist support functions
 ;;;_  . eda-project-gnetlist+args
-(defun eda-project-gnetlist+args (filename extra-args)
+(defun eda-project-gnetlist+args (filename output-ext extra-args)
    ""
    
    (list
@@ -133,68 +139,68 @@
       extra-args
       "-o" (concat 
 	      (file-name-sans-extension filename)
-	      ".drc2")
+	      output-ext)
       filename))
 
-;;;_  . eda-project-gnetlist-check-drc
-(defun eda-project-gnetlist-check-drc (filename)
-   ""
-   (eda-project-gnetlist+args filename eda-project-cmd-design-check))
+;;;_  . eda-project-gnetlist-autocheck
+(defun eda-project-gnetlist-autocheck (filename)
+   "Shell command to autocheck the design of schematic FILENAME"
+   (eda-project-gnetlist+args filename ".drc2" 
+      eda-project-cmd-design-check))
 
 ;;;_  . eda-project-gnetlist-build-netlist
 (defun eda-project-gnetlist-build-netlist (filename)
-   ""
-   (eda-project-gnetlist+args filename eda-project-cmd-build-net-list))
+   "Shell command to build a netlist from FILENAME"
+   (eda-project-gnetlist+args filename ".net"
+      eda-project-cmd-build-net-list))
+
 ;;;_ , Gschem support functions
+
 ;;;_  . eda-project-gschem-edit-schematic
 (defun eda-project-gschem-edit-schematic (filename)
    "Shell command to edit FILENAME in gchsem"
-   
    (list "gschem" filename))
 
-
-;;;_ , Action functions
+;;;_ , Commands
 
 ;;;_  . eda-project-edit-schematic
 
 (defun eda-project-edit-schematic ()
-   "Edit the current file as a schematic."
+   "Edit the file as a schematic."
    (interactive)
-   (eda-project-act-on-file filename
-       (start-process-shell-command "gschem" nil 
-	  "gschem" filename)))
-;;;_  . eda-project-check-drc
-(defun eda-project-check-drc ()
-   "Make a netlist from the current schematic file."
+   (eda-project-act-on-file filename "sch"
+      (eda-project-start-process
+	 "edit-schematic"
+	 (eda-project-gschem-edit-schematic filename))))
+
+;;;_  . eda-project-autocheck
+(defun eda-project-autocheck ()
+   "Autocheck the schematic file."
    (interactive)
-   (eda-project-act-on-file filename
-      (when
-	 (string= (file-name-extension filename) "sch")
-	 (eda-project-start-process
-	    (eda-project-gnetlist-check-drc filename)))))
+   (eda-project-act-on-file filename "sch"
+      (eda-project-start-process
+	 "check-schematic"
+	 (eda-project-gnetlist-autocheck filename))))
 ;;And detect errors - not clear how.
 ;;Maybe search for "^JFound" and if found, there are errors.  Or does
 ;;its exit status tell us?  Or search for "DRC errors found. See output file."
 ;;in its output (its error output, I think)
+;;That's just with gnetlist, though.
 
 ;;;_  . eda-project-build-netlist
 (defun eda-project-build-netlist ()
    "Make a netlist from the current schematic file."
    (interactive)
-   (eda-project-act-on-file filename
-      (when
-	 (string= (file-name-extension filename) "sch")
-	 (start-process-shell-command "build-netlist" nil 
-	    "gnetlist" 
-	    eda-project-cmd-build-net-list
-	    "-o" (concat 
-		    (file-name-sans-extension filename)
-		    ".net")
-	    filename))))
+   (eda-project-act-on-file filename "sch"
+      (eda-project-start-process
+	 "build-netlist"
+	 (eda-project-gnetlist-build-netlist filename))))
+
 
 ;;;_  . eda-project-analysis-op
-;;"gnucap {file}"
-;;And present it - how?
+;;"gnucap -b Scheme-file"
+;;And present it - how?  There's no way to say what file it gets
+;;written to AFAICT
 
 ;;;_. Footers
 ;;;_ , Provides
