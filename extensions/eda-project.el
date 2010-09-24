@@ -97,9 +97,9 @@
 ;;Set up our keymap
 (defun eda-project-setup-local-key ()
    ""
-
-   ;;Have not chosen good keys yet, nor rebound anything.
-   (local-set-key [(control ?c) ?n] 'eda-project-edit-schematic))
+   (local-set-key [(control ?c) ?e] 'eda-project-edit-schematic)
+   (local-set-key [(control ?c) ?a] 'eda-project-autocheck)
+   (local-set-key [(control ?c) ?b] 'eda-project-build-netlist))
 
 
 ;;;_ , Support
