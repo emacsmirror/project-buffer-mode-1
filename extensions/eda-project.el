@@ -25,7 +25,12 @@
 ;;;_ , Commentary:
 
 ;; An extension for project-buffer-mode to support electronics
-;; projects, specifically with gEDA.  
+;; projects.  For now it only supports gnucap / gEDA since I myself
+;; use it only that way.
+
+;; It wants to use eda-project/Makefile for some dependency-related
+;; things, such as design checking.  So copy or symlink that into your
+;; projects - there's no support yet to do that automatically.
 
 ;;;_ , Requires
 
@@ -34,8 +39,8 @@
 
 ;;;_. Body
 ;;;_ , Customizations
-;;But I haven't made them customizable yet since I myself only do it
-;;one way. 
+;;I haven't made them customizable yet 
+
 ;;;_  . eda-project-cmd-build-net-list
 (defconst eda-project-cmd-build-net-list 
    "-s -g spice-sdb"
@@ -68,7 +73,7 @@
 		  iproject-platform-list
 		  ;;No
 		  iproject-build-configuration-list
-		  ;;New
+		  ;;Newly bound
 		  iproject-filters)))
      
       (switch-to-buffer buffer)
@@ -124,10 +129,9 @@ evaluate BODY with symbol FILE-SYM bound to filename."
 			body)))))))
 
 ;;;_  . eda-project-start-process
-(defun eda-project-start-process (name args)
-   ""
-   
-   (apply #'start-process-shell-command "gschem" nil args))
+(defun eda-project-start-process (name command)
+   "Start a process."
+   (apply #'start-process-shell-command name nil command))
 
 ;;;_ , Gnetlist support functions
 ;;;_  . eda-project-gnetlist+args
@@ -139,27 +143,37 @@ evaluate BODY with symbol FILE-SYM bound to filename."
       extra-args
       "-o" (concat 
 	      (file-name-sans-extension filename)
+	      "."
 	      output-ext)
       filename))
 
 ;;;_  . eda-project-gnetlist-autocheck
 (defun eda-project-gnetlist-autocheck (filename)
    "Shell command to autocheck the design of schematic FILENAME"
-   (eda-project-gnetlist+args filename ".drc2" 
+   (eda-project-gnetlist+args filename "drc2" 
       eda-project-cmd-design-check))
 
 ;;;_  . eda-project-gnetlist-build-netlist
 (defun eda-project-gnetlist-build-netlist (filename)
    "Shell command to build a netlist from FILENAME"
-   (eda-project-gnetlist+args filename ".net"
+   (eda-project-gnetlist+args filename "net"
       eda-project-cmd-build-net-list))
+
+;;;_  . eda-project-gnetlist-verbose-netlist
+(defun eda-project-gnetlist-verbose-netlist (filename)
+   "Shell command to build a verbose quasi-netlist from FILENAME.
+AFAIK it can't be used as an actual netlist"
+   (eda-project-gnetlist+args filename "verbose-net"
+      (cons "-v" eda-project-cmd-build-net-list)))
 
 ;;;_ , Gschem support functions
 
 ;;;_  . eda-project-gschem-edit-schematic
 (defun eda-project-gschem-edit-schematic (filename)
-   "Shell command to edit FILENAME in gchsem"
+   "Shell command to edit FILENAME in gschem"
    (list "gschem" filename))
+;;;_ , Gnucap support functions
+
 
 ;;;_ , Commands
 
@@ -174,20 +188,16 @@ evaluate BODY with symbol FILE-SYM bound to filename."
 	 (eda-project-gschem-edit-schematic filename))))
 
 ;;;_  . eda-project-autocheck
-;;This is now done by makefile as part of netlist build
-;;Filename is $*.drc2-succeeded
 (defun eda-project-autocheck ()
    "Autocheck the schematic file."
    (interactive)
    (eda-project-act-on-file filename "sch"
+      ;;This is now done by makefile as part of netlist build.  So
+      ;;instead, make $*.drc2-succeeded and view $*.drc2.  That's
+      ;;specific to gnetlist and this strategy, though.
       (eda-project-start-process
 	 "check-schematic"
 	 (eda-project-gnetlist-autocheck filename))))
-;;And detect errors - not clear how.
-;;Maybe search for "^JFound" and if found, there are errors.  Or does
-;;its exit status tell us?  Or search for "DRC errors found. See output file."
-;;in its output (its error output, I think)
-;;That's just with gnetlist, though.
 
 ;;;_  . eda-project-build-netlist
 (defun eda-project-build-netlist ()
@@ -199,12 +209,16 @@ evaluate BODY with symbol FILE-SYM bound to filename."
 	 (eda-project-gnetlist-build-netlist filename))))
 
 ;;;_  . Make a verbose netlisting (for debugging)
-;;gnetlist -v -g spice -o *$.verbose-net $*.sch
+(defun eda-project-verbose-netlist ()
+   "Make a netlist from the current schematic file."
+   (interactive)
+   (eda-project-act-on-file filename "sch"
+      (eda-project-start-process
+	 "build-netlist"
+	 (eda-project-gnetlist-verbose-netlist filename))))
 
 ;;;_  . eda-project-analysis-op
 ;;"gnucap -b Scheme-file"
-;;And present it - how?  There's no way to say what file it gets
-;;written to AFAICT
 
 ;;;_. Footers
 ;;;_ , Provides
