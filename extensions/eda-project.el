@@ -40,6 +40,8 @@
 ;;;_. Body
 ;;;_ , Customizations
 ;;I haven't made them customizable yet 
+;;This will change, possibly to choice of makefile(s) selecting
+;;gnucap / gEDA / etc.
 
 ;;;_  . eda-project-cmd-build-net-list
 (defconst eda-project-cmd-build-net-list 
@@ -107,7 +109,7 @@
    (local-set-key [(control ?c) ?b] 'eda-project-build-netlist))
 
 
-;;;_ , Support
+;;;_ , Utility
 ;;;_  . eda-project-act-on-file
 (defmacro eda-project-act-on-file (file-sym filter &rest body)
    "If current node is a file and its extension matches FILTER,
@@ -127,17 +129,38 @@ evaluate BODY with symbol FILE-SYM bound to filename."
 			     (string= (file-name-extension filename) ,filter)
 			     ,@body))
 			body)))))))
+;;;_  . eda-project-get-project-path
+;;Adapted from project-buffer-perform-action-hook
+(defun eda-project-get-project-path ()
+   "Get the master project's path to its main file (makefile)"
+   (project-buffer-node->filename 
+      (ewoc-data (cdr project-buffer-master-project))))
 
 ;;;_  . eda-project-start-process
 (defun eda-project-start-process (name command)
    "Start a process."
    (apply #'start-process-shell-command name nil command))
 
+;;;_  . eda-project-make-target
+(defun eda-project-make-target (filename output-ext)
+   "Shell command to make target FILENAME.
+If OUTPUT-EXT is given, replace the file extension with it."
+   
+   (list "make" 
+      "-C" 
+      (file-name-directory
+	 (eda-project-get-project-path))
+      (concat 
+	 (file-name-sans-extension filename)
+	 "."
+	 output-ext)))
+
 ;;;_ , Gnetlist support functions
 ;;;_  . eda-project-gnetlist+args
+;;$$OBSOLESCENT
 (defun eda-project-gnetlist+args (filename output-ext extra-args)
-   ""
-   
+   "Shell command to use gnetlist"
+   ;;All of these should use make instead.
    (list
       "gnetlist" 
       extra-args
@@ -150,12 +173,12 @@ evaluate BODY with symbol FILE-SYM bound to filename."
 ;;;_  . eda-project-gnetlist-autocheck
 (defun eda-project-gnetlist-autocheck (filename)
    "Shell command to autocheck the design of schematic FILENAME"
-   (eda-project-gnetlist+args filename "drc2" 
-      eda-project-cmd-design-check))
+   (eda-project-make-target filename "drc2-succeeded"))
 
 ;;;_  . eda-project-gnetlist-build-netlist
 (defun eda-project-gnetlist-build-netlist (filename)
    "Shell command to build a netlist from FILENAME"
+   '(eda-project-make-target filename "net")
    (eda-project-gnetlist+args filename "net"
       eda-project-cmd-build-net-list))
 
@@ -163,6 +186,7 @@ evaluate BODY with symbol FILE-SYM bound to filename."
 (defun eda-project-gnetlist-verbose-netlist (filename)
    "Shell command to build a verbose quasi-netlist from FILENAME.
 AFAIK it can't be used as an actual netlist"
+   '(eda-project-make-target filename "net")
    (eda-project-gnetlist+args filename "verbose-net"
       (cons "-v" eda-project-cmd-build-net-list)))
 
@@ -188,6 +212,8 @@ AFAIK it can't be used as an actual netlist"
 	 (eda-project-gschem-edit-schematic filename))))
 
 ;;;_  . eda-project-autocheck
+;;To be replaced by a command to visit the autocheck file, first
+;;making $*.drc2-succeeded.  
 (defun eda-project-autocheck ()
    "Autocheck the schematic file."
    (interactive)
