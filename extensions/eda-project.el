@@ -174,6 +174,8 @@ evaluate BODY with symbol FILE-SYM bound to filename."
 	 (eda-project-gschem-edit-schematic filename))))
 
 ;;;_  . eda-project-autocheck
+;;This is now done by makefile as part of netlist build
+;;Filename is $*.drc2-succeeded
 (defun eda-project-autocheck ()
    "Autocheck the schematic file."
    (interactive)
@@ -196,6 +198,8 @@ evaluate BODY with symbol FILE-SYM bound to filename."
 	 "build-netlist"
 	 (eda-project-gnetlist-build-netlist filename))))
 
+;;;_  . Make a verbose netlisting (for debugging)
+;;gnetlist -v -g spice -o *$.verbose-net $*.sch
 
 ;;;_  . eda-project-analysis-op
 ;;"gnucap -b Scheme-file"
