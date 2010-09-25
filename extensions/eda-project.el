@@ -137,36 +137,61 @@ evaluate BODY with symbol FILE-SYM bound to filename."
    (project-buffer-node->filename 
       (ewoc-data (cdr project-buffer-master-project))))
 
-;;;_  . eda-project-start-process
-(defun eda-project-start-process (name command)
+;;;_  . eda-project-shell-call
+(defun eda-project-shell-call (name command)
    "Start a process."
    (apply #'start-process-shell-command name nil command))
 
 ;;;_  . eda-project-make-target
-(defun eda-project-make-target (filename output-ext)
-   "Shell command to make target FILENAME.
-If OUTPUT-EXT is given, replace the file extension with it."
+(defun eda-project-make-target (filename)
+   "Shell command to make target FILENAME."
    
    (list "make" 
       "-C" 
       (file-name-directory
 	 (eda-project-get-project-path))
+      filename))
+;;;_  . eda-project-make-target-w/ext
+(defun eda-project-make-target-w/ext (filename output-ext)
+   "Shell command to make target FILENAME.
+If OUTPUT-EXT is given, replace the file extension with it."
+   
+   (eda-project-make-target
       (concat 
 	 (file-name-sans-extension filename)
 	 "."
 	 output-ext)))
 
-;;;_ , Gnetlist support functions
-;;;_  . eda-project-gnetlist-autocheck
-(defun eda-project-gnetlist-autocheck (filename)
-   "Shell command to autocheck the design of schematic FILENAME"
-   (eda-project-make-target filename "drc2-succeeded"))
+;;;_  . eda-project-sentinel-view-file
+(defun eda-project-sentinel-view-file (process event filename on-error)
+   "Sentinel that views a certain file when the process is done"
+   ;;$$IMPROVE ME: Don't act on "sleep" signals.
+   (if (or on-error (string= event "finished\n"))
+      (if (file-exists-p filename)
+	 (view-file filename)
+	 (message "File %s was not created" filename))
+      (message "Error creating file %s" filename)))
 
-;;;_  . eda-project-gnetlist-build-netlist
-;;This could capture and view the output if verbose
-(defun eda-project-gnetlist-build-netlist (filename)
-   "Shell command to build a netlist from FILENAME"
-   (eda-project-make-target filename "net"))
+
+;;;_  . eda-project-make-and-view
+(defun eda-project-make-and-view 
+   (filename &optional view-file-name on-error)
+   ""
+   
+   (let
+      (  (view-file-name (or view-file-name filename))
+	 (process
+	    (apply #'start-process "make-and-view" nil
+	       (eda-project-make-target filename))))
+      ;;Close over view-file-name
+      (set-process-sentinel process
+	 `(lambda (process event)
+	     (eda-project-sentinel-view-file
+		process event ,view-file-name ,on-error)))))
+
+;;;_ , Gnetlist support functions
+
+;;(Gone, moved to makefile)
 
 ;;;_ , Gschem support functions
 
@@ -174,8 +199,9 @@ If OUTPUT-EXT is given, replace the file extension with it."
 (defun eda-project-gschem-edit-schematic (filename)
    "Shell command to edit FILENAME in gschem"
    (list "gschem" filename))
-;;;_ , Gnucap support functions
 
+;;;_ , Gnucap support functions
+;;
 
 ;;;_ , Commands
 
@@ -185,37 +211,39 @@ If OUTPUT-EXT is given, replace the file extension with it."
    "Edit the file as a schematic."
    (interactive)
    (eda-project-act-on-file filename "sch"
-      (eda-project-start-process
+      (eda-project-shell-call
 	 "edit-schematic"
 	 (eda-project-gschem-edit-schematic filename))))
 
 ;;;_  . eda-project-autocheck
-;;This may be specific to gnetlist.
+;;This is specific to gnetlist.
 (defun eda-project-autocheck ()
-   "View the drc2 file (autocheck) about the schematic file at point."
+   "View the drc2 file (autocheck) of the schematic file at point.
+Make it if neccessary."
    (interactive)
    (eda-project-act-on-file filename "sch"
-      ;;Make the check file (by making $*.drc2-succeeded)
-      (eda-project-start-process
-	 "check-schematic"
-	 (eda-project-gnetlist-autocheck filename))
-      ;;View the result.
-      ;;This needs to wait till the make command is done.
-      (view-file
-	 (concat 
-	    (file-name-sans-extension filename)
-	    "."
-	    "drc2"))))
-
+      (let
+	 ((file-name-sans-ext
+	     (file-name-sans-extension filename)))
+	 (eda-project-make-and-view 
+	    (concat 
+	       file-name-sans-ext "." "drc2-succeeded")
+	    (concat 
+	       file-name-sans-ext "." "drc2")
+	    t))))
 
 ;;;_  . eda-project-build-netlist
 (defun eda-project-build-netlist ()
-   "Make a netlist from the current schematic file."
+   "View the netlist of the schematic file at point.
+Make it if neccessary."
    (interactive)
    (eda-project-act-on-file filename "sch"
-      (eda-project-start-process
-	 "build-netlist"
-	 (eda-project-gnetlist-build-netlist filename))))
+      (let
+	 ((file-name-sans-ext
+	     (file-name-sans-extension filename)))
+	 (eda-project-make-and-view 
+	    (concat 
+	       file-name-sans-ext "." "net")))))
 
 ;;;_  . eda-project-analysis-op
 ;;"gnucap -b Scheme-file"
