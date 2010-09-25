@@ -163,15 +163,10 @@ If OUTPUT-EXT is given, replace the file extension with it."
    (eda-project-make-target filename "drc2-succeeded"))
 
 ;;;_  . eda-project-gnetlist-build-netlist
+;;This could capture and view the output if verbose
 (defun eda-project-gnetlist-build-netlist (filename)
    "Shell command to build a netlist from FILENAME"
    (eda-project-make-target filename "net"))
-
-;;;_  . eda-project-gnetlist-verbose-netlist
-(defun eda-project-gnetlist-verbose-netlist (filename)
-   "Shell command to build a verbose quasi-netlist from FILENAME.
-AFAIK it can't be used as an actual netlist"
-   (eda-project-make-target filename "verbose-net"))
 
 ;;;_ , Gschem support functions
 
@@ -200,11 +195,12 @@ AFAIK it can't be used as an actual netlist"
    "View the drc2 file (autocheck) about the schematic file at point."
    (interactive)
    (eda-project-act-on-file filename "sch"
-      ;;Make the check file (really $*.drc2-succeeded)
+      ;;Make the check file (by making $*.drc2-succeeded)
       (eda-project-start-process
 	 "check-schematic"
 	 (eda-project-gnetlist-autocheck filename))
-      ;;This should wait till the make command is done.
+      ;;View the result.
+      ;;This needs to wait till the make command is done.
       (view-file
 	 (concat 
 	    (file-name-sans-extension filename)
@@ -220,15 +216,6 @@ AFAIK it can't be used as an actual netlist"
       (eda-project-start-process
 	 "build-netlist"
 	 (eda-project-gnetlist-build-netlist filename))))
-
-;;;_  . Make a verbose netlisting (for debugging)
-(defun eda-project-verbose-netlist ()
-   "Make a netlist from the current schematic file."
-   (interactive)
-   (eda-project-act-on-file filename "sch"
-      (eda-project-start-process
-	 "build-verbose-netlist"
-	 (eda-project-gnetlist-verbose-netlist filename))))
 
 ;;;_  . eda-project-analysis-op
 ;;"gnucap -b Scheme-file"
