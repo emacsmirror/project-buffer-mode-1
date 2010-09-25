@@ -39,27 +39,15 @@
 
 ;;;_. Body
 ;;;_ , Customizations
-;;I haven't made them customizable yet 
 ;;This will change, possibly to choice of makefile(s) selecting
 ;;gnucap / gEDA / etc.
 
-;;;_  . eda-project-cmd-build-net-list
-(defconst eda-project-cmd-build-net-list 
-   "-s -g spice-sdb"
-   "" )
-;;;_  . eda-project-cmd-design-check
-(defconst eda-project-cmd-design-check 
-   "-g drc2"
-   "" )
-
-;;;_ , Dealing with iproject
-;;Not used yet
+;;;_ , Project support
 ;;;_  . eda-project-filters
 (defvar eda-project-filters
    '((geda     ("\\.sch$" "\\.cir$"))) 
    "Alist from (electronic) project type to file filters" )
 
-;;;_ , Insinuation
 ;;;_  . eda-project-new
 (defun eda-project-new (name root-folder)
    "Create a eda-project buffer named NAME with a `default-directory' set to ROOT-FOLDER."
@@ -99,7 +87,6 @@
 	 ' (add-hook 'project-buffer-refresh-hook   
 	      'iproject-refresh-handler nil t))))
 
-;;;_ , Entry points
 ;;;_  . eda-project-setup-local-key
 ;;Set up our keymap
 (defun eda-project-setup-local-key ()
@@ -246,8 +233,7 @@ Make it if neccessary."
 	       file-name-sans-ext "." "net")))))
 
 ;;;_  . eda-project-analysis-op
-;;"gnucap -b Scheme-file"
-;;This may use a comint buffer.
+
 
 ;;;_. Footers
 ;;;_ , Provides
