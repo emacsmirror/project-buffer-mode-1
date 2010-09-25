@@ -1,0 +1,5 @@
+/examples/*/*.drc2
+/examples/*/*.drc2-succeeded
+/examples/*/*.net
+/examples/*/*.verbose-net
+/examples/*/*.sch~
