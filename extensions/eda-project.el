@@ -92,13 +92,17 @@
       ((keymap
 	  (make-sparse-keymap
 	     "Eda")))
-      ;;But these are per item and depend on cursor position.
+      ;;But these are per item and depend on cursor position.  That's
+      ;;not so neat for the menu-bar.
+      (define-key keymap [eda-project-edit-schematic] 
+	 '(menu-item "Edit a schematic graphically" eda-project-edit-schematic))
+      (define-key keymap [eda-project-edit-attribs] 
+	 '(menu-item "Edit a schematic's attributes" eda-project-edit-attribs))
       (define-key keymap [eda-project-build-netlist] 
 	 '(menu-item "Build netlist" eda-project-build-netlist))
       (define-key keymap [eda-project-autocheck] 
 	 '(menu-item "Autocheck schematic" eda-project-autocheck))
-      (define-key keymap [eda-project-edit-schematic] 
-	 '(menu-item "Edit a schematic" eda-project-edit-schematic))
+
       keymap)
 
    "Eda menu" )
@@ -114,7 +118,8 @@
       (set-keymap-parent keymap project-buffer-mode-map)
 
       (define-key keymap [(control ?c) ?e] 'eda-project-edit-schematic) 
-      (define-key keymap [(control ?c) ?a] 'eda-project-autocheck)	
+      (define-key keymap [(control ?c) ?a] 'eda-project-edit-attribs) 
+      (define-key keymap [(control ?c) ?c] 'eda-project-autocheck)	
       (define-key keymap [(control ?c) ?b] 'eda-project-build-netlist)	
       (define-key keymap [(control ?c) ?v] 'eda-project-verbose-netlist)
 
@@ -242,6 +247,11 @@ If OUTPUT-EXT is given, replace the file extension with it."
    "Shell command to edit FILENAME in gschem"
    (list "gschem" filename))
 
+;;;_  . eda-project-geda-edit-attribs
+(defun eda-project-geda-edit-attribs (filename)
+   "Shell command to edit FILENAME in gschem"
+   (list "gattrib" filename))
+
 ;;;_ , Gnucap support functions
 ;;
 
@@ -256,6 +266,19 @@ If OUTPUT-EXT is given, replace the file extension with it."
       (eda-project-shell-call
 	 "edit-schematic"
 	 (eda-project-gschem-edit-schematic filename))))
+;;;_  . eda-project-edit-attribs
+
+;;Would be nice to close gschem if it's open on the same schematic, or
+;;at least make it save first and revert when gattrib is done.  But
+;;that demands more cooperation from gschem - a gschem script to
+;;support it would have to basically be a server on a socket.
+(defun eda-project-edit-attribs ()
+   "Edit the schematic's attributes."
+   (interactive)
+   (eda-project-act-on-file filename "sch"
+      (eda-project-shell-call
+	 "edit-attribs"
+	 (eda-project-geda-edit-attribs filename))))
 
 ;;;_  . eda-project-autocheck
 ;;This is specific to gnetlist.
