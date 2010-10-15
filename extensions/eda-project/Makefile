@@ -27,6 +27,10 @@
 ###_ , Definitions
 
 DRC_PATTERN="DRC errors found"
+###_ , Renumbering refdefs
+%.renum-done:%.sch
+	refdes_renum --gentle $*.sch
+	touch $*.renum-done
 
 ###_ , Checking the design
 #Here we indicate that a NAME.sch was successfully checked vs design
@@ -34,7 +38,7 @@ DRC_PATTERN="DRC errors found"
 
 #Grep here succeeds (returns 0) just if DRC_PATTERN is found, ie if
 #drc found errors. 
-%.drc2-succeeded:%.sch
+%.drc2-succeeded:%.sch %.renum-done
 	@rm -f $*.drc2-succeeded
 	@if gnetlist -g drc2 -o $*.drc2 $*.sch | grep --quiet $(DRC_PATTERN) ; \
 	then echo "Design check failed, see $*.drc2" && false ; \
@@ -55,7 +59,7 @@ DRC_PATTERN="DRC errors found"
 ###_. Footers
 ###_ * Local emacs vars.
 ###_  + Local variables:
-###_  + mode: allout
 ###_  + mode: makefile
+###_  + mode: allout
 ###_  + End:
 
