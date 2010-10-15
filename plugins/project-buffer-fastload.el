@@ -60,6 +60,18 @@
    (interactive)
    (switch-to-buffer (project-buffer-fastload-get-buffer)))
 
+;;;_ , project-buffer-fastload-get-buf-names
+(defun project-buffer-fastload-get-buf-names ()
+   ""
+   (delq nil
+      (mapcar
+	 #'(lambda (buf)
+	      (with-current-buffer buf
+		 (when
+		    (eq
+		       major-mode 'project-buffer-mode)
+		    (buffer-name buf))))
+	 (buffer-list))))
 
 ;;;_ , project-buffer-fastload-get-buffer
 (defun project-buffer-fastload-get-buffer ()
@@ -70,15 +82,7 @@ Tries hard to do so without user interaction"
 	 (let
 	    (
 	       (buf-name-list
-		  (delq nil
-		     (mapcar
-			#'(lambda (buf)
-			     (with-current-buffer buf
-				(when
-				   (eq
-				      major-mode 'project-buffer-mode)
-				   (buffer-name buf))))
-			(buffer-list)))))
+		  (project-buffer-fastload-get-buf-names)))
 	    (cond
 	       ;;No project-buffer-mode buffer is open
 	       ((not buf-name-list)
@@ -105,6 +109,25 @@ Tries hard to do so without user interaction"
 		     "Use which of the projects buffers? "
 		     buf-name-list nil t))))))
    project-buffer-fastload-buffer)
+;;;_ , project-buffer-fastload-set-buffer
+;;;###autoload
+(defun project-buffer-fastload-set-buffer (buf)
+   "Set the buffer used for fastloading.
+Usually not needed, but it's useful in some circumstances."
+   
+   (interactive
+      (list 
+	 (let*
+	    ((buf-name-list
+		(project-buffer-fastload-get-buf-names))
+	       (name
+		  (completing-read
+		     "Use which projects buffer for fastload? "
+		     buf-name-list nil t)))
+	    (get-buffer name))))
+   
+   (setq project-buffer-fastload-buffer buf))
+
 
 ;;;_. Footers
 ;;;_ , Provides
