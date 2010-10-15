@@ -155,7 +155,12 @@ If OUTPUT-EXT is given, replace the file extension with it."
    ;;$$IMPROVE ME: Don't act on "sleep" signals.
    (if (or on-error (string= event "finished\n"))
       (if (file-exists-p filename)
-	 (view-file filename)
+	 (let
+	    ((revert-without-query
+		(cons
+		   filename
+		   revert-without-query)))
+	 (view-file filename))
 	 (message "File %s was not created" filename))
       (message "Error creating file %s" filename)))
 
