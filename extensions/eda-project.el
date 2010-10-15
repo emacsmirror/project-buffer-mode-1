@@ -92,12 +92,13 @@
       ((keymap
 	  (make-sparse-keymap
 	     "Eda")))
-      (define-key keymap [eda-command] 
+      ;;But these are per item and depend on cursor position.
+      (define-key keymap [eda-project-build-netlist] 
 	 '(menu-item "Build netlist" eda-project-build-netlist))
-      (define-key keymap [eda-command] 
+      (define-key keymap [eda-project-autocheck] 
 	 '(menu-item "Autocheck schematic" eda-project-autocheck))
-      (define-key keymap [eda-command] 
-	 '(menu-item "Edit the schematic" eda-project-edit-schematic))
+      (define-key keymap [eda-project-edit-schematic] 
+	 '(menu-item "Edit a schematic" eda-project-edit-schematic))
       keymap)
 
    "Eda menu" )
@@ -115,10 +116,10 @@
       (define-key keymap [(control ?c) ?e] 'eda-project-edit-schematic) 
       (define-key keymap [(control ?c) ?a] 'eda-project-autocheck)	
       (define-key keymap [(control ?c) ?b] 'eda-project-build-netlist)	
-      (define-key keymap [(control ?c) ?v]
-	 'eda-project-verbose-netlist)
+      (define-key keymap [(control ?c) ?v] 'eda-project-verbose-netlist)
 
-      (define-key keymap [menu-bar eda] eda-project-menu-keymap)
+      (define-key keymap [menu-bar eda] 
+	 (cons "Eda" eda-project-menu-keymap))
 
       keymap)
    
