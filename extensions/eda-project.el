@@ -86,15 +86,65 @@
 	 ;;Maybe simply borrow this from iproject
 	 ' (add-hook 'project-buffer-refresh-hook   
 	      'iproject-refresh-handler nil t))))
+;;;_  . eda-project-menu-keymap
+(defconst eda-project-menu-keymap 
+   (let* 
+      ((keymap
+	  (make-sparse-keymap
+	     "Eda")))
+      ;;But these are per item and depend on cursor position.
+      (define-key keymap [eda-project-build-netlist] 
+	 '(menu-item "Build netlist" eda-project-build-netlist))
+      (define-key keymap [eda-project-autocheck] 
+	 '(menu-item "Autocheck schematic" eda-project-autocheck))
+      (define-key keymap [eda-project-edit-schematic] 
+	 '(menu-item "Edit a schematic" eda-project-edit-schematic))
+      keymap)
+
+   "Eda menu" )
+;;;_  . eda-project-keymap
+(defconst eda-project-keymap
+   (let* 
+      ((keymap
+	  (make-sparse-keymap
+	     "Eda")))
+      ;;There's no text insertion, so suppress keys for that.
+      (suppress-keymap keymap)
+      ;;Inherit
+      (set-keymap-parent keymap project-buffer-mode-map)
+
+      (define-key keymap [(control ?c) ?e] 'eda-project-edit-schematic) 
+      (define-key keymap [(control ?c) ?a] 'eda-project-autocheck)	
+      (define-key keymap [(control ?c) ?b] 'eda-project-build-netlist)	
+      (define-key keymap [(control ?c) ?v] 'eda-project-verbose-netlist)
+
+      (define-key keymap [menu-bar eda] 
+	 (cons "Eda" eda-project-menu-keymap))
+
+      keymap)
+   
+   "Eda keymap" )
 
 ;;;_  . eda-project-setup-local-key
 ;;Set up our keymap
 (defun eda-project-setup-local-key ()
    ""
-   (local-set-key [(control ?c) ?e] 'eda-project-edit-schematic)
-   (local-set-key [(control ?c) ?a] 'eda-project-autocheck)
-   (local-set-key [(control ?c) ?b] 'eda-project-build-netlist)
-   (local-set-key [(control ?c) ?v] 'eda-project-verbose-netlist))
+   '
+   (progn
+      (local-set-key [(control ?c) ?e] 'eda-project-edit-schematic) 
+      (local-set-key [(control ?c) ?a] 'eda-project-autocheck)	 
+      (local-set-key [(control ?c) ?b] 'eda-project-build-netlist)	 
+      (local-set-key [(control ?c) ?v] 'eda-project-verbose-netlist))
+
+   (let* 
+      ((map (current-local-map)))
+      (unless (eq map eda-project-keymap)
+
+	 ;;Hack.  Works if there's only 1 eda buffer or several that
+	 ;;have the same local map.  Otherwise we have to actually
+	 ;;know project-buffer-mode's keymap
+	 (use-local-map eda-project-keymap)))
+   )
 
 
 ;;;_ , Utility
