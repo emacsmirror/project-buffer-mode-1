@@ -131,25 +131,12 @@
    "Eda keymap" )
 
 ;;;_  . eda-project-setup-local-key
-;;Set up our keymap
 (defun eda-project-setup-local-key ()
-   ""
-   '
-   (progn
-      (local-set-key [(control ?c) ?e] 'eda-project-edit-schematic) 
-      (local-set-key [(control ?c) ?a] 'eda-project-autocheck)	 
-      (local-set-key [(control ?c) ?b] 'eda-project-build-netlist)	 
-      (local-set-key [(control ?c) ?v] 'eda-project-verbose-netlist))
+   "Set up to use our keymap"
 
-   (let* 
-      ((map (current-local-map)))
-      (unless (eq map eda-project-keymap)
+   (unless (eq (current-local-map) eda-project-keymap)
+      (use-local-map eda-project-keymap)))
 
-	 ;;Hack.  Works if there's only 1 eda buffer or several that
-	 ;;have the same local map.  Otherwise we have to actually
-	 ;;know project-buffer-mode's keymap
-	 (use-local-map eda-project-keymap)))
-   )
 
 
 ;;;_ , Utility
