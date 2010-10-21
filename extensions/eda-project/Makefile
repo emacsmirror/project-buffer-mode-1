@@ -25,7 +25,7 @@
 ###_. Body
 
 ###_ , Definitions
-
+GNETLIST = gnetlist -s -g spice-sdb
 DRC_PATTERN="DRC errors found"
 ###_ , Renumbering refdefs
 %.renum-done:%.sch
@@ -51,7 +51,7 @@ DRC_PATTERN="DRC errors found"
 #gnetlist creates the output file no matter what, so erase it if there
 #are errors.
 %.net:%.sch %.drc2-succeeded
-	if gnetlist -s -g spice-sdb -o $*.net $*.sch ; \
+	if $(GNETLIST) -o $*.net $*.sch ; \
 	then true ; \
 	else rm $*.net ; \
 	fi
