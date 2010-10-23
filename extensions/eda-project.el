@@ -45,10 +45,12 @@
 ;;;_ , Project support
 ;;;_  . eda-project-filters
 (defvar eda-project-filters
-   '((geda     ("\\.sch$" "\\.cir$"))) 
+   '((geda     ("\\.sch$" "\\.org$"))
+       (custom    (nil))) 
    "Alist from (electronic) project type to file filters" )
 
 ;;;_  . eda-project-new
+;;;###autoload
 (defun eda-project-new (name root-folder)
    "Create a eda-project buffer named NAME with a `default-directory' set to ROOT-FOLDER."
    (interactive "sProject Buffer Name: \nDRoot Folder: ")
@@ -76,16 +78,16 @@
 	 ;;Platform list and build configurations would not be
 	 ;;relevant.
 	 ;;Everything to here could be encapped with a few
-	 ;;parameters.  Then call any special setup code.
-
+	 ;;parameters.  Then call any special setup code, bearing in
+	 ;;mind that it's generally the same as post-load hook.
+	 (setq iproject-filters eda-project-filters)
 	 (eda-project-setup-local-key)
 	 ;;Rebind iproject-filters to eda-project-filters.  Possibly
 	 ;;as a defalias, if that works.
 	 (add-hook 'project-buffer-post-load-hook
 	    'eda-project-setup-local-key nil t)
-	 ;;Maybe simply borrow this from iproject
-	 ' (add-hook 'project-buffer-refresh-hook   
-	      'iproject-refresh-handler nil t))))
+	 (add-hook 'project-buffer-refresh-hook   
+	    'iproject-refresh-handler nil t))))
 ;;;_  . eda-project-menu-keymap
 (defconst eda-project-menu-keymap 
    (let* 
