@@ -2949,11 +2949,25 @@ will get deleted."
   (project-buffer-raw-save filename)
   (setq project-buffer-file-name filename))
 
+;;
+(defvar project-buffer-find-file-history '() 
+   "History list for `project-buffer-find-file'" )
 
 ;;;###autoload
 (defun project-buffer-find-file (filename)
   "Create a `project-buffer-mode' buffer based on the content of FILENAME."
-  (interactive "fFind project: ")
+  (interactive 
+     (list
+	;;Hackery to work around the fact that `read-file-name'
+	;;doesn't take a history list and `completing-read' can't walk
+	;;directories.
+	(let ((file-name-history project-buffer-find-file-history))
+	   (prog1
+	      (read-file-name "Find project: " nil nil t)
+	      (setq project-buffer-find-file-history
+		 file-name-history)))))
+   
+   
   (let ((new-buffer (generate-new-buffer "*project-temp*")))
     (with-current-buffer new-buffer
       (project-buffer-mode t)
