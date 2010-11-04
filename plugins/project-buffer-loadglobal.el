@@ -1,4 +1,4 @@
-;;;_ loadglobal.el --- Load and customize global entry points
+;;;_ project-buffer-loadglobal.el --- Load and customize global entry points
 
 ;;;_. Headers
 ;;;_ , License
@@ -24,7 +24,9 @@
 
 ;;;_ , Commentary:
 
-;; Setup if you use my-site-start.el: Just symlink this file into
+;; Setup:
+
+;; If you use my-site-start.el: Just symlink this file into
 ;; ~/emacs.d/site-start.d with a suitable number prefix.  For example:
 
 ;; (Into dired mode)
@@ -34,11 +36,25 @@
 ;; (Symlink it)
 ;; S ~/.emacs.d/site-start.d/50project-buffer-loadglobal.el
 
+;; Or call project-buffer-loadglobal-setup
+
+;; If you don't use my-site-start.el, then include in your .emacs
+;; (load PATH-TO-THIS-FILE)
+;;
+;; Or better, get my-site-start.el.
+
+
 ;;;_ , Requires
 
 
 
 ;;;_. Body
+;;;_ , This file's identity
+(defconst project-buffer-loadglobal-filename 
+   (if load-file-name
+      (file-truename load-file-name)
+      (file-truename buffer-file-name))
+   "" )
 ;;;_ , Customizations
 
 ;;;_ , Keys setup
@@ -48,11 +64,37 @@
        (nil)
        :help "Visit a project-buffer-mode projects file"))
 
+      
+
+;;;_ , Set this up
+(defun project-buffer-loadglobal-setup ()
+   ""
+   
+   (interactive)
+   (let
+      ((target 
+	  "~/.emacs.d/site-start.d/50project-buffer-loadglobal.el"))
+      (cond
+	 ((not (featurep 'my-site-start))
+	    (message "my-site-start not found")
+	    (message "Add (load THIS-FILE) to your .emacs" ))
+	 ;;Check that path exists.
+	 ((not
+	     (file-exists-p
+		(file-name-directory target)))
+	    (message "I don't know where to symlink to"))
+	 (t
+	    (make-symbolic-link 
+	       project-buffer-loadglobal-filename
+	       target
+	       nil)))))
+
+
 
 ;;;_. Footers
 ;;;_ , Provides
 
-(provide 'loadglobal)
+(provide 'project-buffer-loadglobal)
 
 ;;;_ * Local emacs vars.
 ;;;_  + Local variables:
@@ -60,4 +102,4 @@
 ;;;_  + End:
 
 ;;;_ , End
-;;; loadglobal.el ends here
+;;; project-buffer-loadglobal.el ends here
