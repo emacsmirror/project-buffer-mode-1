@@ -59,10 +59,23 @@
    "The file's location" )
 ;;;_ , Customizations
 
+;;;_ , Co-ordination
+;;;_  . Find file
+(defun project-buffer-loadglobal-find-file ()
+   ""
+   
+   (interactive)
+   (cond
+      ((require 'project-buffer-fastload nil t)
+	 (project-buffer-fastload-switch))
+      ((require 'project-buffer-mode nil t)
+	 (call-interactively #'project-buffer-find-file))
+      (t
+	 (message "Can't find any function to visit project files"))))
+
 ;;;_ , Keys setup
-;;Or use fastload instead?
 (global-set-key [menu-bar tools project-buffer] 
-   '(menu-item "Open projects file" project-buffer-find-file
+   '(menu-item "Open projects file" project-buffer-loadglobal-find-file
        (nil)
        :help "Visit a project-buffer-mode projects file"))
 
