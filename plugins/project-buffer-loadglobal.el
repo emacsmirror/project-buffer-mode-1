@@ -26,8 +26,13 @@
 
 ;; Setup:
 
-;; If you use my-site-start.el: Just symlink this file into
-;; ~/emacs.d/site-start.d with a suitable number prefix.  For example:
+;; If you use my-site-start.el, just 
+;; M-x project-buffer-loadglobal-setup
+;; All done!
+
+;; If you use my-site-start.el but your site-start file is somewhere
+;; other than ~/emacs.d/site-start.d/, symlink it manually.  For
+;; example:
 
 ;; (Into dired mode)
 ;; C-x C-f RET
@@ -36,12 +41,9 @@
 ;; (Symlink it)
 ;; S ~/.emacs.d/site-start.d/50project-buffer-loadglobal.el
 
-;; Or call project-buffer-loadglobal-setup
-
 ;; If you don't use my-site-start.el, then include in your .emacs
 ;; (load PATH-TO-THIS-FILE)
 ;;
-;; Or better, get my-site-start.el.
 
 
 ;;;_ , Requires
@@ -54,7 +56,7 @@
    (if load-file-name
       (file-truename load-file-name)
       (file-truename buffer-file-name))
-   "" )
+   "The file's location" )
 ;;;_ , Customizations
 
 ;;;_ , Keys setup
