@@ -1744,7 +1744,8 @@ Commands:
   (buffer-disable-undo)
   (setq mode-name "project-buffer"
 	major-mode 'project-buffer-mode
-	buffer-read-only t)
+	buffer-read-only t
+        buffer-offer-save t)
   (use-local-map project-buffer-mode-map)
   (let ((buffer-read-only nil))
     (erase-buffer)
