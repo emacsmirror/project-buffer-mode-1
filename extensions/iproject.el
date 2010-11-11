@@ -165,7 +165,7 @@ Each project type is a list of the following format:
 
 
 ;;
-;;  Local variables:
+;;  Local - variables:
 ;;
 
 (defvar iproject-last-project-type-choosen "makefile")
@@ -622,7 +622,7 @@ PROJECT-LIST is a list containing the project's names"
     (with-current-buffer buffer
       (cd root-folder)
       (project-buffer-mode)
-      ;; local variables:
+      ;; local - variables:
       (make-local-variable 'iproject-last-project-type-choosen)
       (make-local-variable 'iproject-last-filter-type-choosen)
       (make-local-variable 'iproject-last-file-filter-query-mode-choosen)
