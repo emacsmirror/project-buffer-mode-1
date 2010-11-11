@@ -29,7 +29,12 @@
 
 ;;;_ , Requires
 
-(require 'elinstall)
+(or 
+   (require 'elinstall nil t)
+   ;;Get it from ancillary if it's not already available.
+   (let ((load-path '("ancillary/")))
+      (require 'elinstall)))
+
 
 ;;;_. Body
 
