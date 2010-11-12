@@ -38,21 +38,23 @@
 (require 'autoload)
 (require 'pp)
 (require 'cus-edit)  ;;Because we save "installedness" manually
+(require 'byte-compile nil t) ;;
 
 
 ;;;_. Body
 ;;;_ , Customizations
+;;;_  . Group
 (defgroup elinstall
    '()
    "Customizations for elinstall"
-   :group 'elinstall)
-
+   :group 'development)
+;;;_  . elinstall-default-priority
 (defcustom elinstall-default-priority 
    50
    "Default priority for site-start" 
    :group 'elinstall
    :type 'integer)
-
+;;;_  . elinstall-default-preload-target
 (defcustom elinstall-default-preload-target
    "~/.emacs.d/site-start.d/"
    "Default preload-target for registering autoloads" 
@@ -64,13 +66,14 @@
        (directory "" )
        (const nil)
        (const 'dot-emacs)))
+;;;_  . elinstall-already-installed
+(defvar elinstall-already-installed
+      '()
+      "(AUTOMATIC) Things that have already been installed.
+This exists for recording what has been installed.  
 
-
-(defcustom elinstall-already-installed
-   '()
-   "Things that have already been installed.
-This exists for recording what has been installed.  User interaction is not
-contemplated at this time." )
+Though it's saved as customizable, user interaction is not
+contemplated." )
 ;;;_ , Types
 ;;;_  . elinstall-stages
 (defstruct (elinstall-stages
@@ -92,7 +95,6 @@ contemplated at this time." )
 	 (unless (string-match "\\.elc" suf) (push suf tmp)))
       (concat "^[^=.].*" (regexp-opt tmp t) "\\'"))
    "Regular expression that matches elisp files" )
-
 ;;;_ , Utilities
 ;;;_  . elinstall-directory-true-name
 (defun elinstall-directory-true-name ()
@@ -117,6 +119,15 @@ CAUTION:  This is sensitive to where it's called.  That's the point of it."
       'elinstall-already-installed 
       elinstall-already-installed
       "Set by elinstall-record-installed"))
+;;;_  . Finding deffiles
+;;;_   , elinstall-expand-deffile-name
+(defun elinstall-expand-deffile-name (deffile)
+   "Expand DEFFILE autoload.el's way."
+   
+   (expand-file-name (or deffile "loaddefs.el")
+      (expand-file-name "lisp"
+	 source-directory)))
+
 ;;;_ , Work
 ;;;_  . Doing actions
 
@@ -166,18 +177,110 @@ which lists the file name and which functions are in it, etc."
 	    (insert "\n" generate-autoload-section-continuation))))))
 
 ;;;_    . Making autoloads
-;;;_     , elinstall-generate-file-autoloads 
-;;override to allow slashed load-paths
-;;Quick and dirty: We just adapt `generate-file-autoloads' and add
-;;a new arg. 
-;;`relative-to' can be:
-;; * nil: act as at present.  Assume that FILE's immediate directory
-;;is in load-path. 
-;; * t :: use default-directory
-;; * a string :: relative to it, as a filename
+;;;_     , elinstall-insert-autoload-section
+(defun elinstall-insert-autoload-section (text form &optional comment-string)
+   "Insert TEXT into current buffer as an autoload section"
+   
+   (let* ( ;; This does something in Lucid Emacs.
+	    (print-length nil)
+	    (print-readably t)	 
+	    (float-output-format nil))
+   
+      (elinstall-insert-section-header (current-buffer) form)
+      (when comment-string
+	 (insert ";;; " comment-string "\n"))
+      (insert text)
+      (insert generate-autoload-section-trailer)))
 
-(defun elinstall-generate-file-autoloads (relative-name full-name)
-  "Insert at point a loaddefs autoload section for FILE.
+;;;_     , elinstall-make-autoload-action
+(defun elinstall-make-autoload-action (buf def-file load-path-element full-path)
+   "Return the autoloads for current buffer as a string"
+
+   ;;We put all the text into a temp buffer, then get that buffer's
+   ;;string.
+   (let
+      ((outbuf
+	  (generate-new-buffer " *temp*"))
+	 (autoloads-done '())
+	 (short-name
+	    (buffer-name buf))
+
+	 ;; Apparently this does something in Lucid Emacs.
+	 (print-length nil)
+	 (print-readably t)	 
+	 (float-output-format nil)
+
+	 ;;load-name relative to a member of load-path.
+	 (relative-name
+	    (file-name-sans-extension
+	       (file-relative-name
+		  full-path
+		  load-path-element))))
+      
+      (with-current-buffer buf
+	 (unwind-protect
+	    (save-excursion
+	       (save-restriction
+		  (widen)
+		  (goto-char (point-min))
+		  (message "Finding autoloads for %s..." short-name)
+		  (while (not (eobp))
+		     (skip-chars-forward " \t\n\f")
+		     (cond
+			((looking-at (regexp-quote generate-autoload-cookie))
+			   (search-forward generate-autoload-cookie)
+			   (skip-chars-forward " \t")
+			   (setq done-any t)
+			   (if (eolp)
+			      ;; Read the next form and make an autoload.
+			      (let* ((form (prog1 (read (current-buffer))
+					      (or (bolp) (forward-line 1))))
+				       (autoload 
+					  (make-autoload form relative-name)))
+				 (if autoload
+				    (push (nth 1 form) autoloads-done)
+				    (setq autoload form))
+				 (let ((autoload-print-form-outbuf outbuf))
+				    (autoload-print-form autoload)))
+
+			      ;; Copy the rest of the line to the output.
+			      (princ (buffer-substring
+					(progn
+					   ;; Back up over whitespace,
+					   ;; to preserve it.
+					   (skip-chars-backward " \f\t")
+					   (if (= (char-after (1+ (point))) ? )
+					      ;; Eat one space.
+					      (forward-char 1))
+					   (point))
+					(progn (forward-line 1) (point)))
+				 outbuf)))
+			((looking-at ";")
+			   ;; Don't read the comment.
+			   (forward-line 1))
+			(t
+			   (forward-sexp 1)
+			   (forward-line 1))))
+		  (message "Finding autoloads for %s...done" short-name))
+
+	       ;;Return this action.  The temp buffer's contents is
+	       ;;our final string.
+	       `(add-file-autoloads
+		   ,def-file
+		   ,relative-name
+		   ,full-path
+		   ,(with-current-buffer outbuf (buffer-string))
+		   ,autoloads-done))
+	    
+	    ;;This in unwind-protected
+	    (when (buffer-live-p outbuf) (kill-buffer outbuf))))))
+
+
+;;;_     , elinstall-generate-file-autoloads 
+
+(defun elinstall-generate-file-autoloads 
+   (relative-name full-name text autoloads-done)
+   "Insert at point a loaddefs autoload section for FILE.
 Autoloads are generated for defuns and defmacros in FILE
 marked by `generate-autoload-cookie' (which see).
 If FILE is being visited in a buffer, the contents of the buffer
@@ -186,95 +289,23 @@ Return non-nil in the case where no autoloads were added at point.
 
 FULL-NAME is the absolute name of the file.
 RELATIVE-NAME is its name respective to some component of load-path."
-  (let* ((outbuf (current-buffer))
-	  (autoloads-done '())
-	  (print-length nil)
-	  (print-readably t)	 ; This does something in Lucid Emacs.
-	  (float-output-format nil)
-	  (done-any nil)
-	  (visited (get-file-buffer full-name))
-	  (source-buf 
-	     (or visited
-		;; It is faster to avoid visiting the file.
-		(ignore-errors (autoload-find-file full-name))))
-	  output-start)
-     (if source-buf
-	(with-current-buffer source-buf
-	   ;;$$MOVE ME - this should be checked in action-finding.
-	   ;; Obey the no-update-autoloads file local variable.
-	   (unless no-update-autoloads
-	      (message "Generating autoloads for %s..." relative-name)
-	      (setq output-start (with-current-buffer outbuf (point)))
-	      (save-excursion
-		 (save-restriction
-		    (widen)
-		    (goto-char (point-min))
-		    (while (not (eobp))
-		       (skip-chars-forward " \t\n\f")
-		       (cond
-			  ((looking-at (regexp-quote generate-autoload-cookie))
-			     (search-forward generate-autoload-cookie)
-			     (skip-chars-forward " \t")
-			     (setq done-any t)
-			     (if (eolp)
-				;; Read the next form and make an autoload.
-				(let* ((form (prog1 (read (current-buffer))
-						(or (bolp) (forward-line 1))))
-					 (autoload 
-					    (make-autoload form relative-name)))
-				   (if autoload
-				      (push (nth 1 form) autoloads-done)
-				      (setq autoload form))
-				   (let ((autoload-print-form-outbuf outbuf))
-				      (autoload-print-form autoload)))
-
-				;; Copy the rest of the line to the output.
-				(princ (buffer-substring
-					  (progn
-					     ;; Back up over whitespace, to preserve it.
-					     (skip-chars-backward " \f\t")
-					     (if (= (char-after (1+ (point))) ? )
-						;; Eat one space.
-						(forward-char 1))
-					     (point))
-					  (progn (forward-line 1) (point)))
-				   outbuf)))
-			  ((looking-at ";")
-			     ;; Don't read the comment.
-			     (forward-line 1))
-			  (t
-			     (forward-sexp 1)
-			     (forward-line 1))))))
-
-	      (when done-any
-		 (with-current-buffer outbuf
-		    (save-excursion
-		       ;; Insert the section-header line which lists the file name
-		       ;; and which functions are in it, etc.
-		       (goto-char output-start)
-		       (elinstall-insert-section-header
-			  outbuf 
-			  (list 'autoloads 
-			     autoloads-done
-			     relative-name
-			     (autoload-trim-file-name full-name)
-			     (nth 5 (file-attributes full-name))))
-		       
-		       (insert ";;; Generated autoloads from "
-			  (autoload-trim-file-name full-name) "\n"))
-		    (insert generate-autoload-section-trailer)))
-	      (message "Generating autoloads for %s...done" relative-name))
-
-	   (unless visited
-	      ;; We created this buffer, so we should kill it.
-	      (kill-buffer (current-buffer))))
-	(message "Could not load %s" relative-name))
-     
-     (not done-any)))
-;;
+   (if (not (equal text ""))
+      ;; Insert the section-header line which lists the file name and
+      ;; which functions are in it, etc.
+      (elinstall-insert-autoload-section
+	 text
+	 (list 'autoloads 
+	    autoloads-done
+	    relative-name
+	    (autoload-trim-file-name full-name)
+	    (nth 5 (file-attributes full-name)))
+	 (concat
+	    "Generated autoloads from " 
+	    (autoload-trim-file-name full-name)))
+      t))
 
 ;;;_     , elinstall-deffile-insert-autoloads
-(defun elinstall-deffile-insert-autoloads (file load-name)
+(defun elinstall-deffile-insert-autoloads (file args)
    "Update the autoloads for FILE in current buffer.
 Return FILE if there was no autoload cookie in it, else nil.
 
@@ -316,8 +347,9 @@ RELATIVE-NAME is its name respective to some component of load-path."
 		  (goto-char (point-max))
 		  (search-backward "\f" nil t)))
 	    (setq no-autoloads 
-	       (elinstall-generate-file-autoloads file load-name))))
-
+	       (apply #'elinstall-generate-file-autoloads
+		  file args))))
+      
       (if no-autoloads file nil)))
 ;;;_    . Arranging to add to info-path and load-path
 ;;;_     , elinstall-generate-add-to-path
@@ -419,8 +451,8 @@ Return filename if this action belongs in the no-autoload section."
 	 (add-file-autoloads
 	    (elinstall-deffile-insert-autoloads
 	       (third action)
-	       (fifth action)))
-      
+	       (nthcdr 3 action)))
+	 
 	 (add-to-load-path
 	    (elinstall-deffile-insert-add-to-path
 	       (third action)
@@ -653,16 +685,16 @@ BASENAME and PRIORITY are used as arguments to
       ;;Dispatch the possibilities.
       (cond
 	 ((eq preload-target 'dot-emacs)
-	    (elinstall-add-to-dot-emacs "~/.emacs" filename))
+	    (elinstall-add-to-dot-emacs "~/.emacs" filename force))
 	 ((stringp preload-target)
 	    (elinstall-symlink-on-emacs-start 
 	       filename basename preload-target priority force))
-	 (null preload-target
+	 ((null preload-target)
 	    (message "Not arranging for preloads"))
 	 (t
 	    (message "I don't recognize that")))))
 ;;;_    . elinstall-stage-arrange-preloads
-(defun elinstall-stage-arrange-preloads (actions deffiles-used)
+(defun elinstall-stage-arrange-preloads (actions deffiles-used force)
    "Arrange any preloads mentioned in ACTIONS."
    
    (mapcar
@@ -727,7 +759,6 @@ BASENAME and PRIORITY are used as arguments to
 		    "elinstall-stage-byte-compile: Action not
 	   recognized.")))  )
       actions))
-
 ;;;_  . Segregating actions
 ;;;_   , elinstall-remove-empty-segs
 (defun elinstall-remove-empty-segs (segment-list)
@@ -790,191 +821,194 @@ Returns a list whose elements are each a cons of:
 	 byte-compile
 	 :arrange-preloads
 	 arrange-preloads)))
-
-
-
-
-
 ;;;_  . Finding actions
-;;;_   , Treating the parameter list
-;;;_    . elinstall-add-parameter
-(defun elinstall-add-parameter (alist key new-value)
-   "Add a new value for KEY to ALIST"
+;;;_   , Informational
+;;;_    . elinstall-dir-has-info
 
-   (cons
-      (cons key new-value)
-      (assq-delete-all key (copy-list alist))))
-
-;;;_    . elinstall-get-parameter
-(defun elinstall-get-parameter (alist key)
-   "Get the value of KEY from ALIST"
-   
-   (cdr (assq key alist)))
-;;;_    . elinstall-expand-file-name
-;;$$OBSOLETE
-'
-(defun elinstall-expand-file-name (filename alist)
-   "Expand FILENAME by the value of `path' in ALIST"
-   (expand-file-name 
-      filename
-      (elinstall-get-parameter alist 'path)))
-;;;_   , Finding deffiles
-;;;_    . elinstall-expand-deffile-name
-(defun elinstall-expand-deffile-name (deffile)
-   "Expand DEFFILE autoload.el's way."
-   
-   (expand-file-name (or deffile "loaddefs.el")
-      (expand-file-name "lisp"
-	 source-directory)))
-
-;;;_    . elinstall-maybe-get-deffile
-(defun elinstall-maybe-get-deffile (file)
-   "If FILE defined `generated-autoload-file', return it.
-Otherwise return nil.
-Return it as an absolute filename."
-
-   (save-excursion
-      ;;$$FIXME load buffer if it's not already loaded
-      (let* 
-	 ((existing-buffer (get-file-buffer file)))
-
-	 ;; We want to get a value for generated-autoload-file from
-	 ;; the local variables section if it's there.
-	 ;;But if it's not loaded, we don't?  Maybe should use
-	 ;; `autoload-find-file' and load it.
-	 (if existing-buffer
-	    (set-buffer existing-buffer))
-	 (if (local-variable-p 'generated-autoload-file)
-	    (elinstall-expand-deffile-name
-	       generated-autoload-file)
-	    nil))))
-
+;;$$IMPROVE ME - Can this test be made more precise?
+(defun elinstall-dir-has-info (dir)
+   "Return non-nil if DIR has info files in it.
+DIR should be an absolute path."
+   (or
+      (string-match "/info/" dir)
+      (directory-files dir nil "\\.info\\(-[0-9]+\\)?\\(\\.gz\\)?$")))
 
 ;;;_   , Workers
-;;;_    . elinstall-find-actions-for-file
-(defun elinstall-find-actions-for-file 
-   (filename load-path-element dir parameters)
-   "Return a list of actions to do for FILENAME.
-LOAD-PATH-ELEMENT, DIR, and PARAMETERS are interpreted as in
-`elinstall-find-actions-by-spec' "
-			  
+;;;_    . List of special variables used in this section
+;;load-path-element - The relevant element of load-path
+;;def-file - The file the autoload definitions etc will go into.
+;;add-to-load-path-p - Controls whether to add to load-path.
+
+;;;_    . elinstall-actions-for-source-file
+(defun elinstall-actions-for-source-file (filename dir)
+   "Return a list of actions to do for FILENAME in DIR.
+Special variables are as noted in \"List of special variables\"."
+   (declare (special
+	       load-path-element def-file))
    (let
       ((full-path
 	  (expand-file-name filename dir)))
-      (list
-	 `(add-file-autoloads
-	     ,(elinstall-get-parameter 
-		 parameters 'def-file)
-	     ;;load-name relative to a member of load-path
-	     ,(file-name-sans-extension
-		 (file-relative-name
-		    full-path
-		    load-path-element))
-	     ,load-path-element ;;Is this still used?
-	     ,full-path))))
+      (when
+	 (and
+	    (file-readable-p full-path)
+	    (not (auto-save-file-name-p full-path)))
+	 ;;$$IMPROVE ME create and use relevant control variables.
+	 (let*
+	    (
+	       (visited (get-file-buffer full-path))
+	       (buf 
+		  (or 
+		     visited
+		     ;;Visit the file cheaply.
+		     ;;hack-local-variables can give errors.
+		     (ignore-errors (autoload-find-file full-path))))
+	       (def-file
+		  (or
+		     (ignore-errors
+			(with-current-buffer buf 
+			   (if (local-variable-p 'generated-autoload-file)
+			      (elinstall-expand-deffile-name
+				 generated-autoload-file)
+			      nil)))
+		     def-file))
+	       ;;Figure out whether to run some actions, by file local vars.
+	       (autoloads-p
+		  (ignore-errors
+		     (with-current-buffer buf 
+			(not no-update-autoloads))))
+	       (compile-p
+		  (and
+		     (featurep 'byte-compile)
+		     (string-match emacs-lisp-file-regexp filename)
+		     (ignore-errors 
+			(with-current-buffer buf 
+			   (not no-byte-compile)))
+		     (let* 
+			((dest (byte-compile-dest-file full-path))
+			   ;;$$PUNT - currently, we wouldn't have
+			   ;;gotten here if we weren't intending to do
+			   ;;everything so set force variables accordingly.
+			   (recompile-p nil)
+			   (compile-new t))
+			(if (file-exists-p dest)
+			   ;; File was already compiled.
+			   (or recompile-p (file-newer-than-file-p full-path dest))
+			   (or compile-new
+			      (y-or-n-p (concat "Compile " filename "? "))))))))
+	    
+	    (prog1
+	       (list
+		  (if compile-p
+		     `(byte-compile ,full-path)
+		     nil)
+		  (if autoloads-p
+		     (elinstall-make-autoload-action
+			buf def-file load-path-element full-path)
+		     nil))
+	       (unless visited (kill-buffer-if-not-modified buf)))))))
 
-;;;_    . elinstall-find-actions-by-spec
+;;;_    . elinstall-find-actions-by-spec-x
 
-(defun elinstall-find-actions-by-spec (spec load-path-element path parameters)
-   "Return a list of actions to do, controlled by SPEC and PARAMETERS.
+(defun elinstall-find-actions-by-spec-x (spec dir)
+   "Return a list of actions to do, controlled by SPEC."
+   (declare (special
+	       load-path-element def-file add-to-load-path-p))
 
-LOAD-PATH-ELEMENT is the conceptual element of load-path that
-surrounds DIR.  It may not yet have been added to load-path."
    (if (consp spec)
       ;;$$IMPROVE ME by adding the other cases in the design.
       (case (car spec)
 	 (in
 	    (let
-	       ((new-path
+	       ((new-dir
 		   (expand-file-name
 		      (second spec)
 		      dir)))
 	       
-	       (elinstall-find-actions-by-spec
+	       (elinstall-find-actions-by-spec-x
 		  (third spec)
-		  load-path-element
-		  new-path
-		  parameters)))
+		  new-dir)))
 	 
 	 (all
 	    (apply #'nconc
 	       (mapcar
 		  #'(lambda (sub-spec)
-		       (elinstall-find-actions-by-spec 
+		       (elinstall-find-actions-by-spec-x 
 			  sub-spec
-			  load-path-element 
-			  dir
-			  parameters))
+			  dir))
 		  (cdr spec))))
 
 	 (file
-	    (elinstall-find-actions-for-file
-	       filename load-path-element dir parameters))
-	 
+	    (elinstall-actions-for-source-file
+	       filename dir))
+	 ;;$$ADD ME control, rather than trying to bind all control
+	 ;;variables so we can safely bind one, will use set and
+	 ;;unwind-protect. 
+
 	 (dir
 	    (let*
 	       ((dirname 
 		   (expand-file-name
 		      (second spec) 
 		      dir))
+		  ;;Relative filenames
+		  (elisp-source-files
+		     (directory-files
+			dirname 
+			nil 
+			elinstall-elisp-regexp))
 		  (load-path-here
-		     (not
-			(elinstall-get-parameter 
-			   parameters 'block-add-to-load-path)))
+		     (and 
+			elisp-source-files ;;List not empty.
+			add-to-load-path-p))
 		  (load-path-element
 		     (if load-path-here
 			dirname
 			load-path-element)))
 	       
-	       (cons
-		  ;;$$IMPROVE ME
-		  ;;Do this only if there are loadable files.
+	       (append
+		  ;;$$IMPROVE ME - remove the current deffile from
+		  ;;this list.
+		  ;;Maybe arrange to add this directory to load-path.
 		  (if load-path-here
-		     `(add-to-load-path
-			 ,(elinstall-get-parameter 
-			     parameters 'def-file)
-			 ,load-path-element)
+		     `((add-to-load-path
+			  ,def-file
+			  ,load-path-element))
 		     '())
-		  ;;$$IMPROVE ME
-		  ;;Do add-to-info-path too.  But test if there are
-		  ;;any info files present.
 
-		  ;;$$IMPROVE ME
-		  ;; We want to get a value for generated-autoload-file
-		  ;; from the local variables section if it's there.
-		  ;;Use `elinstall-maybe-get-deffile'
-		  ;; Otherwise we'll use `def-file' in parameters.
+		  ;;$$IMPROVE ME - be controlled by a control variable.
+		  ;;If any info files are present, do add-to-info-path
+		  ;;too. 
+		  (if
+		     (elinstall-dir-has-info dirname)
+		     `((add-to-info-path
+			  ,def-file
+			  "."))
+		     '())
+		  
 
-		  ;;$$FIXME This isn't quite right.  If directory
-		  ;;itself is not in load-path, this will be wrong.
-		  ;;Gotta know where our encompassing part of
-		  ;;load-path is.
-
-		  ;;$$ENCAP ME  This should be shared with the
-		  ;;treatment of (file FN)
 
 		  ;;$$FIXME Don't do directories, but maybe recurse on
-		  ;;them, if a flag is set.  And since we definitely
-		  ;;have a load-path element here,
-		  ;;'block-add-to-load-path according to a parameter.
+		  ;;them, if a flag is set.  
 		  ;;Maybe could follow/not symlinks similarly.
 		  (apply #'nconc
 		     (mapcar
 			#'(lambda (filename)
-			     (elinstall-find-actions-for-file
+			     (elinstall-actions-for-source-file
 				filename 
-				load-path-element 
-				dirname
-				parameters))
-		     
-			(directory-files
-			   dirname 
-			   nil ;;Relative filenames
-			   elinstall-elisp-regexp))))))
+				dirname))
+			elisp-source-files)))))
+
+	 (load-path
+	    (append
+	       `((add-to-load-path ,def-file ,dir))
+	       (let
+		  ((load-path-element dir))
+		  (elinstall-find-actions-by-spec-x spec dir))))
 	 
+
 	 (def-file
 	    (let
-	       ((new-def-file
+	       ((def-file
 		   (expand-file-name
 		      (second spec)
 		      dir))
@@ -986,20 +1020,30 @@ surrounds DIR.  It may not yet have been added to load-path."
 			(and for-preload (car for-preload))
 			`(preload-file
 			    ,(car for-preload)
-			    ,new-def-file
+			    ,def-file
 			    ,@(cdr for-preload))
 			'()))
 		  
-		  (elinstall-find-actions-by-spec
-		     (fourth spec)
-		     load-path-element 
-		     dir
-		     (elinstall-add-parameter parameters 
-			'def-file new-def-file))))))
+		  (elinstall-find-actions-by-spec-x
+		     (fourth spec) dir)))))
       
       ;;$$IMPROVE ME by adding the other cases in the design.
       (case spec
 	 (t))))
+;;;_    . elinstall-find-actions-by-spec
+(defun elinstall-find-actions-by-spec (spec load-path-element dir def-file)
+   ""
+
+   (let
+      ((load-path-element load-path-element)
+	 (def-file def-file)
+	 (add-to-load-path-p t))
+      (declare (special
+		  load-path-element def-file add-to-load-path-p))
+      
+      (elinstall-find-actions-by-spec-x
+	 spec dir)))
+
 ;;;_  . high-level work
 ;;;_   , elinstall-get-relevant-load-path
 (defun elinstall-get-relevant-load-path (actions)
@@ -1033,8 +1077,7 @@ surrounds DIR.  It may not yet have been added to load-path."
 	       spec
 	       nil
 	       dir
-	       `(
-		   (def-file . ,def-file ))))
+	       def-file))
 	 (stages (elinstall-segregate-actions actions))
 	 (use-load-path
 	    (elinstall-get-relevant-load-path
@@ -1046,11 +1089,13 @@ surrounds DIR.  It may not yet have been added to load-path."
 	 use-load-path)
       (elinstall-stage-arrange-preloads
 	 (elinstall-stages->arrange-preloads stages)
-	 (elinstall-get-deffile-list stages))
+	 (elinstall-get-deffile-list stages)
+	 force)
+      (elinstall-stage-byte-compile
+	 (elinstall-stages->byte-compile stages))
       t))
-
-;;;_  . Entry points
-;;;_   , elinstall
+;;;_ , Entry points
+;;;_  . elinstall
 ;;;###autoload
 (defun elinstall (project-name path spec &optional force)
    "Install elisp files.
@@ -1084,7 +1129,9 @@ development."
 
 
 
-;;;_   , elinstall-update-directory-autoloads
+;;;_  . elinstall-update-directory-autoloads
+;;$$SPLIT ME - one to just classically update autoloads, one to
+;;install a file.
 ;;$$TEST ME
 ;;;###autoload
 (defun elinstall-update-directory-autoloads (dir)
@@ -1104,7 +1151,9 @@ development."
 
 
 
-;;;_   , elinstall-update-file-autoloads
+;;;_  . elinstall-update-file-autoloads
+;;$$SPLIT ME - one to just classically update autoloads, one to
+;;install a file.
 ;;$$TEST ME
 ;;;###autoload
 (defun elinstall-update-file-autoloads (file)
@@ -1113,14 +1162,12 @@ development."
    (interactive "fInstall elisp file: ")
    (let
       ((def-file-name
-	  (or
-	    (elinstall-maybe-get-deffile file)
-	    (elinstall-expand-deffile-name 
-	       generated-autoload-file))))
-      (elinstall 
+	  ;;This is the default.  File local vars can override it.
+	  (elinstall-expand-deffile-name 
+	       generated-autoload-file)))
+      (elinstall-x
 	 file
 	 `(def-file ,def-file-name (nil) (file ,file)))))
-
 ;;;_. Footers
 ;;;_ , Provides
 
