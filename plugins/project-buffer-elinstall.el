@@ -41,11 +41,10 @@
 (elinstall
    "project-buffer-mode"
    (elinstall-directory-true-name)
-   '(def-file "project-buffer-loaddefs.el"
-       (all
-	  (dir "./")
-	  (dir "plugins/")
-	  (dir "extensions/"))))
+   '(all
+       (dir "./")
+       (dir "plugins/")
+       (dir "extensions/")))
 
 ;;;_. Footers
 ;;;_ , Provides
