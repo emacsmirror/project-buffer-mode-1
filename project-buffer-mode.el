@@ -1797,7 +1797,8 @@ PROJECT is the name of the project in which to insert the node
 note: regarding the project node, it's recommended to have NAME = PROJECT"
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (project-buffer-insert-node project-buffer-status
-			      (project-buffer-create-node name type filename project)))
+			      (project-buffer-create-node name type filename project))
+  (set-buffer-modified-p t))
 
 (defun project-buffer-delete-file (name project &optional dont-delete-project)
   "Delete the node named NAME which belongs to PROJECT.
@@ -1805,7 +1806,8 @@ Empty folder node will also be cleared up.  If no more file
 remain in the project; the project will also be deleted unless
 DONT-DELETE-PROJECT is set."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
-  (project-buffer-delete-file-node project-buffer-status name project dont-delete-project))
+  (project-buffer-delete-file-node project-buffer-status name project dont-delete-project)
+  (set-buffer-modified-p t))
 
 
 (defun project-buffer-delete-folder (name project &optional dont-delete-project)
@@ -1813,7 +1815,8 @@ DONT-DELETE-PROJECT is set."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (project-buffer-delete-folder-node project-buffer-status
 				     (project-buffer-search-node project-buffer-status name project)
-				     dont-delete-project))
+				     dont-delete-project)
+  (set-buffer-modified-p t))
 
 
 (defun project-buffer-delete-project (project)
@@ -1822,7 +1825,8 @@ Each files/folder under the project will also be deleted."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (project-buffer-delete-project-node project-buffer-status
 				      project
-				      (project-buffer-search-project-node project-buffer-status project)))
+				      (project-buffer-search-project-node project-buffer-status project))
+  (set-buffer-modified-p t))
 
 
 (defun project-buffer-set-project-platforms (project platform-list)
@@ -2713,7 +2717,8 @@ If the cursor is on a file - nothing will be done."
     ;; Force the refresh:
     (ewoc-invalidate status old-node)
     (ewoc-invalidate status cur-node)
-    (ewoc-goto-node status cur-node)))
+    (ewoc-goto-node status cur-node)
+    (set-buffer-modified-p t)))
 
 
 (defun project-buffer-perform-build-action ()
@@ -2846,7 +2851,8 @@ If the cursor is on a file - nothing will be done."
 		 (project-buffer-delete-folder-node status node (not project-buffer-cleanup-empty-projects)))
 		((eq type 'project)
 		 (project-buffer-delete-project-node project-buffer-status name node))
-		(t (error "Unknown data type"))))))))
+		(t (error "Unknown data type")))))))
+  (set-buffer-modified-p t))
 
 
 (defun project-buffer-delete-marked-files()
@@ -2873,7 +2879,8 @@ If the cursor is on a file - nothing will be done."
 	(when (funcall project-buffer-confirm-function confirm-str)
 	  (while node-list
 	    (project-buffer-delete-node status (pop node-list) (not project-buffer-cleanup-empty-projects)))
-	  (message result-str))))))
+	  (message result-str))))
+    (set-buffer-modified-p t)))
 
 
 (defun project-buffer-delete-current-node-or-marked-files()
@@ -2889,7 +2896,8 @@ will get deleted."
       (if (and (eq (project-buffer-node->type (ewoc-data node)) 'file)
 	       (project-buffer-node->marked (ewoc-data node)))
 	  (project-buffer-delete-marked-files)
-	  (project-buffer-delete-current-node)))))
+	  (project-buffer-delete-current-node)))
+    (set-buffer-modified-p t)))
 
 
 (defun project-buffer-add-dependency-to-current-project ()
@@ -2908,7 +2916,8 @@ will get deleted."
     (when (and new-dep
 	       (> (length new-dep) 0))
       (project-buffer-add-dependency-to-project status project new-dep))
-    ))
+    (set-buffer-modified-p t)))
+
 
 
 (defun project-buffer-remove-dependency-from-current-project ()
@@ -2923,7 +2932,8 @@ will get deleted."
     (when (and cur-deps
 	      (> (length cur-deps) 0))
       (project-buffer-remove-dependency-from-project status project cur-deps))
-    ))
+    (set-buffer-modified-p t)))
+
 
 
 (defun project-buffer-refresh(current-project-only)
@@ -2972,7 +2982,8 @@ nil; the command will request a file name."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (if project-buffer-file-name
       (project-buffer-raw-save project-buffer-file-name)
-      (call-interactively 'project-buffer-write-file)))
+      (call-interactively 'project-buffer-write-file))
+   (set-buffer-modified-p nil))
 
 
 (defun project-buffer-revert ()
@@ -2982,7 +2993,8 @@ from `project-buffer-file-name'."
   (unless project-buffer-status (error "Not in project-buffer buffer"))
   (unless project-buffer-file-name (error "No file-name attached to this project-buffer"))
   (project-buffer-erase-all project-buffer-status)
-  (project-buffer-raw-load project-buffer-file-name))
+  (project-buffer-raw-load project-buffer-file-name)
+  (set-buffer-modified-p nil))
 
 
 

@@ -434,7 +434,8 @@ FILE-FILTER will be added to the project."
     ;; Add the project's main file to the project:
     (when project-main-file
       (project-buffer-insert (file-name-nondirectory project-main-file) 'file  project-main-file project-name))
-  ))
+    (set-buffer-modified-p t)))
+
 
 
 (defun iproject-uniquify-name(file-name file-path project)
@@ -476,7 +477,8 @@ prefixing the project's filename with BASE-VIRTUAL-FOLDER."
 							  file-name current-project)))
 		  (when proj-name
 		    (project-buffer-insert proj-name 'file  file-name current-project))))
-	      file-list))
+	      file-list)
+  (set-buffer-modified-p t))
 
 
 (defun iproject-add-files-to-current-project(&optional root-folder file-filter base-virtual-folder)
@@ -524,7 +526,8 @@ prefixing the project's filename with BASE-VIRTUAL-FOLDER."
      
       ;; Add each individual files to the project:
       (iproject-add-file-list-to-current-project current-project base-virtual-folder root-folder file-list)
-      )))
+      (set-buffer-modified-p t))))
+
 
 
 (defun iproject-move-files-within-project(file-list folder-name)
@@ -551,7 +554,8 @@ FILE-LIST should be a list of list '(file-name file-path project)."
 							file-path project))
 		(when file-name
 		  (project-buffer-insert file-name 'file file-path project))))
-	    file-list)))
+	    file-list)
+    (set-buffer-modified-p t)))
   
   
 (defun iproject-move-marked-files-or-current-file-within-project(&optional folder-name)
@@ -569,7 +573,8 @@ FILE-LIST should be a list of list '(file-name file-path project)."
 						nil nil nil 'iproject-last-base-directory-history))))
     (unless node-list
       (setq node-list (list current-node)))
-    (iproject-move-files-within-project node-list folder-name)))
+    (iproject-move-files-within-project node-list folder-name)
+    (set-buffer-modified-p t)))
 
 
 (defun iproject-refresh-project(project)
