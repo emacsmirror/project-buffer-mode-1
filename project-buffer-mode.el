@@ -1782,7 +1782,12 @@ Commands:
 
       (unless skip-mode-hooks
 	(run-hooks 'project-buffer-mode-hook))
-      )))
+       
+      (add-hook 'write-file-functions            
+	 'project-buffer-offer-save   nil t)
+      (add-hook 'kill-buffer-query-functions     
+	 'project-buffer-confirm-kill nil t))))
+
 
 
 (defun project-buffer-insert (name type filename project)
@@ -2120,7 +2125,29 @@ FUNC's prototype must be:
     (when node
       (project-buffer-node->dependent-project-list (ewoc-data node)))))
 
+(defun project-buffer-confirm-kill ()
+   "Confirm whether to kill this buffer if it has been modified.
+Intended for `kill-buffer-query-functions'"
 
+   (let
+      ((buf (current-buffer)))
+      (if (buffer-modified-p buf)
+	 (yes-or-no-p 
+	    (format 
+	       "Buffer %s modified; kill anyway? "
+	       buf))
+	 t)))
+
+;;Separate from `project-buffer-save-file' because it has a separate
+;;concern, to co-operate with `write-file-functions'.
+(defun project-buffer-offer-save ()
+   "Save this buffer.
+Intended for hook `write-file-functions'"
+   (when project-buffer-status
+      (when make-backup-files 
+	 (or buffer-backed-up (backup-buffer)))
+      (project-buffer-save-file)
+      t))
 
 ;;
 ;;  Interactive commands:
