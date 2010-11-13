@@ -2959,7 +2959,8 @@ will get deleted."
     (with-current-buffer new-buffer
       (project-buffer-mode t)
       (project-buffer-raw-load filename t t)
-      (setq project-buffer-file-name filename))
+      (setq project-buffer-file-name filename)
+      (set-buffer-modified-p nil))
     (switch-to-buffer new-buffer)))
 
 
